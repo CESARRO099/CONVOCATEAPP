@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Convocate · Coordinador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#F4F1EC; --surface:#FFFFFF; --ink:#17262B; --ink-soft:#5B6B70;
+    --primary:#123B4A; --primary-soft:#E7EEEF; --accent:#E8A33D; --accent-soft:#FBEBD1;
+    --ok:#3B7A57; --ok-soft:#E3F0E8; --warn:#B4472A; --warn-soft:#F7E3DE; --line:#E4DFD5; --radius:16px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:"Inter",system-ui,sans-serif;}
+  header{ background:var(--surface); color:var(--ink); padding:20px; border-radius:0 0 20px 20px; border-bottom:1px solid var(--line); text-align:center; }
+  header img.logo{ max-width:200px; width:100%; height:auto; display:block; margin:0 auto 6px; }
+  header p{ margin:4px 0 0; font-size:0.8rem; color:var(--ink-soft); }
+  main{ max-width:640px; margin:0 auto; padding:16px; }
+  .card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:14px; }
+  .card h2{ font-family:"Fraunces",serif; font-size:1rem; margin:0 0 12px; }
+  .proceso-row{ display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px solid var(--line); gap:10px; flex-wrap:wrap; }
+  .proceso-row:first-child{ border-top:none; }
+  .proceso-info .titulo{ font-weight:600; font-size:0.9rem; }
+  .proceso-info .detalle{ font-size:0.78rem; color:var(--ink-soft); }
+  .estado-pill{ font-size:0.7rem; font-weight:600; padding:3px 9px; border-radius:999px; }
+  .estado-ACTIVO{ background:var(--ok-soft); color:var(--ok); }
+  .estado-PAUSADO{ background:var(--warn-soft); color:var(--warn); }
+  .estado-FINALIZADO{ background:var(--line); color:var(--ink-soft); }
+  button{ font-family:inherit; border:none; border-radius:10px; padding:8px 12px; font-size:0.8rem; font-weight:600; cursor:pointer; }
+  .btn-primary{ background:var(--primary); color:#fff; }
+  .btn-warn{ background:var(--warn); color:#fff; }
+  .btn-ok{ background:var(--ok); color:#fff; }
+  select, input{ width:100%; padding:9px 12px; border-radius:10px; border:1.5px solid var(--line); background:var(--bg); font-family:inherit; font-size:0.9rem; margin-bottom:10px; }
+  label{ display:block; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); font-weight:600; margin-bottom:5px; }
+  .status-msg{ font-size:0.8rem; color:var(--ink-soft); text-align:center; padding:14px; }
+  .msg-ok{ color:var(--ok); font-size:0.82rem; margin-top:8px; }
+  .msg-error{ color:var(--warn); font-size:0.82rem; margin-top:8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <img class="logo" src="./logo-completo.png" alt="ConvocaTE - Asociación Española" />
+  <p>Panel del coordinador · Octubre 2026</p>
+</header>
+
+<main>
+  <div class="card">
+    <h2>Procesos activos</h2>
+    <div id="procesos-wrap"><div class="status-msg">Cargando...</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Habilitar a alguien puntual</h2>
+    <label>Grupo</label>
+    <select id="hab-grupo">
+      <option value="RESTO">RESTO</option>
+      <option value="TC">TC</option>
+      <option value="RESO">RESO</option>
+    </select>
+    <label>Tipo</label>
+    <select id="hab-tipo">
+      <option value="GENERAL">General</option>
+      <option value="NOCHEROS">Nocheros (guardia)</option>
+    </select>
+    <label>Persona</label>
+    <select id="hab-persona"><option value="">Cargando...</option></select>
+    <button class="btn-primary" id="btn-habilitar" style="width:100%;">Habilitar ahora</button>
+    <div id="hab-msg"></div>
+  </div>
+
+  <div class="card">
+    <h2>No participará este mes</h2>
+    <label>Grupo</label>
+    <select id="exc-grupo">
+      <option value="RESTO">RESTO</option>
+      <option value="TC">TC</option>
+      <option value="RESO">RESO</option>
+    </select>
+    <label>Persona</label>
+    <select id="exc-persona"><option value="">Cargando...</option></select>
+    <button class="btn-warn" id="btn-excluir" style="width:100%;">Marcar que no participa</button>
+    <div id="exc-msg"></div>
+  </div>
+</main>
+
+<script>
+const SUPABASE_URL = "https://lcnvdgjedxikpqxxyzqr.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_HAAHgNldQ3_wJH0EDrq3DA_u04xA7Yd";
+const MES = "2026-10-01";
+
+async function sb(path, opts = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: {
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+      ...(opts.body ? { "Content-Type": "application/json" } : {}),
+      ...(opts.headers || {})
+    }
+  });
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+let personas = [];
+
+async function cargarPersonas() {
+  personas = await sb("perfiles?select=id,apellido,nombre&order=apellido.asc");
+  const opciones = `<option value="">Seleccioná...</option>` +
+    personas.map(p => `<option value="${p.id}">${[p.nombre, p.apellido].filter(Boolean).join(" ")}</option>`).join("");
+  document.getElementById("hab-persona").innerHTML = opciones;
+  document.getElementById("exc-persona").innerHTML = opciones;
+}
+
+async function cargarProcesos() {
+  const procesos = await sb(`procesos_convocatoria?select=id,grupo,tipo,estado,orden_actual,turno_vence,persona_actual_id&mes=eq.${MES}&order=grupo.asc,tipo.asc`);
+  const wrap = document.getElementById("procesos-wrap");
+  if (!procesos.length) {
+    wrap.innerHTML = `<div class="status-msg">Todavía no arrancó ningún proceso este mes.</div>`;
+    return;
+  }
+  wrap.innerHTML = procesos.map(p => {
+    const persona = personas.find(x => x.id === p.persona_actual_id);
+    const nombrePersona = persona ? [persona.nombre, persona.apellido].filter(Boolean).join(" ") : "—";
+    const vence = p.turno_vence ? new Date(p.turno_vence).toLocaleString("es-UY", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" }) : "—";
+    const btn = p.estado === "PAUSADO"
+      ? `<button class="btn-ok" data-accion="reanudar" data-grupo="${p.grupo}" data-tipo="${p.tipo}">Reanudar</button>`
+      : p.estado === "ACTIVO"
+      ? `<button class="btn-warn" data-accion="pausar" data-grupo="${p.grupo}" data-tipo="${p.tipo}">Pausar</button>`
+      : "";
+    return `
+      <div class="proceso-row">
+        <div class="proceso-info">
+          <div class="titulo">${p.grupo} ${p.tipo === "NOCHEROS" ? "(nocheros)" : ""}</div>
+          <div class="detalle">Turno actual: ${nombrePersona} · vence ${vence}</div>
+        </div>
+        <span class="estado-pill estado-${p.estado}">${p.estado}</span>
+        ${btn}
+      </div>`;
+  }).join("");
+
+  wrap.querySelectorAll("button[data-accion]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const fn = btn.dataset.accion === "pausar" ? "pausar_proceso" : "reanudar_proceso";
+      await sb(`rpc/${fn}`, { method: "POST", body: JSON.stringify({ p_mes: MES, p_grupo: btn.dataset.grupo, p_tipo: btn.dataset.tipo }) });
+      cargarProcesos();
+    });
+  });
+}
+
+document.getElementById("btn-habilitar").addEventListener("click", async () => {
+  const grupo = document.getElementById("hab-grupo").value;
+  const tipo = document.getElementById("hab-tipo").value;
+  const personaId = document.getElementById("hab-persona").value;
+  const msg = document.getElementById("hab-msg");
+  if (!personaId) { msg.innerHTML = `<div class="msg-error">Elegí una persona.</div>`; return; }
+  try {
+    await sb(`rpc/coordinador_habilitar`, {
+      method: "POST",
+      body: JSON.stringify({ p_mes: MES, p_grupo: grupo, p_tipo: tipo, p_persona_id: personaId })
+    });
+    msg.innerHTML = `<div class="msg-ok">✓ Habilitada, se le mandó la notificación.</div>`;
+    cargarProcesos();
+  } catch (e) {
+    msg.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
+  }
+});
+
+document.getElementById("btn-excluir").addEventListener("click", async () => {
+  const grupo = document.getElementById("exc-grupo").value;
+  const personaId = document.getElementById("exc-persona").value;
+  const msg = document.getElementById("exc-msg");
+  if (!personaId) { msg.innerHTML = `<div class="msg-error">Elegí una persona.</div>`; return; }
+  try {
+    await sb(`rpc/marcar_no_participa`, {
+      method: "POST",
+      body: JSON.stringify({ p_persona_id: personaId, p_mes: MES, p_grupo: grupo, p_registrado_por: "COORDINADOR" })
+    });
+    msg.innerHTML = `<div class="msg-ok">✓ Anotado. Si estaba habilitada ahora, ya se la salteó.</div>`;
+    cargarProcesos();
+  } catch (e) {
+    msg.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
+  }
+});
+
+(async () => {
+  await cargarPersonas();
+  await cargarProcesos();
+  setInterval(cargarProcesos, 15000); // refresca cada 15s
+})();
+</script>
+</body>
+</html>

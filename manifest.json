@@ -1,0 +1,18 @@
+{
+  "name": "Convocate",
+  "short_name": "Convocate",
+  "description": "App de convocatoria de suplentes - Servicio de Imagenología, Asociación Española",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F4F1EC",
+  "theme_color": "#123B4A",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
