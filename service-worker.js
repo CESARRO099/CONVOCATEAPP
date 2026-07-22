@@ -1,4 +1,4 @@
-const CACHE_NAME = "convocate-v1";
+const CACHE_NAME = "convocate-v2";
 const ASSETS = ["./index.html", "./manifest.json", "./icon.png"];
 self.addEventListener("install", (event) => {
   event.waitUntil(
