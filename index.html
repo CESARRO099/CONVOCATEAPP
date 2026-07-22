@@ -151,8 +151,9 @@
   td.dia-num{
     background:#BDD7EE; color:#1F4E78; font-weight:700;
   }
-  tr.sin-actividad td{ background:#A6A6A6; }
-  tr.sin-actividad td.dia-num{ background:#A6A6A6; color:#1F4E78; }
+  td.cerrado{ background:#A6A6A6; }
+  td.finde{ background:#DCDCDC; }
+  th.espacio, td.espacio{ border:none; background:var(--bg); min-width:14px; padding:0; }
   td.vacante{ background: var(--ok-soft); color: var(--ok); font-weight:600; }
   td.tomado{ background: var(--accent-soft); color:#8A5A12; font-weight:700; }
   button.btn-elegir{
@@ -224,8 +225,9 @@ const grillaWrap = document.getElementById("grilla-wrap");
 let personaActual = null;      // { id, apellido, nombre, empresa }
 let procesosActivos = [];      // procesos_convocatoria ACTIVO
 let sectorActual = null;
-let sectoresPorNombre = {};    // nombre -> { grupo, franjas: [{id,nombre}] }
+let sectoresPorNombre = {};    // nombre -> { grupo, franjas: [{id,nombre,dias_semana}] }
 let turnosDelMes = [];         // todos los turnos de MES_ACTUAL, ya "enriquecidos"
+let excepcionesPorFranja = {}; // "franjaId-fecha" -> 'ABIERTO' | 'CERRADO'
 
 async function sb(path, opts = {}) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -283,14 +285,15 @@ personaSelect.addEventListener("change", async (e) => {
 
 async function cargarDatosConvocatoria() {
   try {
-    const [sectores, franjas, procesos, horas] = await Promise.all([
+    const [sectores, franjas, procesos, horas, excepciones] = await Promise.all([
       sb("sectores?select=id,nombre,grupo"),
-      sb("franjas_horarias?select=id,nombre,sector_id,es_reten&order=id.asc"),
+      sb("franjas_horarias?select=id,nombre,sector_id,es_reten,dias_semana&order=id.asc"),
       sb("procesos_convocatoria?select=grupo,tipo,estado,persona_actual_id,turno_vence&estado=eq.ACTIVO"),
       sb(`rpc/calcular_horas_acumuladas`, {
         method: "POST",
         body: JSON.stringify({ p_persona_id: personaActual.id, p_mes: `${MES_ACTUAL}-01` })
-      })
+      }),
+      sb(`excepciones_franja?select=franja_horaria_id,fecha,tipo&fecha=gte.${MES_ACTUAL}-01&fecha=lte.${MES_ACTUAL}-31`)
     ]);
 
     sectoresPorNombre = {};
@@ -298,6 +301,10 @@ async function cargarDatosConvocatoria() {
       sectoresPorNombre[s.nombre] = { grupo: s.grupo, franjas: franjas.filter(f => f.sector_id === s.id) };
     }
     procesosActivos = procesos;
+    excepcionesPorFranja = {};
+    for (const ex of excepciones) {
+      excepcionesPorFranja[`${ex.franja_horaria_id}-${ex.fecha}`] = ex.tipo;
+    }
 
     // Horas acumuladas
     const horasNum = Number(horas) || 0;
@@ -373,8 +380,25 @@ function renderGrilla() {
     porCeldaReal[`${dia}-${franja.id}`] = t;
   }
 
+  // ¿Esta franja trabaja este día? (dias_semana + excepciones + feriado 19/10 tratado como domingo, salvo BSE)
+  function franjaActiva(franja, dia, fechaStr, diaSemanaReal) {
+    const excepcion = excepcionesPorFranja[`${franja.id}-${fechaStr}`];
+    if (excepcion === 'CERRADO') return false;
+    if (excepcion === 'ABIERTO') return true;
+    let diaEfectivo = diaSemanaReal;
+    if (fechaStr === `${MES_ACTUAL}-19` && sectorActual !== 'BSE') diaEfectivo = 7; // feriado tratado como domingo
+    return (franja.dias_semana || []).includes(diaEfectivo);
+  }
+
+  // CENDYTMA: separar visualmente FUJI del resto con una columna vacia de espacio
+  const esCendytma = sectorActual === 'CENDYTMA';
+  const idxFuji = franjas.findIndex(f => f.nombre.startsWith('FUJI'));
+
   let html = `<table class="grilla"><thead><tr><th>Día</th>`;
-  for (const f of franjas) html += `<th>${f.nombre}</th>`;
+  franjas.forEach((f, i) => {
+    if (esCendytma && i === idxFuji && idxFuji > 0) html += `<th class="espacio"></th>`;
+    html += `<th>${f.nombre.replace('FUJI ', '')}</th>`;
+  });
   html += `<th>Día</th></tr></thead><tbody>`;
 
   for (let dia = 1; dia <= 31; dia++) {
@@ -382,30 +406,34 @@ function renderGrilla() {
     const d = new Date(fechaStr + "T12:00:00");
     if (d.getMonth() !== Number(MES_ACTUAL.split("-")[1]) - 1) continue; // día no existe este mes
 
-    // ¿Hay algún dato (ocupado o vacante) este día para este sector? Si no, es un día sin actividad (fin de semana típicamente)
-    const hayAlgo = franjas.some(f => porCeldaReal[`${dia}-${f.id}`]);
-    const filaClase = hayAlgo ? "" : "sin-actividad";
+    // dia de semana real en formato 1=Lunes...7=Domingo
+    const diaSemanaReal = ((d.getDay() + 6) % 7) + 1;
+    const esFinde = diaSemanaReal === 6 || diaSemanaReal === 7;
 
-    html += `<tr class="${filaClase}"><td class="dia-num">${dia}</td>`;
-    for (const f of franjas) {
+    html += `<tr><td class="dia-num">${dia}</td>`;
+    franjas.forEach((f, i) => {
+      if (esCendytma && i === idxFuji && idxFuji > 0) html += `<td class="espacio"></td>`;
+
+      const activa = franjaActiva(f, dia, fechaStr, diaSemanaReal);
+      if (!activa) {
+        html += `<td class="cerrado"></td>`;
+        return;
+      }
       const t = porCeldaReal[`${dia}-${f.id}`];
-
       if (t && (t.persona_id || t.nombre_externo)) {
         const nombre = t.perfiles ? (t.perfiles.apellido) : t.nombre_externo;
         const esMio = t.persona_id === personaActual.id;
-        html += `<td class="${esMio ? "tomado" : ""}">${nombre}</td>`;
-      } else if (!hayAlgo) {
-        // día sin actividad para el sector entero: celda gris, sin texto
-        html += `<td></td>`;
-      } else {
-        // vacante explícita, o celda sin dato (se trata igual: libre)
-        if (puedoElegirAca && t) {
+        html += `<td class="${esMio ? "tomado" : (esFinde ? "finde" : "")}">${nombre}</td>`;
+      } else if (t && t.origen_vacante) {
+        if (puedoElegirAca) {
           html += `<td class="vacante"><button class="btn-elegir" data-turno-id="${t.id}">Elegir</button></td>`;
         } else {
           html += `<td class="vacante">Libre</td>`;
         }
+      } else {
+        html += `<td></td>`;
       }
-    }
+    });
     html += `<td class="dia-num">${dia}</td></tr>`;
   }
   html += `</tbody></table>`;
