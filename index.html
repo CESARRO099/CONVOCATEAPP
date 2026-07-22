@@ -134,31 +134,30 @@
   .tab.active{ background: var(--primary); color:#fff; border-color:var(--primary); }
 
   table.grilla{
-    width:100%; border-collapse:collapse; font-size:0.72rem; table-layout:fixed;
+    border-collapse:collapse; font-size:0.78rem; table-layout:auto;
     border: 2px solid #000;
   }
   table.grilla th{
-    text-align:center; padding: 5px 3px; color: #000; font-weight:700;
-    border: 1px solid #000; font-size:0.66rem; background:#fff;
+    text-align:center; padding: 7px 6px; color: #000; font-weight:700;
+    border: 1px solid #000; font-size:0.72rem; background:#fff; white-space:nowrap;
   }
-  table.grilla th:first-child, table.grilla th:last-child{ width: 28px; }
+  table.grilla th:first-child, table.grilla th:last-child{ min-width: 34px; }
   table.grilla td{
-   table.grilla td{
-    padding: 3px 2px; text-align:center; border: 1px solid #000;
-    color: #000; white-space:normal; word-break:break-word; line-height:1.15;
-    background:#fff;
+    padding: 7px 6px; text-align:center; vertical-align:middle; border: 1px solid #000;
+    color: #000; white-space:normal; word-break:break-word; line-height:1.2;
+    background:#fff; min-width: 78px;
   }
-  }
+  table.grilla td.dia-num{ min-width: 34px; }
   td.dia-num{
     background:#BDD7EE; color:#1F4E78; font-weight:700;
   }
   tr.sin-actividad td{ background:#A6A6A6; }
   tr.sin-actividad td.dia-num{ background:#A6A6A6; color:#1F4E78; }
-  td.vacante{ background: var(--accent-soft); color:#8A5A12; font-weight:600; }
-  td.tomado{ background: var(--ok-soft); color: var(--ok); font-weight:700; }
+  td.vacante{ background: var(--ok-soft); color: var(--ok); font-weight:600; }
+  td.tomado{ background: var(--accent-soft); color:#8A5A12; font-weight:700; }
   button.btn-elegir{
-    width:100%; border:1px solid #000; border-radius:0; padding:3px 1px;
-    background: var(--accent); color:#fff; font-family:inherit; font-size:0.66rem; font-weight:700;
+    width:100%; border:1px solid #000; border-radius:0; padding:5px 2px;
+    background: var(--ok); color:#fff; font-family:inherit; font-size:0.7rem; font-weight:700;
     cursor:pointer;
   }
   button.btn-elegir:active{ opacity:0.8; }
@@ -390,20 +389,21 @@ function renderGrilla() {
     html += `<tr class="${filaClase}"><td class="dia-num">${dia}</td>`;
     for (const f of franjas) {
       const t = porCeldaReal[`${dia}-${f.id}`];
-      if (!t) { html += `<td></td>`; continue; }
 
-      if (t.persona_id || t.nombre_externo) {
+      if (t && (t.persona_id || t.nombre_externo)) {
         const nombre = t.perfiles ? (t.perfiles.apellido) : t.nombre_externo;
         const esMio = t.persona_id === personaActual.id;
         html += `<td class="${esMio ? "tomado" : ""}">${nombre}</td>`;
-      } else if (t.origen_vacante) {
-        if (puedoElegirAca) {
+      } else if (!hayAlgo) {
+        // día sin actividad para el sector entero: celda gris, sin texto
+        html += `<td></td>`;
+      } else {
+        // vacante explícita, o celda sin dato (se trata igual: libre)
+        if (puedoElegirAca && t) {
           html += `<td class="vacante"><button class="btn-elegir" data-turno-id="${t.id}">Elegir</button></td>`;
         } else {
           html += `<td class="vacante">Libre</td>`;
         }
-      } else {
-        html += `<td></td>`;
       }
     }
     html += `<td class="dia-num">${dia}</td></tr>`;
