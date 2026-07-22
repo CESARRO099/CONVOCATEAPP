@@ -380,13 +380,16 @@ function renderGrilla() {
     porCeldaReal[`${dia}-${franja.id}`] = t;
   }
 
-  // ¿Esta franja trabaja este día? (dias_semana + excepciones + feriado 19/10 tratado como domingo, salvo BSE)
+  // ¿Esta franja trabaja este día? (dias_semana + excepciones + feriados 12/10 y 19/10
+  // tratados como domingo para todos, salvo BSE siempre, y RESO el 12/10 puntualmente)
   function franjaActiva(franja, dia, fechaStr, diaSemanaReal) {
     const excepcion = excepcionesPorFranja[`${franja.id}-${fechaStr}`];
     if (excepcion === 'CERRADO') return false;
     if (excepcion === 'ABIERTO') return true;
     let diaEfectivo = diaSemanaReal;
-    if (fechaStr === `${MES_ACTUAL}-19` && sectorActual !== 'BSE') diaEfectivo = 7; // feriado tratado como domingo
+    const esFeriado = fechaStr === `${MES_ACTUAL}-12` || fechaStr === `${MES_ACTUAL}-19`;
+    const excluidoDeLaRegla = sectorActual === 'BSE' || (sectorActual === 'RESO' && fechaStr === `${MES_ACTUAL}-12`);
+    if (esFeriado && !excluidoDeLaRegla) diaEfectivo = 7; // feriado tratado como domingo
     return (franja.dias_semana || []).includes(diaEfectivo);
   }
 
