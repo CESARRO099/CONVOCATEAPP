@@ -322,12 +322,22 @@ async function cargarDatosConvocatoria() {
       bannerWrap.innerHTML = "";
     }
 
-    // Traer TODOS los turnos del mes (con nombre de sector, franja y persona embebidos)
-    turnosDelMes = await sb(
-      `turnos?select=id,fecha,persona_id,nombre_externo,origen_vacante,` +
-      `franjas_horarias(nombre,sector_id,sectores(nombre)),perfiles(apellido,nombre)` +
-      `&fecha=gte.${MES_ACTUAL}-01&fecha=lte.${MES_ACTUAL}-31`
-    );
+    // Traer TODOS los turnos del mes, paginando de a 1000 para no perder
+    // registros por el limite por defecto de Supabase
+    turnosDelMes = [];
+    let desde = 0;
+    while (true) {
+      const pagina = await sb(
+        `turnos?select=id,fecha,persona_id,nombre_externo,origen_vacante,` +
+        `franjas_horarias(nombre,sector_id,sectores(nombre)),perfiles(apellido,nombre)` +
+        `&fecha=gte.${MES_ACTUAL}-01&fecha=lte.${MES_ACTUAL}-31&order=id.asc`,
+        { headers: { "Range-Unit": "items", "Range": `${desde}-${desde + 999}` } }
+      );
+      if (!pagina || !pagina.length) break;
+      turnosDelMes.push(...pagina);
+      if (pagina.length < 1000) break;
+      desde += 1000;
+    }
 
     renderTabs();
   } catch (e) {
@@ -381,7 +391,7 @@ function renderGrilla() {
   }
 
   // ¿Esta franja trabaja este día? (dias_semana + excepciones + feriado 12/10
-  // tratados como domingo para todos, salvo BSE siempre, y RESO el 12/10 puntualmente)
+  // tratado como domingo para todos, salvo BSE siempre, y RESO puntualmente)
   function franjaActiva(franja, dia, fechaStr, diaSemanaReal) {
     const excepcion = excepcionesPorFranja[`${franja.id}-${fechaStr}`];
     if (excepcion === 'CERRADO') return false;
