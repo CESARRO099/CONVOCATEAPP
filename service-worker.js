@@ -1,5 +1,5 @@
-const CACHE_NAME = "convocate-v2";
-const ASSETS = ["./index.html", "./manifest.json", "./icon.png"];
+const CACHE_NAME = "convocate-v3";
+const ASSETS = ["./manifest.json", "./icon.png"];
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
@@ -15,16 +15,37 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 self.addEventListener("fetch", (event) => {
+  const url = event.request.url;
   // Datos de Supabase: siempre a la red (necesitamos info actualizada).
-  if (event.request.url.includes("supabase.co")) return;
+  if (url.includes("supabase.co")) return;
+
+  // El documento HTML y el propio código (index.html, /, y cualquier
+  // navegación): SIEMPRE a la red primero, para no quedar pegados con
+  // una versión vieja del código. Solo si no hay conexión, se usa la
+  // copia guardada como respaldo.
+  const esDocumento = event.request.mode === "navigate" || url.endsWith("index.html") || url.endsWith("/");
+  if (esDocumento) {
+    event.respondWith(
+      (async () => {
+        try {
+          const response = await fetch(event.request, { cache: "no-store" });
+          return response;
+        } catch (e) {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          throw e;
+        }
+      })()
+    );
+    return;
+  }
+
+  // El resto (imágenes, fuentes, manifest): cache primero, más rápido.
   event.respondWith(
     (async () => {
       const cached = await caches.match(event.request);
       if (cached) return cached;
       const response = await fetch(event.request);
-      // Safari/iOS no acepta que un service worker devuelva una respuesta
-      // que vino de una redirección (ej: Vercel redirigiendo "/" a
-      // "/index.html"). Se reconstruye una respuesta "limpia".
       if (response.redirected) {
         const body = await response.blob();
         return new Response(body, {
