@@ -393,7 +393,16 @@ async function renderGrilla() {
     porCeldaReal[`${dia}-${t.franjas_horarias.nombre}`] = t;
   }
 
-  const { cols, merges, filas, dia_col, first_day_row, last_day_row } = estructura;
+  const { cols, merges, filas, dia_col, first_day_row, last_day_row, ultima_col_planilla, ultima_col_real } = estructura;
+
+  // Limite real de columnas con contenido (evita la cola vacia que arrastran
+  // algunas hojas de Excel, ej. BQ/EMERG/POLI/SOLY llegan a Z aunque la
+  // planilla real termine mucho antes). Si el sector todavia no tiene estos
+  // limites cargados en Supabase, se usa cols.length como antes (sin recorte).
+  const totalCols = (typeof ultima_col_real === "number") ? ultima_col_real + 1 : cols.length;
+  // Limite hasta donde llega el bordeado real de la tabla (para no pintar de
+  // gris la columna de notas / el relleno vacio a la derecha de la planilla).
+  const limiteGris = (typeof ultima_col_planilla === "number") ? ultima_col_planilla : (totalCols - 1);
 
   // Marcar que celdas quedan "cubiertas" por una combinacion (merge), y el
   // tamaño de colspan/rowspan que corresponde al ancla de cada combinacion
@@ -411,7 +420,7 @@ async function renderGrilla() {
   }
 
   let html = `<table class="grilla"><colgroup>`;
-  for (const w of cols) html += `<col style="width:${anchoExcelAPx(w)}px">`;
+  for (const w of cols.slice(0, totalCols)) html += `<col style="width:${anchoExcelAPx(w)}px">`;
   html += `</colgroup><tbody>`;
 
   for (let r = 0; r < filas.length; r++) {
@@ -429,7 +438,7 @@ async function renderGrilla() {
     }
 
     html += `<tr>`;
-    for (let c = 0; c < cols.length; c++) {
+    for (let c = 0; c < totalCols; c++) {
       if (cubierta.has(`${r}-${c}`)) continue;
       const celda = filas[r][c];
       const span = ancla[`${r}-${c}`];
@@ -455,7 +464,7 @@ async function renderGrilla() {
         }
       }
 
-      if (grisFila) clases += " gris";
+      if (grisFila && c <= limiteGris) clases += " gris";
 
       html += `<td${attrs} style="${borderStyle}${boldStyle}" class="${clases.trim()}">${contenido}</td>`;
     }
