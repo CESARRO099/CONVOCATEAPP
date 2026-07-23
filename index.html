@@ -455,7 +455,11 @@ async function renderGrilla() {
       let contenido = celda.v ?? "";
       let clases = "";
 
-      if (esFilaDeDia && celda.r) {
+      if (esFilaDeDia && celda.g) {
+        // Celda gris en el Excel = no se trabaja ese día en esa franja
+        contenido = "";
+        clases += " gris";
+      } else if (esFilaDeDia && celda.r) {
         // Celda roja en el Excel = solo SUISAS (bloqueada para Española por ahora)
         contenido = "LIBRE";
         clases += " libre-suisas";
