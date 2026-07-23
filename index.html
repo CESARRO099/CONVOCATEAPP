@@ -142,7 +142,8 @@
     background:#fff;
   }
   td.gris{ background:#A6A6A6 !important; }
-  td.libre-texto{ color: var(--ok); font-weight:700; }
+  td.libre-texto{ color: #00C853; font-weight:700; }
+  td.libre-suisas{ color: #D32F2F; font-weight:700; }
   button.btn-elegir{
     width:100%; border:1px solid #000; border-radius:0; padding:3px 1px;
     background: var(--ok); color:#fff; font-family:inherit; font-size:0.7rem; font-weight:700;
@@ -393,18 +394,20 @@ async function renderGrilla() {
     porCeldaReal[`${dia}-${t.franjas_horarias.nombre}`] = t;
   }
 
-  const { cols, merges, filas, dia_col, first_day_row, last_day_row, ultima_col_planilla, ultima_col_real, primera_col_planilla } = estructura;
+  const { cols, merges, filas, dia_col, first_day_row, last_day_row, ultima_col_real, columnas_grises } = estructura;
 
   // Limite real de columnas con contenido (evita la cola vacia que arrastran
   // algunas hojas de Excel, ej. BQ/EMERG/POLI/SOLY llegan a Z aunque la
-  // planilla real termine mucho antes). Si el sector todavia no tiene estos
-  // limites cargados en Supabase, se usa cols.length como antes (sin recorte).
+  // planilla real termine mucho antes). Si el sector todavia no tiene este
+  // limite cargado en Supabase, se usa cols.length como antes (sin recorte).
   const totalCols = (typeof ultima_col_real === "number") ? ultima_col_real + 1 : cols.length;
-  // Rango de columnas hasta donde llega el bordeado real de la tabla (para no
-  // pintar de gris ni la columna A de margen a la izquierda -sin borde en el
-  // Excel original- ni la columna de notas / relleno vacio a la derecha).
-  const limiteGris = (typeof ultima_col_planilla === "number") ? ultima_col_planilla : (totalCols - 1);
-  const primeraColGris = (typeof primera_col_planilla === "number") ? primera_col_planilla : 0;
+  // Set de columnas que realmente tienen bordeado en el Excel (las unicas
+  // que reciben el gris de fin de semana/feriado). Esto cubre no solo los
+  // costados (margen a la izquierda, notas/relleno a la derecha) sino
+  // tambien columnas separadoras en el medio de hojas con dos tablas lado
+  // a lado (ej. CENDYTMA). Si el sector todavia no tiene esto cargado, se
+  // pintan todas las columnas como antes (comportamiento viejo).
+  const setColumnasGrises = Array.isArray(columnas_grises) ? new Set(columnas_grises) : null;
 
   // Marcar que celdas quedan "cubiertas" por una combinacion (merge), y el
   // tamaño de colspan/rowspan que corresponde al ancla de cada combinacion
@@ -452,8 +455,12 @@ async function renderGrilla() {
       let contenido = celda.v ?? "";
       let clases = "";
 
-      if (esFilaDeDia && celda.y) {
-        // Celda marcada amarilla en el Excel = hay que ofrecerla
+      if (esFilaDeDia && celda.r) {
+        // Celda roja en el Excel = solo SUISAS (bloqueada para Española por ahora)
+        contenido = "LIBRE";
+        clases += " libre-suisas";
+      } else if (esFilaDeDia && celda.y) {
+        // Celda amarilla = disponible para Española, hay que ofrecerla
         const franjaTexto = textoEncabezado(estructura, c);
         const t = porCeldaReal[`${dia}-${franjaTexto}`];
         if (t && (t.persona_id || t.nombre_externo)) {
@@ -466,7 +473,7 @@ async function renderGrilla() {
         }
       }
 
-      if (grisFila && c >= primeraColGris && c <= limiteGris) clases += " gris";
+      if (grisFila && (setColumnasGrises ? setColumnasGrises.has(c) : true)) clases += " gris";
 
       html += `<td${attrs} style="${borderStyle}${boldStyle}" class="${clases.trim()}">${contenido}</td>`;
     }
