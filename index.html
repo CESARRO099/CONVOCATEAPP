@@ -455,8 +455,9 @@ async function renderGrilla() {
       let contenido = celda.v ?? "";
       let clases = "";
 
-      if (esFilaDeDia && celda.g) {
+      if (esFilaDeDia && celda.g && c !== dia_col) {
         // Celda gris en el Excel = no se trabaja ese día en esa franja
+        // (nunca aplica a la columna del número de día)
         contenido = "";
         clases += " gris";
       } else if (esFilaDeDia && celda.r) {
