@@ -393,16 +393,18 @@ async function renderGrilla() {
     porCeldaReal[`${dia}-${t.franjas_horarias.nombre}`] = t;
   }
 
-  const { cols, merges, filas, dia_col, first_day_row, last_day_row, ultima_col_planilla, ultima_col_real } = estructura;
+  const { cols, merges, filas, dia_col, first_day_row, last_day_row, ultima_col_planilla, ultima_col_real, primera_col_planilla } = estructura;
 
   // Limite real de columnas con contenido (evita la cola vacia que arrastran
   // algunas hojas de Excel, ej. BQ/EMERG/POLI/SOLY llegan a Z aunque la
   // planilla real termine mucho antes). Si el sector todavia no tiene estos
   // limites cargados en Supabase, se usa cols.length como antes (sin recorte).
   const totalCols = (typeof ultima_col_real === "number") ? ultima_col_real + 1 : cols.length;
-  // Limite hasta donde llega el bordeado real de la tabla (para no pintar de
-  // gris la columna de notas / el relleno vacio a la derecha de la planilla).
+  // Rango de columnas hasta donde llega el bordeado real de la tabla (para no
+  // pintar de gris ni la columna A de margen a la izquierda -sin borde en el
+  // Excel original- ni la columna de notas / relleno vacio a la derecha).
   const limiteGris = (typeof ultima_col_planilla === "number") ? ultima_col_planilla : (totalCols - 1);
+  const primeraColGris = (typeof primera_col_planilla === "number") ? primera_col_planilla : 0;
 
   // Marcar que celdas quedan "cubiertas" por una combinacion (merge), y el
   // tamaño de colspan/rowspan que corresponde al ancla de cada combinacion
@@ -464,7 +466,7 @@ async function renderGrilla() {
         }
       }
 
-      if (grisFila && c <= limiteGris) clases += " gris";
+      if (grisFila && c >= primeraColGris && c <= limiteGris) clases += " gris";
 
       html += `<td${attrs} style="${borderStyle}${boldStyle}" class="${clases.trim()}">${contenido}</td>`;
     }
