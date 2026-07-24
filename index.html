@@ -311,7 +311,7 @@ async function cargarDatosConvocatoria() {
     let desde = 0;
     while (true) {
       const pagina = await sb(
-        `turnos?select=id,fecha,persona_id,nombre_externo,origen_vacante,` +
+        `turnos?select=id,fecha,persona_id,nombre_externo,origen_vacante,col_excel,` +
         `franjas_horarias(nombre,sector_id,sectores(nombre)),perfiles(apellido,nombre)` +
         `&fecha=gte.${MES_ACTUAL}-01&fecha=lte.${MES_ACTUAL}-31&order=id.asc`,
         { headers: { "Range-Unit": "items", "Range": `${desde}-${desde + 999}` } }
@@ -360,10 +360,108 @@ function anchoExcelAPx(w) {
 
 // Busca hacia arriba, dentro de las filas de encabezado (antes de first_day_row),
 // el texto mas cercano en esa columna (para matchear contra franjas_horarias.nombre)
-function textoEncabezado(estructura, col) {
+// Traducción de encabezados del Excel -> nombre de franja en Supabase
+// Clave: "SECTOR|ENCABEZADO_EXCEL" -> nombre en Supabase
+const HEADER_MAP = {
+  "BQ|6:30 A 8:30": "6:30 a 8:30",
+  "BQ|8 A 12": "8 A 12 (D)",
+  "BQ|8 A 12 (E)": "8 A 12 (E)",
+  "BQ|12 A 16 (F)": "12 A 16 (F)",
+  "BQ|12 A 16 (G)": "12 A 16 (G)",
+  "BQ|16 A 20 (H)": "16 A 20 (H)",
+  "BQ|16 A 20 (I)": "16 A 20 (I)",
+  "BQ|16 A 20": "16 A 20 (H)",
+  "BQ|16 A 20 SUP": "16 A 20 SUP",
+  "BSE|8 A 12": "8 A 12",
+  "BSE|12 A 16": "12 A 16",
+  "BSE|16 A 20": "16 A 20",
+  "BSE|20 A 24": "20 A 24",
+  "CCA|8 A 12": "8 A 12",
+  "CCA|12 A 16": "12 A 16",
+  "CCA|16 A 20": "16 A 20",
+  "CENDYTMA|7:30 A 11:30": "7:30 A 11:30",
+  "CENDYTMA|11:30 A 15:30": "11:30 A 15:30",
+  "CENDYTMA|15:30 A 19:30": "15:30 A 19:30",
+  "CENDYTMA|FUJI 8 A 12": "FUJI 8 A 12",
+  "CENDYTMA|FUJI 9 A 12": "FUJI 9 A 12",
+  "CENDYTMA|12 A 15": "FUJI 12 A 15",
+  "CENDYTMA|12 A 16": "FUJI 12 A 16",
+  "DENSITO|7:30 A 11:30": "7:30 A 11:30",
+  "DENSITO|12 A 16": "12 A 16",
+  "EMERG|1 A 7": "1 A 7",
+  "EMERG|7 A 11": "7 A 11",
+  "EMERG|12 A 16": "12 A 16",
+  "EMERG|16 A 20": "16 A 20",
+  "EMERG|20 A 1": "20 A 1",
+  "FOTOG|7 A 13": "7 A 13",
+  "FOTOG|8 A 14": "8 A 14",
+  "FOTOG|13 A 19": "13 A 19",
+  "GREMCA|9 A 12": "9 A 12",
+  "GUARDIA|7 A 19": "7 A 19",
+  "GUARDIA|8 A 20": "8 A 20",
+  "GUARDIA|20 A 7": "20 A 7",
+  "GUARDIA|19 A 7": "19 A 7",
+  "POLI|SALA 2 (7 A 11)": "SALA 2 (7 A 11)",
+  "POLI|TRAUMA / POLI (7 A 11)": "TRAUMA/POLI (7 A 11)",
+  "POLI|PORTATILES (8 A 12)": "PORTATILES (8 A 12)",
+  "POLI|SUPERNUMERARIO (8 A 12)": "SUPERNUMERARIO (8 A 12)",
+  "POLI|EMER/POLI (11 A 15)": "EMER/POLI (11 A 15)",
+  "POLI|PORTATILES (12 A 16)": "PORTATILES (12 A 16)",
+  "POLI|SALA 1 (12 A 16)": "SALA 1 (12 A 16)",
+  "POLI|SALA 2 (12 A 16)": "SALA 2 (12 A 16)",
+  "POLI|SALA 2 (15:30 A 19:30)": "SALA 2 (15:30 A 19:30)",
+  "POLI|PORTATILES (16 A 20)": "PORTATILES (16 A 20)",
+  "POLI|SALA 2 (16:30 A 20:30)": "SALA 2 (16:30 A 20:30)",
+  "POLI|NOCTURNA (20 A 0)": "NOCTURNA (20 A 0)",
+  "POLI|FONASA (8 A 12)": "FONASA (8 A 12)",
+  "RESO|7:30 A 11:30": "7:30 A 11:30",
+  "RESO|11:30 A 15:30": "11:30 A 15:30",
+  "RESO|12 A 16 (1,5 T)": "12 A 16 (1,5T)",
+  "RESO|12 A 16 (1,5T)": "12 A 16 (1,5T)",
+  "RESO|15:30 A 19:30": "15:30 A 19:30",
+  "RESO|16 A 20 (1,5T)": "16 A 20 (1,5T)",
+  "RESO|19:30 A 23:30": "19:30 A 23:30",
+  "RESO|8 A 14": "8 A 14",
+  "RESO|14 A 20": "14 A 20",
+  "RESO|20 A 24": "20 A 24",
+  "RETEN|20 A 8": "20 A 8 (LUN-VIE)",
+  "RETEN|20 A 24": "20 A 24 (LUN-VIE)",
+  "RETEN|8 A 20": "8 A 20 (FIN DE SEMANA)",
+  "RETEN|20 A 8 FDS": "20 A 8 (FIN DE SEMANA)",
+  "SOLY|7 A 11": "7 A 11",
+  "SOLY|12 A 16": "12 A 16",
+  "SOLY|16 A 20": "16 A 20",
+  "SOLY|16 A 20 TC": "16 A 20 TC",
+  "SOLY|9 A 13": "9 A 13",
+  "TC|8 A 12 (C)": "8 A 12 (C)",
+  "TC|8 A 12 (D)": "8 A 12 (D)",
+  "TC|12 A 16 (E)": "12 A 16 (E)",
+  "TC|12 A 16 (F)": "12 A 16 (F)",
+  "TC|16 A 20 (G)": "16 A 20 (G)",
+  "TC|16 A 20 (H)": "16 A 20 (H)",
+  "TC|20 A 24 (I)": "20 A 24 (I)",
+  "TC|20 A 24 (J)": "20 A 24 (J)",
+  "TRAUMA|8 A 12": "8 A 12",
+  "TRAUMA|12 A 16": "12 A 16",
+  "TRAUMA|16 A 20": "16 A 20",
+  "UCAL|6 A 12": "6 A 12",
+  "UCAL|12 A 16": "12 A 16",
+  "UCAL|16 A 20": "16 A 20",
+};
+
+function textoEncabezado(estructura, col, sector) {
   for (let r = estructura.first_day_row - 1; r >= 0; r--) {
     const v = estructura.filas[r][col]?.v;
-    if (v && String(v).trim() !== "") return String(v).trim();
+    if (v && String(v).trim() !== "") {
+      const raw = String(v).trim();
+      // Traducir usando HEADER_MAP si hay sector
+      if (sector) {
+        const mapped = HEADER_MAP[`${sector}|${raw.toUpperCase()}`]
+                    || HEADER_MAP[`${sector}|${raw}`];
+        if (mapped) return mapped;
+      }
+      return raw;
+    }
   }
   return "";
 }
@@ -386,12 +484,13 @@ async function renderGrilla() {
   const grupoHabilitado = miGrupoHabilitadoAhora();
   const puedoElegirAca = info && grupoHabilitado === info.grupo;
 
-  // Indexar turnos de este sector por (dia, nombre de franja)
+  // Indexar turnos de este sector por (dia, col_excel)
   const porCeldaReal = {};
   for (const t of turnosDelMes) {
     if (!t.franjas_horarias || t.franjas_horarias.sectores?.nombre !== sectorActual) continue;
     const dia = Number(t.fecha.slice(8, 10));
-    porCeldaReal[`${dia}-${t.franjas_horarias.nombre}`] = t;
+    const key = t.col_excel != null ? `${dia}-col:${t.col_excel}` : `${dia}-${t.franjas_horarias.nombre}`;
+    porCeldaReal[key] = t;
   }
 
   const { cols, merges, filas, dia_col, first_day_row, last_day_row, ultima_col_real, columnas_grises } = estructura;
@@ -466,8 +565,8 @@ async function renderGrilla() {
         clases += " libre-suisas";
       } else if (esFilaDeDia && celda.y) {
         // Celda amarilla = disponible para Española, hay que ofrecerla
-        const franjaTexto = textoEncabezado(estructura, c);
-        const t = porCeldaReal[`${dia}-${franjaTexto}`];
+        const franjaKey = `${dia}-col:${c}`;
+        const t = porCeldaReal[franjaKey] || porCeldaReal[`${dia}-${textoEncabezado(estructura, c, sectorActual)}`];
         if (t && (t.persona_id || t.nombre_externo)) {
           contenido = t.perfiles ? t.perfiles.apellido : t.nombre_externo;
         } else if (puedoElegirAca && t) {
