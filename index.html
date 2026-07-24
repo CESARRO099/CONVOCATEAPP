@@ -594,10 +594,13 @@ async function renderGrilla() {
         }
       } else if (esFilaDeDia && puedoElegirAca && contenido && contenido !== "X") {
         // Celda con texto (turno fijo) — verificar si es propio para mostrar Rechazar
+        // o si fue rechazado para mostrar Elegir
         const franjaKey = `${dia}-col:${c}`;
         const t = porCeldaReal[franjaKey];
         if (t && t.persona_id === personaActual?.id) {
           contenido = `<button class="btn-rechazar" data-turno-id="${t.id}">Rechazar</button>`;
+        } else if (t && !t.persona_id && !t.nombre_externo) {
+          contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
         }
       }
 
