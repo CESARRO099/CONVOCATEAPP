@@ -297,6 +297,7 @@ async function cargarDatosConvocatoria() {
 
     // Horas acumuladas
     const horasNum = Number(horas) || 0;
+    window._horasActuales = horasNum;
     horasTexto.textContent = `${horasNum.toFixed(1)} / 80 hs`;
     horasFill.style.width = Math.min(100, (horasNum / 82) * 100) + "%";
 
@@ -599,14 +600,22 @@ async function renderGrilla() {
 
 async function elegirTurno(turnoId) {
   try {
+    // Verificar limite de horas antes de intentar tomar el turno
+    if ((window._horasActuales || 0) >= 82) {
+      alert("Ya completaste tus horas para este mes.");
+      return;
+    }
     const ok = await sb(`rpc/tomar_turno`, {
       method: "POST",
       body: JSON.stringify({ p_turno_id: turnoId, p_persona_id: personaActual.id })
     });
     if (ok === true) {
-      await cargarDatosConvocatoria(); // refresca todo (horas, banner, grilla)
+      await cargarDatosConvocatoria();
+    } else if ((window._horasActuales || 0) >= 78) {
+      alert("Ya completaste tus horas para este mes.");
+      await cargarDatosConvocatoria();
     } else {
-      alert("No se pudo tomar ese turno — puede que ya no esté vacante, o que ya no sea tu turno.");
+      alert("Este turno ya no está disponible.");
       await cargarDatosConvocatoria();
     }
   } catch (e) {
