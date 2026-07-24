@@ -569,7 +569,6 @@ async function renderGrilla() {
 
       if (esFilaDeDia && celda.g && c !== dia_col) {
         // Celda gris en el Excel = no se trabaja ese día en esa franja
-        // (nunca aplica a la columna del número de día)
         contenido = "";
         clases += " gris";
       } else if (esFilaDeDia && celda.r) {
@@ -592,6 +591,13 @@ async function renderGrilla() {
         } else {
           contenido = "LIBRE";
           clases += " libre-texto";
+        }
+      } else if (esFilaDeDia && puedoElegirAca && contenido && contenido !== "X") {
+        // Celda con texto (turno fijo) — verificar si es propio para mostrar Rechazar
+        const franjaKey = `${dia}-col:${c}`;
+        const t = porCeldaReal[franjaKey];
+        if (t && t.persona_id === personaActual?.id) {
+          contenido = `<button class="btn-rechazar" data-turno-id="${t.id}">Rechazar</button>`;
         }
       }
 
