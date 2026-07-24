@@ -233,8 +233,11 @@ async function sb(path, opts = {}) {
 }
 
 function nombreEmpresa(e) { return e === "ESPANOLA" ? "ESPAÑOLA" : e; }
+function sinTildes(s) {
+  return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
 function nombreCompleto(p) { 
-  const ap = (p.apellido || "").toUpperCase();
+  const ap = sinTildes(p.apellido || "").toUpperCase();
   return p.nombre ? `${ap}, ${p.nombre}` : ap;
 }
 
@@ -571,7 +574,7 @@ async function renderGrilla() {
         const franjaKey = `${dia}-col:${c}`;
         const t = porCeldaReal[franjaKey] || porCeldaReal[`${dia}-${textoEncabezado(estructura, c, sectorActual)}`];
         if (t && (t.persona_id || t.nombre_externo)) {
-          contenido = t.perfiles ? t.perfiles.apellido.toUpperCase() : t.nombre_externo.toUpperCase();
+          contenido = t.perfiles ? sinTildes(t.perfiles.apellido).toUpperCase() : sinTildes(t.nombre_externo).toUpperCase();
         } else if (puedoElegirAca && t) {
           contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
         } else {
