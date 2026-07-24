@@ -497,13 +497,15 @@ async function renderGrilla() {
   const grupoHabilitado = miGrupoHabilitadoAhora();
   const puedoElegirAca = info && grupoHabilitado === info.grupo;
 
-  // Indexar turnos de este sector por (dia, col_excel)
+  // Indexar turnos de este sector por (dia, col_excel) y también por id
   const porCeldaReal = {};
+  const porTurnoId = {};
   for (const t of turnosDelMes) {
     if (!t.franjas_horarias || t.franjas_horarias.sectores?.nombre !== sectorActual) continue;
     const dia = Number(t.fecha.slice(8, 10));
     const key = t.col_excel != null ? `${dia}-col:${t.col_excel}` : `${dia}-${t.franjas_horarias.nombre}`;
     porCeldaReal[key] = t;
+    porTurnoId[t.id] = t;
   }
 
   const { cols, merges, filas, dia_col, first_day_row, last_day_row, ultima_col_real, columnas_grises } = estructura;
@@ -628,6 +630,14 @@ async function rechazarTurno(turnoId) {
       body: JSON.stringify({ p_turno_id: turnoId, p_persona_id: personaActual.id })
     });
     if (ok === true) {
+      // Actualizar localmente el turno en turnosDelMes para que el re-render
+      // lo encuentre como vacante (persona_id = null) aunque col_excel sea null
+      const turno = turnosDelMes.find(t => t.id === turnoId);
+      if (turno) {
+        turno.persona_id = null;
+        turno.perfiles = null;
+        turno.asignado_en = null;
+      }
       await cargarDatosConvocatoria();
     } else {
       alert("No se pudo rechazar ese turno.");
@@ -640,22 +650,27 @@ async function rechazarTurno(turnoId) {
 
 async function elegirTurno(turnoId) {
   try {
-    // Verificar limite de horas antes de intentar tomar el turno
     if ((window._horasActuales || 0) >= 82) {
       alert("Ya completaste tus horas para este mes.");
       return;
     }
-    const ok = await sb(`rpc/tomar_turno`, {
+    const resultado = await sb(`rpc/tomar_turno`, {
       method: "POST",
       body: JSON.stringify({ p_turno_id: turnoId, p_persona_id: personaActual.id })
     });
-    if (ok === true) {
+    if (resultado === 'ok') {
       await cargarDatosConvocatoria();
-    } else if ((window._horasActuales || 0) >= 78) {
+    } else if (resultado === 'limite_horas') {
       alert("Ya completaste tus horas para este mes.");
       await cargarDatosConvocatoria();
+    } else if (resultado === 'superposicion') {
+      alert("Ya tenés un turno en ese mismo horario ese día.");
+      await cargarDatosConvocatoria();
+    } else if (resultado === 'ya_tomado') {
+      alert("Este turno ya fue tomado por otro.");
+      await cargarDatosConvocatoria();
     } else {
-      alert("Este turno ya no está disponible.");
+      alert("No es tu turno para elegir.");
       await cargarDatosConvocatoria();
     }
   } catch (e) {
