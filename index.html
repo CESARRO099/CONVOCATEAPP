@@ -233,7 +233,10 @@ async function sb(path, opts = {}) {
 }
 
 function nombreEmpresa(e) { return e === "ESPANOLA" ? "ESPAÑOLA" : e; }
-function nombreCompleto(p) { return [p.nombre, p.apellido].filter(Boolean).join(" ") || p.apellido; }
+function nombreCompleto(p) { 
+  const ap = (p.apellido || "").toUpperCase();
+  return p.nombre ? `${ap}, ${p.nombre}` : ap;
+}
 
 // ---------------------------------------------------------
 // Carga inicial: personas para el selector
@@ -568,7 +571,7 @@ async function renderGrilla() {
         const franjaKey = `${dia}-col:${c}`;
         const t = porCeldaReal[franjaKey] || porCeldaReal[`${dia}-${textoEncabezado(estructura, c, sectorActual)}`];
         if (t && (t.persona_id || t.nombre_externo)) {
-          contenido = t.perfiles ? t.perfiles.apellido : t.nombre_externo;
+          contenido = t.perfiles ? t.perfiles.apellido.toUpperCase() : t.nombre_externo.toUpperCase();
         } else if (puedoElegirAca && t) {
           contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
         } else {
