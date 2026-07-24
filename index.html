@@ -150,6 +150,12 @@
     cursor:pointer;
   }
   button.btn-elegir:active{ opacity:0.8; }
+  button.btn-rechazar{
+    width:100%; border:1px solid #c00; border-radius:0; padding:3px 1px;
+    background: #c00; color:#fff; font-family:inherit; font-size:0.7rem; font-weight:700;
+    cursor:pointer;
+  }
+  button.btn-rechazar:active{ opacity:0.8; }
   .status-msg{ font-size:0.8rem; color: var(--ink-soft); text-align:center; padding: 20px 10px; }
   footer.hint{ text-align:center; font-size: 0.72rem; color: var(--ink-soft); padding: 10px 24px 4px; }
 </style>
@@ -575,7 +581,12 @@ async function renderGrilla() {
         const franjaKey = `${dia}-col:${c}`;
         const t = porCeldaReal[franjaKey] || porCeldaReal[`${dia}-${textoEncabezado(estructura, c, sectorActual)}`];
         if (t && (t.persona_id || t.nombre_externo)) {
-          contenido = t.perfiles ? sinTildes(t.perfiles.apellido).toUpperCase() : sinTildes(t.nombre_externo).toUpperCase();
+          const esPropio = t.persona_id === personaActual?.id;
+          if (esPropio && puedoElegirAca) {
+            contenido = `<button class="btn-rechazar" data-turno-id="${t.id}">Rechazar</button>`;
+          } else {
+            contenido = t.perfiles ? sinTildes(t.perfiles.apellido).toUpperCase() : sinTildes(t.nombre_externo).toUpperCase();
+          }
         } else if (puedoElegirAca && t) {
           contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
         } else {
@@ -596,6 +607,26 @@ async function renderGrilla() {
   grillaWrap.querySelectorAll(".btn-elegir").forEach(btn => {
     btn.addEventListener("click", () => elegirTurno(Number(btn.dataset.turnoId)));
   });
+  grillaWrap.querySelectorAll(".btn-rechazar").forEach(btn => {
+    btn.addEventListener("click", () => rechazarTurno(Number(btn.dataset.turnoId)));
+  });
+}
+
+async function rechazarTurno(turnoId) {
+  try {
+    const ok = await sb(`rpc/dejar_turno`, {
+      method: "POST",
+      body: JSON.stringify({ p_turno_id: turnoId, p_persona_id: personaActual.id })
+    });
+    if (ok === true) {
+      await cargarDatosConvocatoria();
+    } else {
+      alert("No se pudo rechazar ese turno.");
+      await cargarDatosConvocatoria();
+    }
+  } catch (e) {
+    alert("Error al rechazar el turno: " + e.message);
+  }
 }
 
 async function elegirTurno(turnoId) {
