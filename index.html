@@ -544,7 +544,7 @@ async function renderGrilla() {
     const anchoOriginal = anchoExcelAPx(cols[i]);
     // Columnas angostas (dias, separadores < 60px) = ancho original
     // Columnas de datos = 90px fijo para que entre cualquier apellido
-    const ancho = anchoOriginal < 60 ? anchoOriginal : 90;
+    const ancho = anchoOriginal < 60 ? anchoOriginal : 200;
     html += `<col style="width:${ancho}px">`;
   }
   html += `</colgroup><tbody>`;
