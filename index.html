@@ -151,7 +151,12 @@
     cursor:pointer;
   }
   button.btn-elegir:active{ opacity:0.8; }
-  button.btn-rechazar{
+  button.btn-confirmar{
+    margin-left: 12px; background: #fff; color: var(--ok); border: 1px solid var(--ok);
+    border-radius: 6px; padding: 4px 10px; font-size: 0.75rem; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+  }
+  button.btn-confirmar:active{ opacity: 0.8; }
     width:100%; border:1px solid #c00; border-radius:6px; padding:3px 1px;
     background: #c00; color:#fff; font-family:inherit; font-size:0.7rem; font-weight:700;
     cursor:pointer;
@@ -314,7 +319,9 @@ async function cargarDatosConvocatoria() {
       const vence = new Date(miProceso.turno_vence);
       bannerWrap.innerHTML = `<div class="banner-turno"><span class="dot"></span>
         Es tu turno en ${miProceso.grupo}${miProceso.tipo === "NOCHEROS" ? " (guardias)" : ""} —
-        podés elegir hasta las ${vence.toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" })}</div>`;
+        podés elegir hasta las ${vence.toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" })}
+        <button class="btn-confirmar" id="btn-confirmar-conv">Confirmar convocatoria</button></div>`;
+      document.getElementById("btn-confirmar-conv").addEventListener("click", confirmarConvocatoria);
     } else {
       bannerWrap.innerHTML = "";
     }
@@ -642,6 +649,23 @@ async function renderGrilla() {
   grillaWrap.querySelectorAll(".btn-rechazar").forEach(btn => {
     btn.addEventListener("click", () => rechazarTurno(Number(btn.dataset.turnoId)));
   });
+}
+
+async function confirmarConvocatoria() {
+  if (!confirm("¿Confirmás que terminaste de elegir tus horas?")) return;
+  try {
+    const ok = await sb(`rpc/confirmar_convocatoria`, {
+      method: "POST",
+      body: JSON.stringify({ p_persona_id: personaActual.id })
+    });
+    if (ok === true) {
+      await cargarDatosConvocatoria();
+    } else {
+      alert("No se pudo confirmar la convocatoria.");
+    }
+  } catch (e) {
+    alert("Error: " + e.message);
+  }
 }
 
 async function rechazarTurno(turnoId) {
