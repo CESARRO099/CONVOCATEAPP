@@ -570,13 +570,7 @@ async function renderGrilla() {
       const span = ancla[`${r}-${c}`];
       const attrs = span ? ` rowspan="${span.rowspan}" colspan="${span.colspan}"` : "";
       const bd = celda.bd;
-      const esEncabezado = r < first_day_row;
-      const esCeldaVacia = celda.v === null || celda.v === "" || celda.v === undefined;
-      // Filas vacias del encabezado: sin bordes
-      const mostrarBorde = !(esEncabezado && esCeldaVacia);
-      const borderStyle = mostrarBorde
-        ? `border-top:${bd.t ? "1px solid #000" : "none"};border-bottom:${bd.b ? "1px solid #000" : "none"};border-left:${bd.l ? "1px solid #000" : "none"};border-right:${bd.r ? "1px solid #000" : "none"};`
-        : "border:none;";
+      const borderStyle = `border-top:${bd.t ? "1px solid #000" : "none"};border-bottom:${bd.b ? "1px solid #000" : "none"};border-left:${bd.l ? "1px solid #000" : "none"};border-right:${bd.r ? "1px solid #000" : "none"};`;
       const boldStyle = celda.bold ? "font-weight:700;" : "";
 
       let contenido = celda.v ?? "";
