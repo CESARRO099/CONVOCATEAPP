@@ -580,9 +580,13 @@ async function renderGrilla() {
         // Celda gris en el Excel = no se trabaja ese día en esa franja
         contenido = "";
         clases += " gris";
-      } else if (esFilaDeDia && c === dia_col && !celda.g) {
-        // Columna de día entre semana = color pastel azul como en el Excel
-        clases += " dia-semana";
+      } else if (esFilaDeDia && typeof celda.v === 'number' && celda.v >= 1 && celda.v <= 31) {
+        // Celda con número de día: pastel si entre semana, gris si finde/feriado
+        if (grisFila) {
+          clases += " gris";
+        } else {
+          clases += " dia-semana";
+        }
       } else if (esFilaDeDia && celda.r) {
         // Celda roja en el Excel = solo SUISAS (bloqueada para Española por ahora)
         contenido = "LIBRE";
