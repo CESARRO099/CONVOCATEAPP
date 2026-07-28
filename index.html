@@ -157,6 +157,34 @@
     cursor: pointer; font-family: inherit;
   }
   button.btn-confirmar:active{ opacity: 0.8; }
+  .btn-cambio{
+    display: inline-block; margin-top: 8px; background: var(--surface-1);
+    color: var(--ink); border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-cambio:active{ opacity: 0.8; }
+  .modal-overlay{
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    z-index: 100; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open{ display: flex; }
+  .modal-box{
+    background: var(--surface-0); border-radius: 12px; padding: 24px;
+    width: min(420px, 92vw); max-height: 80vh; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .modal-box h3{ margin: 0; font-size: 1rem; }
+  .modal-box select, .modal-box button{
+    width: 100%; padding: 10px; border-radius: 8px; font-size: 0.9rem;
+    font-family: inherit; border: 1px solid var(--line); cursor: pointer;
+  }
+  .modal-box .btn-primary{
+    background: var(--ok); color: #fff; border: none; font-weight: 700;
+  }
+  .modal-box .btn-cancel{
+    background: var(--surface-1); color: var(--ink); font-weight: 600;
+  }
     width:100%; border:1px solid #c00; border-radius:6px; padding:3px 1px;
     background: #c00; color:#fff; font-family:inherit; font-size:0.7rem; font-weight:700;
     cursor:pointer;
@@ -188,6 +216,29 @@
 
   <div id="convocatoria-wrap" style="display:none;">
     <div id="banner-turno-wrap"></div>
+    <div id="banner-solicitud-wrap"></div>
+
+    <!-- Botón siempre visible para solicitar cambio -->
+    <div id="cambio-wrap" style="display:none; padding: 0 0 8px;">
+      <button class="btn-cambio" id="btn-abrir-cambio">Realizar cambio en convocatoria</button>
+    </div>
+
+    <!-- Modal de solicitud de cambio -->
+    <div class="modal-overlay" id="modal-cambio">
+      <div class="modal-box">
+        <h3>Solicitar cambio de turno</h3>
+        <div>
+          <label style="font-size:0.85rem;font-weight:600;">Turno que querés ceder</label>
+          <select id="sel-turno-ceder"></select>
+        </div>
+        <div>
+          <label style="font-size:0.85rem;font-weight:600;">Quién te cubre</label>
+          <select id="sel-cobertura"></select>
+        </div>
+        <button class="btn-primary" id="btn-enviar-cambio">Enviar solicitud</button>
+        <button class="btn-cancel" id="btn-cancelar-cambio">Cancelar</button>
+      </div>
+    </div>
     <div class="horas-wrap">
       <div class="horas-row"><span>Horas este mes</span><span id="horas-texto">0 / 80 hs</span></div>
       <div class="horas-bar"><div class="horas-fill" id="horas-fill" style="width:0%"></div></div>
@@ -284,6 +335,7 @@ personaSelect.addEventListener("change", async (e) => {
   if (personaActual) {
     pillWrap.innerHTML = `<span class="empresa-pill">${nombreEmpresa(personaActual.empresa)}${personaActual.ficha ? " · ficha " + personaActual.ficha : ""}</span>`;
   }
+  actualizarBotonesCambio();
   convocatoriaWrap.style.display = "block";
   grillaWrap.innerHTML = `<div class="status-msg">Cargando...</div>`;
   await cargarDatosConvocatoria();
@@ -724,8 +776,125 @@ async function elegirTurno(turnoId) {
 }
 
 // ---------------------------------------------------------
-// Notificaciones push
+// Solicitudes de cambio de turno
 // ---------------------------------------------------------
+const cambioWrap      = document.getElementById("cambio-wrap");
+const modalCambio     = document.getElementById("modal-cambio");
+const selTurno        = document.getElementById("sel-turno-ceder");
+const selCobertura    = document.getElementById("sel-cobertura");
+const bannerSolicitud = document.getElementById("banner-solicitud-wrap");
+
+// Cargar solicitudes donde esta persona es la cobertura propuesta (paso 2)
+async function cargarSolicitudesPendientes() {
+  if (!personaActual) return;
+  const data = await sb(
+    `solicitudes_cambio_detalle?estado=eq.ESPERANDO_COBERTURA` +
+    `&cobertura_id=eq.${personaActual.id}`
+  );
+  if (!data || !data.length) {
+    bannerSolicitud.innerHTML = "";
+    return;
+  }
+  bannerSolicitud.innerHTML = data.map(s => `
+    <div style="background:#FFF8E1;border:1px solid #F9A825;border-radius:8px;padding:12px;margin-bottom:8px;">
+      <div style="font-weight:700;font-size:0.9rem;">
+        ${s.solicitante_apellido} quiere cederte un turno
+      </div>
+      <div style="font-size:0.82rem;color:#555;margin:4px 0;">
+        ${s.fecha.slice(8,10)}/${s.fecha.slice(5,7)} — ${s.sector} ${s.franja}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button onclick="responderSolicitud(${s.id}, true)"
+          style="flex:1;padding:7px;background:#2e7d32;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">
+          ✓ Aceptar
+        </button>
+        <button onclick="responderSolicitud(${s.id}, false)"
+          style="flex:1;padding:7px;background:#c62828;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">
+          ✗ Rechazar
+        </button>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function responderSolicitud(id, aceptar) {
+  const ok = await sb(`rpc/responder_solicitud_cambio`, {
+    method: "POST",
+    body: JSON.stringify({
+      p_solicitud_id: id,
+      p_cobertura_id: personaActual.id,
+      p_aceptar: aceptar
+    })
+  });
+  if (ok === true) {
+    await cargarSolicitudesPendientes();
+    if (aceptar) {
+      alert("Aceptaste cubrir el turno. El coordinador lo confirmará en breve.");
+    } else {
+      alert("Rechazaste la solicitud.");
+    }
+  } else {
+    alert("Error al responder la solicitud.");
+  }
+}
+
+document.getElementById("btn-abrir-cambio").addEventListener("click", async () => {
+  const misTurnos = await sb(
+    `turnos?select=id,fecha,franjas_horarias(nombre,sectores(nombre))` +
+    `&persona_id=eq.${personaActual.id}` +
+    `&fecha=gte.${MES_ACTUAL}-01&fecha=lte.${MES_ACTUAL}-31&order=fecha.asc`
+  );
+  selTurno.innerHTML = misTurnos.map(t =>
+    `<option value="${t.id}">${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ` +
+    `${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}</option>`
+  ).join("");
+
+  selCobertura.innerHTML = todasPersonas
+    .filter(p => p.id !== personaActual.id)
+    .map(p => `<option value="${p.id}">${nombreCompleto(p)}</option>`)
+    .join("");
+
+  modalCambio.classList.add("open");
+});
+
+document.getElementById("btn-cancelar-cambio").addEventListener("click", () => {
+  modalCambio.classList.remove("open");
+});
+
+document.getElementById("btn-enviar-cambio").addEventListener("click", async () => {
+  const turnoId     = Number(selTurno.value);
+  const coberturaId = selCobertura.value;
+  if (!turnoId || !coberturaId) return;
+
+  const ok = await sb(`rpc/solicitar_cambio`, {
+    method: "POST",
+    body: JSON.stringify({
+      p_turno_id: turnoId,
+      p_solicitante_id: personaActual.id,
+      p_cobertura_id: coberturaId
+    })
+  });
+
+  modalCambio.classList.remove("open");
+  if (ok === true) {
+    const nombre = selCobertura.options[selCobertura.selectedIndex].text.split(",")[0];
+    alert(`Solicitud enviada. ${nombre} recibirá una notificación para aceptar o rechazar.`);
+  } else {
+    alert("No se pudo enviar la solicitud. Puede que ya tengas una pendiente para ese turno.");
+  }
+});
+
+function actualizarBotonesCambio() {
+  if (personaActual) {
+    cambioWrap.style.display = "block";
+    cargarSolicitudesPendientes();
+  } else {
+    cambioWrap.style.display = "none";
+    bannerSolicitud.innerHTML = "";
+  }
+}
+
+
 const VAPID_PUBLIC_KEY = "BHNTEZRf4uqYFfr_IqFMk6e8w6gcg115m7FRausnVsGjM6e7u48Ec1w-H7KouhwMFmXsuQm1x5WN5O1a37E9HSM";
 const btnNotif = document.getElementById("btn-notif");
 const notifStatus = document.getElementById("notif-status");
