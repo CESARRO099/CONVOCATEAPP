@@ -849,7 +849,7 @@ document.getElementById("btn-abrir-cambio").addEventListener("click", async () =
     `${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}</option>`
   ).join("");
 
-  selCobertura.innerHTML = todasPersonas
+  selCobertura.innerHTML = (window.__personas || [])
     .filter(p => p.id !== personaActual.id)
     .map(p => `<option value="${p.id}">${nombreCompleto(p)}</option>`)
     .join("");
