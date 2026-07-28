@@ -309,9 +309,13 @@ function nombreCompleto(p) {
 // ---------------------------------------------------------
 async function cargarPersonas() {
   try {
-    const personas = await sb("perfiles?select=id,ficha,apellido,nombre,empresa&order=apellido.asc");
+    const personas = await sb("perfiles?select=id,ficha,ficha_suisas,apellido,nombre,empresa&order=apellido.asc");
     personaSelect.innerHTML = `<option value="">Seleccioná...</option>` +
-      personas.map(p => `<option value="${p.id}">${nombreCompleto(p)} (${nombreEmpresa(p.empresa)})</option>`).join("");
+      personas.map(p => {
+        const esDual = p.ficha && p.ficha_suisas;
+        const label = esDual ? ` (${nombreEmpresa(p.empresa)})` : "";
+        return `<option value="${p.id}">${nombreCompleto(p)}${label}</option>`;
+      }).join("");
     window.__personas = personas;
   } catch (e) {
     personaSelect.innerHTML = `<option value="">Error de conexión</option>`;
@@ -333,7 +337,10 @@ personaSelect.addEventListener("change", async (e) => {
   }
   personaActual = (window.__personas || []).find(p => p.id === personaId);
   if (personaActual) {
-    pillWrap.innerHTML = `<span class="empresa-pill">${nombreEmpresa(personaActual.empresa)}${personaActual.ficha ? " · ficha " + personaActual.ficha : ""}</span>`;
+    const esDual = personaActual.ficha && personaActual.ficha_suisas;
+    pillWrap.innerHTML = esDual
+      ? `<span class="empresa-pill">${nombreEmpresa(personaActual.empresa)} · ficha ${personaActual.ficha}</span>`
+      : personaActual.ficha ? `<span class="empresa-pill">ficha ${personaActual.ficha}</span>` : "";
   }
   actualizarBotonesCambio();
   convocatoriaWrap.style.display = "block";
