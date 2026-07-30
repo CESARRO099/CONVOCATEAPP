@@ -235,11 +235,17 @@ document.getElementById("btn-excluir").addEventListener("click", async () => {
 const MES_COORD = "2026-10";
 
 async function sbCoord(path, opts = {}) {
+  const { headers: extraHeaders, ...restOpts } = opts;
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      "Content-Type": "application/json", ...opts.headers },
-    ...opts
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      "Content-Type": "application/json",
+      ...extraHeaders
+    },
+    ...restOpts
   });
+  if (r.status === 204) return true;
   const data = await r.json();
   return data;
 }
