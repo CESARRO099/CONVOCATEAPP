@@ -357,8 +357,15 @@ function renderGrillaCoord() {
           bg = "background:#FFF9C4;";
           cursor = "cursor:pointer;";
           dataAttr = ` data-dia="${dia}" data-col="${c}" data-turno-id=""`;
-        } else if (celda.v) {
+        } else if (celda.v && !celda.g) {
+          // Celda con nombre de titular — también clickeable
           contenido = String(celda.v);
+          cursor = "cursor:pointer;";
+          dataAttr = ` data-dia="${dia}" data-col="${c}" data-turno-id="" data-valor="${String(celda.v)}"`;
+        } else if (!celda.g) {
+          // Celda vacía dentro de la tabla — clickeable para activar
+          cursor = "cursor:pointer;";
+          dataAttr = ` data-dia="${dia}" data-col="${c}" data-turno-id=""`;
         }
       }
 
@@ -387,19 +394,22 @@ function abrirModalCelda(td) {
   celdaSeleccionada = {
     dia: Number(td.dataset.dia),
     col: Number(td.dataset.col),
-    turnoId: td.dataset.turnoId ? Number(td.dataset.turnoId) : null
+    turnoId: td.dataset.turnoId ? Number(td.dataset.turnoId) : null,
+    valorActual: td.dataset.valor || td.textContent.trim()
   };
 
   const turno = coordTurnos.find(t => t.id === celdaSeleccionada.turnoId);
   const titulo = document.getElementById("coord-modal-titulo");
-  titulo.textContent = `Día ${celdaSeleccionada.dia} — col ${celdaSeleccionada.col}`;
 
-  const btnActivar   = document.getElementById("coord-btn-activar");
-  const wrapAsignar  = document.getElementById("coord-asignar-wrap");
+  const contenidoActual = celdaSeleccionada.valorActual || "—";
+  titulo.textContent = `Día ${celdaSeleccionada.dia} · ${contenidoActual}`;
+
+  const btnActivar    = document.getElementById("coord-btn-activar");
+  const wrapAsignar   = document.getElementById("coord-asignar-wrap");
   const btnDesactivar = document.getElementById("coord-btn-desactivar");
 
   if (!turno) {
-    // Sin turno — solo activar
+    // Sin turno en Supabase (celda con titular del Excel o vacía)
     btnActivar.style.display = "block";
     wrapAsignar.style.display = "block";
     btnDesactivar.style.display = "none";
@@ -409,10 +419,11 @@ function abrirModalCelda(td) {
     wrapAsignar.style.display = "block";
     btnDesactivar.style.display = "block";
   } else {
-    // Turno asignado — cambiar persona o desactivar
+    // Turno asignado — cambiar persona o quitar
     btnActivar.style.display = "none";
     wrapAsignar.style.display = "block";
     btnDesactivar.style.display = "block";
+    document.querySelector("#coord-btn-desactivar").textContent = "✗ Dejar celda libre";
   }
 
   document.getElementById("coord-modal").style.display = "flex";
