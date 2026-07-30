@@ -66,6 +66,7 @@
     <div style="background:#fff;border-radius:16px;padding:20px;width:min(360px,92vw);display:flex;flex-direction:column;gap:12px;">
       <div style="font-weight:700;font-size:0.95rem;" id="coord-modal-titulo"></div>
       <button id="coord-btn-activar" class="btn-ok" style="display:none;">✓ Activar para convocatoria</button>
+      <button id="coord-btn-vacante" class="btn-ok" style="display:none;">◯ Dejar como vacante (LIBRE)</button>
       <div id="coord-asignar-wrap" style="display:none;">
         <label>Asignar a</label>
         <select id="coord-sel-persona"></select>
@@ -223,6 +224,7 @@ document.getElementById("btn-excluir").addEventListener("click", async () => {
   await cargarPersonas();
   await cargarProcesos();
   await cargarSolicitudes();
+  await cargarPersonasCoord();
   setInterval(cargarProcesos, 15000);
   setInterval(cargarSolicitudes, 15000);
 })();
@@ -405,29 +407,59 @@ function abrirModalCelda(td) {
   titulo.textContent = `Día ${celdaSeleccionada.dia} · ${contenidoActual}`;
 
   const btnActivar    = document.getElementById("coord-btn-activar");
+  const btnVacante    = document.getElementById("coord-btn-vacante");
   const wrapAsignar   = document.getElementById("coord-asignar-wrap");
   const btnDesactivar = document.getElementById("coord-btn-desactivar");
 
+  // Reset
+  btnActivar.style.display = "none";
+  btnVacante.style.display = "none";
+  wrapAsignar.style.display = "none";
+  btnDesactivar.style.display = "none";
+
   if (!turno) {
-    // Sin turno en Supabase (celda con titular del Excel o vacía)
+    // Sin turno en Supabase — puede activar como vacante o asignar directo
     btnActivar.style.display = "block";
+    btnVacante.style.display = "none";
     wrapAsignar.style.display = "block";
-    btnDesactivar.style.display = "none";
   } else if (!turno.persona_id) {
     // Turno vacante — asignar o desactivar
-    btnActivar.style.display = "none";
     wrapAsignar.style.display = "block";
     btnDesactivar.style.display = "block";
+    btnDesactivar.textContent = "✗ Quitar de convocatoria";
   } else {
-    // Turno asignado — cambiar persona o quitar
-    btnActivar.style.display = "none";
+    // Turno asignado — dejar vacante, cambiar persona, o quitar
+    btnVacante.style.display = "block";
     wrapAsignar.style.display = "block";
     btnDesactivar.style.display = "block";
-    document.querySelector("#coord-btn-desactivar").textContent = "✗ Dejar celda libre";
+    btnDesactivar.textContent = "✗ Dejar celda sin actividad";
   }
 
   document.getElementById("coord-modal").style.display = "flex";
 }
+
+document.getElementById("coord-btn-vacante").addEventListener("click", async () => {
+  if (celdaSeleccionada.turnoId) {
+    // Turno existente — limpiar persona_id para dejarlo vacante
+    await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ persona_id: null, asignado_en: null, origen_vacante: "coordinador" })
+    });
+  } else {
+    // Sin turno — activar como vacante
+    await sbCoord(`rpc/coordinador_activar_celda`, {
+      method: "POST",
+      body: JSON.stringify({
+        p_sector: coordSectorActual,
+        p_dia: celdaSeleccionada.dia,
+        p_col_excel: celdaSeleccionada.col,
+        p_mes: MES_COORD + "-01"
+      })
+    });
+  }
+  document.getElementById("coord-modal").style.display = "none";
+  await recargarTurnos();
+});
 
 document.getElementById("coord-btn-cerrar").addEventListener("click", () => {
   document.getElementById("coord-modal").style.display = "none";
