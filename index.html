@@ -678,10 +678,28 @@ async function renderGrilla() {
           clases += " libre-texto";
         }
       } else if (esFilaDeDia) {
-        // Celda vacía en fila de día — verificar si hay turno asignado en Supabase
+        // Celda con texto o vacía — verificar si hay turno en Supabase que tenga prioridad
         const franjaKey = `${dia}-col:${c}`;
         const t = porCeldaReal[franjaKey];
-        if (t && (t.persona_id || t.nombre_externo)) {
+        if (t && t.origen_vacante === 'coordinador') {
+          // Turno modificado por el coordinador — tiene prioridad sobre el Excel
+          if (t.persona_id || t.nombre_externo) {
+            const esPropio = t.persona_id === personaActual?.id;
+            if (esPropio && puedoElegirAca) {
+              contenido = `<button class="btn-rechazar" data-turno-id="${t.id}">Rechazar</button>`;
+            } else {
+              contenido = t.perfiles ? sinTildes(t.perfiles.apellido).toUpperCase() : sinTildes(t.nombre_externo).toUpperCase();
+            }
+          } else {
+            // Vacante creada por coordinador
+            if (puedoElegirAca) {
+              contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
+            } else {
+              contenido = "LIBRE";
+              clases += " libre-texto";
+            }
+          }
+        } else if (t && (t.persona_id || t.nombre_externo)) {
           const esPropio = t.persona_id === personaActual?.id;
           if (esPropio && puedoElegirAca) {
             contenido = `<button class="btn-rechazar" data-turno-id="${t.id}">Rechazar</button>`;
