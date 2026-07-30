@@ -244,7 +244,7 @@
       <div class="horas-bar"><div class="horas-fill" id="horas-fill" style="width:0%"></div></div>
     </div>
     <div class="tabs" id="tabs-wrap"></div>
-    <div class="card" style="overflow-x:auto;">
+    <div class="card" style="overflow-x:auto; overflow-y:visible;">
       <div id="grilla-wrap"><div class="status-msg">Elegí un sector arriba</div></div>
     </div>
   </div>
@@ -713,7 +713,11 @@ async function renderGrilla() {
 
       if (grisFila && (setColumnasGrises ? setColumnasGrises.has(c) : true)) clases += " gris";
 
-      html += `<td${attrs} style="${borderStyle}${boldStyle}" class="${clases.trim()}">${contenido}</td>`;
+      // Columna de días: sticky para no perderse al hacer scroll horizontal
+      const esColDia = esFilaDeDia && c === dia_col;
+      const stickyStyle = esColDia ? "position:sticky;left:0;z-index:2;background:inherit;" : "";
+
+      html += `<td${attrs} style="${borderStyle}${boldStyle}${stickyStyle}" class="${clases.trim()}">${contenido}</td>`;
     }
     html += `</tr>`;
   }
