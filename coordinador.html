@@ -230,9 +230,7 @@ document.getElementById("btn-excluir").addEventListener("click", async () => {
 // ---------------------------------------------------------
 // Gestión de planilla del coordinador
 // ---------------------------------------------------------
-const SUPABASE_URL = "https://lcnvdgjedxikpqxxyzqr.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxjbnZkZ2plZHhpa3BxeHh5enFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxOTc3MjksImV4cCI6MjA5ODc3MzcyOX0.sSsVtUuKAlFiP5-FRKud4kNZXvY6KcHdXMV4NBF52CA";
-const MES = "2026-10";
+const MES_COORD = "2026-10";
 
 async function sbCoord(path, opts = {}) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -279,7 +277,7 @@ document.getElementById("coord-sector").addEventListener("change", async (e) => 
   while (true) {
     const pag = await sbCoord(
       `turnos?select=id,fecha,col_excel,persona_id,franjas_horarias(nombre,sector_id,sectores(nombre)),perfiles(apellido)` +
-      `&fecha=gte.${MES}-01&fecha=lte.${MES}-31&order=id.asc`,
+      `&fecha=gte.${MES_COORD}-01&fecha=lte.${MES_COORD}-31&order=id.asc`,
       { headers: { "Range-Unit": "items", Range: `${desde}-${desde+999}` } }
     );
     if (!pag || !pag.length) break;
@@ -433,7 +431,7 @@ document.getElementById("coord-btn-activar").addEventListener("click", async () 
       p_sector: coordSectorActual,
       p_dia: celdaSeleccionada.dia,
       p_col_excel: celdaSeleccionada.col,
-      p_mes: MES + "-01"
+      p_mes: MES_COORD + "-01"
     })
   });
   document.getElementById("coord-modal").style.display = "none";
@@ -458,7 +456,7 @@ document.getElementById("coord-btn-asignar").addEventListener("click", async () 
         p_sector: coordSectorActual,
         p_dia: celdaSeleccionada.dia,
         p_col_excel: celdaSeleccionada.col,
-        p_mes: MES + "-01",
+        p_mes: MES_COORD + "-01",
         p_persona_id: personaId
       })
     });
@@ -481,7 +479,7 @@ async function recargarTurnos() {
   while (true) {
     const pag = await sbCoord(
       `turnos?select=id,fecha,col_excel,persona_id,franjas_horarias(nombre,sector_id,sectores(nombre)),perfiles(apellido)` +
-      `&fecha=gte.${MES}-01&fecha=lte.${MES}-31&order=id.asc`,
+      `&fecha=gte.${MES_COORD}-01&fecha=lte.${MES_COORD}-31&order=id.asc`,
       { headers: { "Range-Unit": "items", Range: `${desde}-${desde+999}` } }
     );
     if (!pag || !pag.length) break;
