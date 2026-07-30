@@ -647,8 +647,15 @@ async function renderGrilla() {
 
       if (esFilaDeDia && celda.g && c !== dia_col) {
         // Celda gris en el Excel = no se trabaja ese día en esa franja
-        contenido = "";
-        clases += " gris";
+        // PERO si hay un turno asignado en Supabase, mostrar el nombre igual
+        const franjaKeyG = `${dia}-col:${c}`;
+        const tG = porCeldaReal[franjaKeyG];
+        if (tG && (tG.persona_id || tG.nombre_externo)) {
+          contenido = tG.perfiles ? sinTildes(tG.perfiles.apellido).toUpperCase() : sinTildes(tG.nombre_externo).toUpperCase();
+        } else {
+          contenido = "";
+          clases += " gris";
+        }
       } else if (esFilaDeDia && typeof celda.v === 'number' && celda.v >= 1 && celda.v <= 31) {
         // Celda con número de día: pastel si entre semana, gris si finde/feriado
         if (grisFila) {
