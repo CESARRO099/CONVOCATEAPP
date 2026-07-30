@@ -424,21 +424,31 @@ function abrirModalCelda(td) {
   btnDesactivar.style.display = "none";
 
   if (!turno) {
-    // Sin turno en Supabase — puede activar como vacante o asignar directo
+    // Sin turno en Supabase — puede activar como vacante, asignar directo, o dejar sin convocatoria
     btnActivar.style.display = "block";
     btnVacante.style.display = "none";
     wrapAsignar.style.display = "block";
+    // Si la celda tiene un titular del Excel, mostrar también "dejar sin convocatoria"
+    if (celdaSeleccionada.valorActual && celdaSeleccionada.valorActual !== "—" && celdaSeleccionada.valorActual !== "") {
+      btnDesactivar.style.display = "block";
+      btnDesactivar.textContent = "✗ Dejar sin convocatoria";
+    } else {
+      btnDesactivar.style.display = "none";
+    }
   } else if (!turno.persona_id) {
-    // Turno vacante — asignar o desactivar
+    // Turno vacante — asignar o quitar de convocatoria
+    btnActivar.style.display = "none";
+    btnVacante.style.display = "none";
     wrapAsignar.style.display = "block";
     btnDesactivar.style.display = "block";
     btnDesactivar.textContent = "✗ Quitar de convocatoria";
   } else {
     // Turno asignado — dejar vacante, cambiar persona, o quitar
+    btnActivar.style.display = "none";
     btnVacante.style.display = "block";
     wrapAsignar.style.display = "block";
     btnDesactivar.style.display = "block";
-    btnDesactivar.textContent = "✗ Dejar celda sin actividad";
+    btnDesactivar.textContent = "✗ Dejar sin convocatoria";
   }
 
   document.getElementById("coord-modal").style.display = "flex";
@@ -515,9 +525,25 @@ document.getElementById("coord-btn-asignar").addEventListener("click", async () 
 });
 
 document.getElementById("coord-btn-desactivar").addEventListener("click", async () => {
-  if (!celdaSeleccionada.turnoId) return;
-  if (!confirm("¿Seguro que querés quitar este turno?")) return;
-  await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, { method: "DELETE" });
+  if (!confirm("¿Seguro que querés quitar esta celda de la convocatoria?")) return;
+
+  if (celdaSeleccionada.turnoId) {
+    // Turno existente — borrar
+    await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, { method: "DELETE" });
+  } else {
+    // Sin turno — insertar con persona_id = null y origen = 'sin_convocatoria'
+    // para que pise el valor del Excel y no aparezca como disponible
+    await sbCoord(`rpc/coordinador_activar_celda`, {
+      method: "POST",
+      body: JSON.stringify({
+        p_sector: coordSectorActual,
+        p_dia: celdaSeleccionada.dia,
+        p_col_excel: celdaSeleccionada.col,
+        p_mes: MES_COORD + "-01",
+        p_persona_id: null
+      })
+    });
+  }
   document.getElementById("coord-modal").style.display = "none";
   await recargarTurnos();
 });
