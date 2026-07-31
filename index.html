@@ -387,7 +387,13 @@ async function cargarDatosConvocatoria() {
     const horasNum = Number(horas) || 0;
     window._horasActuales = horasNum;
     horasTexto.textContent = `${horasNum.toFixed(1)} / 80 hs`;
-    horasFill.style.width = Math.min(100, (horasNum / 82) * 100) + "%";
+    const pct = Math.min(100, (horasNum / 82) * 100);
+    horasFill.style.width = pct + "%";
+    // Color progresivo: rojo (0%) → amarillo (50%) → verde (100%)
+    const r = pct < 50 ? 220 : Math.round(220 - (pct - 50) * 3.6);
+    const g = pct < 50 ? Math.round(pct * 3.6) : 180;
+    const b = 40;
+    horasFill.style.background = `rgb(${r},${g},${b})`;
 
     // Banner de turno: ¿hay algún proceso donde persona_actual_id sea esta persona?
     const miProceso = procesosActivos.find(p => p.persona_actual_id === personaActual.id);
