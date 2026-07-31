@@ -196,18 +196,15 @@
 </head>
 <body>
 
-<header class="top">
-  <img class="logo" src="./logo-completo.png" alt="ConvocaTE - Asociación Española" />
-  <p>Servicio de Imagenología</p>
-</header>
+<header class="top" id="header-top" style="display:none;"></header>
 
 <main>
   <div id="bienvenida-wrap" style="text-align:center; padding: 1.5rem 0 0.5rem;">
-    <img src="./icon.png" alt="ConvocaTE" style="max-width:140px; width:60%; height:auto; margin: 0 auto 1rem; display:block;" />
-    <h1 style="font-family:Georgia,serif; font-size:2.2rem; font-weight:600; margin:0 0 4px; letter-spacing:-0.02em;">ConvocaTE</h1>
-    <div style="width:36px; height:2px; background:var(--primary); border-radius:2px; margin: 0 auto 1rem;"></div>
-    <p style="font-size:0.85rem; color:var(--ink-soft); margin:0 0 0.25rem;">Gestión de turnos y convocatoria de suplentes</p>
-    <p style="font-size:0.78rem; color:var(--ink-soft); margin:0;">Asociación Española · Imagenología</p>
+    <img src="./icon.png" alt="ConvocaTE" style="max-width:130px; width:55%; height:auto; margin: 0 auto 0.75rem; display:block;" />
+    <h1 style="font-family:Georgia,serif; font-size:2.2rem; font-weight:700; margin:0 0 2px; letter-spacing:-0.02em; color:#0a2966;">Convoca<span style="color:#c8102e;">T</span><span style="color:#f5a800;">E</span></h1>
+    <p style="font-size:0.82rem; color:var(--ink-soft); margin:0 0 1rem;">Servicio de Imagenología</p>
+    <div style="width:36px; height:2px; background:var(--primary); border-radius:2px; margin: 0 auto 0.75rem;"></div>
+    <p style="font-size:0.78rem; color:var(--ink-soft); margin:0;">Asociación Española</p>
   </div>
 
   <div class="card">
@@ -349,6 +346,11 @@ personaSelect.addEventListener("change", async (e) => {
     pillWrap.innerHTML = esDual
       ? `<span class="empresa-pill">${nombreEmpresa(personaActual.empresa)} · ficha ${personaActual.ficha}</span>`
       : personaActual.ficha ? `<span class="empresa-pill">ficha ${personaActual.ficha}</span>` : "";
+    // Ocultar bienvenida y mostrar header al elegir persona
+    document.getElementById("bienvenida-wrap").style.display = "none";
+    const h = document.getElementById("header-top");
+    h.style.display = "";
+    h.innerHTML = `<img class="logo" src="./icon.png" alt="ConvocaTE" style="max-width:48px;"><p>Servicio de Imagenología</p>`;
   }
   actualizarBotonesCambio();
   convocatoriaWrap.style.display = "block";
