@@ -158,12 +158,19 @@
   }
   button.btn-confirmar:active{ opacity: 0.8; }
   .btn-cambio{
-    display: inline-block; margin-top: 8px; background: var(--surface-1);
-    color: var(--ink); border: 1px solid var(--line); border-radius: 6px;
-    padding: 6px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
-    font-family: inherit;
+    display: block; width: 100%; margin-top: 8px;
+    background: #0a2966; color: #fff;
+    border: none; border-radius: 10px;
+    padding: 12px 14px; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+    font-family: inherit; letter-spacing: 0.01em;
+    animation: pulso 2.5s ease-in-out infinite;
   }
-  .btn-cambio:active{ opacity: 0.8; }
+  @keyframes pulso {
+    0%   { box-shadow: 0 0 0 0 rgba(10,41,102,0.5); }
+    60%  { box-shadow: 0 0 0 8px rgba(10,41,102,0); }
+    100% { box-shadow: 0 0 0 0 rgba(10,41,102,0); }
+  }
+  .btn-cambio:active{ opacity: 0.85; transform: scale(0.98); }
   .modal-overlay{
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
     z-index: 100; align-items: center; justify-content: center;
@@ -225,7 +232,7 @@
 
     <!-- Botón siempre visible para solicitar cambio -->
     <div id="cambio-wrap" style="display:none; padding: 0 0 8px;">
-      <button class="btn-cambio" id="btn-abrir-cambio">Realizar cambio en convocatoria</button>
+      <button class="btn-cambio" id="btn-abrir-cambio">Realizar un cambio en la convocatoria</button>
     </div>
 
     <!-- Modal de solicitud de cambio -->
