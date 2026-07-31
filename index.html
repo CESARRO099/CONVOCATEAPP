@@ -351,8 +351,8 @@ personaSelect.addEventListener("change", async (e) => {
   if (personaActual) {
     const esDual = personaActual.ficha && personaActual.ficha_suisas;
     pillWrap.innerHTML = esDual
-      ? `<span class="empresa-pill">${nombreEmpresa(personaActual.empresa)} · ficha ${personaActual.ficha}</span>`
-      : personaActual.ficha ? `<span class="empresa-pill">ficha ${personaActual.ficha}</span>` : "";
+      ? `<span class="empresa-pill">${nombreEmpresa(personaActual.empresa)} · Ficha ${personaActual.ficha}</span>`
+      : personaActual.ficha ? `<span class="empresa-pill">Ficha ${personaActual.ficha}</span>` : "";
     // Ocultar bienvenida y mostrar header al elegir persona
     document.getElementById("bienvenida-wrap").style.display = "none";
     const h = document.getElementById("header-top");
