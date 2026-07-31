@@ -387,7 +387,7 @@ async function cargarDatosConvocatoria() {
     const horasNum = Number(horas) || 0;
     window._horasActuales = horasNum;
     horasTexto.textContent = `${horasNum.toFixed(1)} / 80 hs`;
-    const pct = Math.min(100, (horasNum / 82) * 100);
+    const pct = Math.min(100, (horasNum / 84) * 100);
     horasFill.style.width = pct + "%";
     // Color progresivo: rojo (0%) → amarillo (50%) → verde (100%)
     const r = pct < 50 ? 220 : Math.round(220 - (pct - 50) * 3.6);
