@@ -172,7 +172,7 @@
   }
   .btn-cambio:active{ opacity: 0.85; transform: scale(0.98); }
   .modal-overlay{
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: rgba(0,0,0,0.45);
     z-index: 100; align-items: center; justify-content: center;
   }
   .modal-overlay.open{ display: flex; }
@@ -192,6 +192,7 @@
   .modal-box .btn-cancel{
     background: var(--surface-1); color: var(--ink); font-weight: 600;
   }
+  button.btn-rechazar{
     width:100%; border:1px solid #c00; border-radius:6px; padding:3px 1px;
     background: #c00; color:#fff; font-family:inherit; font-size:0.7rem; font-weight:700;
     cursor:pointer;
