@@ -254,6 +254,21 @@
         <button class="btn-cancel" id="btn-cancelar-cambio">Cancelar</button>
       </div>
     </div>
+
+    <!-- Modal de PIN (crear o verificar) -->
+    <div class="modal-overlay" id="modal-pin">
+      <div class="modal-box">
+        <h3 id="pin-titulo">Creá tu PIN</h3>
+        <p id="pin-texto" style="font-size:0.85rem; color:var(--ink-soft); margin:0;"></p>
+        <input type="tel" id="pin-input" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off"
+          style="width:100%; box-sizing:border-box; padding:12px; border:2px solid var(--ink); border-radius:8px; font-size:1.4rem; letter-spacing:0.4em; text-align:center; font-family:inherit;">
+        <input type="tel" id="pin-input-confirmar" inputmode="numeric" maxlength="4" placeholder="Repetí el PIN" autocomplete="off"
+          style="display:none; width:100%; box-sizing:border-box; padding:12px; border:2px solid var(--ink); border-radius:8px; font-size:1.4rem; letter-spacing:0.4em; text-align:center; font-family:inherit;">
+        <p id="pin-error" style="font-size:0.8rem; color:#c8102e; margin:0; min-height:1.1em;"></p>
+        <button class="btn-primary" id="btn-pin-confirmar">Confirmar</button>
+        <button class="btn-cancel" id="btn-pin-cancelar">Cancelar</button>
+      </div>
+    </div>
     <div class="horas-wrap">
       <div class="horas-row"><span>Horas este mes</span><span id="horas-texto">0 / 80 hs</span></div>
       <div class="horas-bar"><div class="horas-fill" id="horas-fill" style="width:0%"></div></div>
@@ -468,7 +483,106 @@ document.addEventListener("click", (e) => {
 });
 
 // ---------------------------------------------------------
-// Al elegir una persona: cargar todo lo necesario para la
+// Sistema de PIN: la primera vez que alguien elige su nombre
+// en un dispositivo, crea un PIN de 4 dígitos. Si después se
+// elige ese mismo nombre desde otro dispositivo (o se borró el
+// dato local), hay que ingresar el PIN para poder seguir. Una
+// vez validado, ese dispositivo queda "recordado" y no vuelve
+// a preguntar.
+// ---------------------------------------------------------
+const modalPin = document.getElementById("modal-pin");
+const pinTitulo = document.getElementById("pin-titulo");
+const pinTexto = document.getElementById("pin-texto");
+const pinInput = document.getElementById("pin-input");
+const pinInputConfirmar = document.getElementById("pin-input-confirmar");
+const pinError = document.getElementById("pin-error");
+const btnPinConfirmar = document.getElementById("btn-pin-confirmar");
+const btnPinCancelar = document.getElementById("btn-pin-cancelar");
+
+function claveLocalPin(personaId) { return `convocate_pin_ok_${personaId}`; }
+
+function pedirPin(personaId, modoRegistro) {
+  return new Promise((resolve) => {
+    pinTitulo.textContent = modoRegistro ? "Creá tu PIN" : "Ingresá tu PIN";
+    pinTexto.textContent = modoRegistro
+      ? "Es la primera vez que elegís este nombre en este dispositivo. Creá un PIN de 4 números para que nadie más pueda usarlo en tu lugar."
+      : "Este nombre ya tiene un PIN creado en otro dispositivo. Ingresalo para continuar.";
+    pinInput.value = "";
+    pinInputConfirmar.value = "";
+    pinInputConfirmar.style.display = modoRegistro ? "block" : "none";
+    pinError.textContent = "";
+    modalPin.classList.add("open");
+    pinInput.focus();
+
+    const limpiar = () => {
+      modalPin.classList.remove("open");
+      btnPinConfirmar.removeEventListener("click", onConfirmar);
+      btnPinCancelar.removeEventListener("click", onCancelar);
+    };
+
+    async function onConfirmar() {
+      const pin = pinInput.value.trim();
+      if (!/^[0-9]{4}$/.test(pin)) {
+        pinError.textContent = "El PIN tiene que ser de 4 números.";
+        return;
+      }
+      if (modoRegistro) {
+        if (pin !== pinInputConfirmar.value.trim()) {
+          pinError.textContent = "Los dos PIN no coinciden.";
+          return;
+        }
+        const ok = await sb(`rpc/registrar_pin`, {
+          method: "POST",
+          body: JSON.stringify({ p_persona_id: personaId, p_pin: pin })
+        });
+        if (ok === true) {
+          localStorage.setItem(claveLocalPin(personaId), "1");
+          limpiar();
+          resolve(true);
+        } else {
+          pinError.textContent = "No se pudo crear el PIN. Puede que ya exista uno — recargá la página.";
+        }
+      } else {
+        const ok = await sb(`rpc/verificar_pin`, {
+          method: "POST",
+          body: JSON.stringify({ p_persona_id: personaId, p_pin: pin })
+        });
+        if (ok === true) {
+          localStorage.setItem(claveLocalPin(personaId), "1");
+          limpiar();
+          resolve(true);
+        } else {
+          pinError.textContent = "PIN incorrecto.";
+        }
+      }
+    }
+
+    function onCancelar() {
+      limpiar();
+      resolve(false);
+    }
+
+    btnPinConfirmar.addEventListener("click", onConfirmar);
+    btnPinCancelar.addEventListener("click", onCancelar);
+  });
+}
+
+// Verifica (o pide crear) el PIN de una persona. Devuelve true si
+// quedó habilitado para continuar, false si canceló o falló.
+async function asegurarPin(personaId) {
+  if (localStorage.getItem(claveLocalPin(personaId))) return true;
+  const tiene = await sb(`rpc/tiene_pin`, {
+    method: "POST",
+    body: JSON.stringify({ p_persona_id: personaId })
+  });
+  return await pedirPin(personaId, tiene !== true);
+}
+
+
+// ---------------------------------------------------------
+// Al elegir una persona: primero verificar el PIN (crear el
+// primero si no tiene, o pedirlo si ya existe en otro
+// dispositivo), y recién ahí cargar todo lo necesario para la
 // pantalla de convocatoria
 // ---------------------------------------------------------
 personaSelect.addEventListener("change", async (e) => {
@@ -479,6 +593,17 @@ personaSelect.addEventListener("change", async (e) => {
     pillWrap.innerHTML = "";
     return;
   }
+
+  const habilitado = await asegurarPin(personaId);
+  if (!habilitado) {
+    // Canceló o falló la verificación: no dejar entrar con este nombre
+    personaSelect.value = "";
+    personaSearch.value = "";
+    convocatoriaWrap.style.display = "none";
+    pillWrap.innerHTML = "";
+    return;
+  }
+
   personaActual = (window.__personas || []).find(p => p.id === personaId);
   if (personaActual) {
     pillWrap.innerHTML = personaActual.ficha
@@ -495,6 +620,7 @@ personaSelect.addEventListener("change", async (e) => {
   grillaWrap.innerHTML = `<div class="status-msg">Cargando...</div>`;
   await cargarDatosConvocatoria();
 });
+
 
 async function cargarDatosConvocatoria() {
   try {
