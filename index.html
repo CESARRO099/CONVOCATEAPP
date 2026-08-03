@@ -259,6 +259,11 @@
       <div class="horas-bar"><div class="horas-fill" id="horas-fill" style="width:0%"></div></div>
     </div>
     <div class="tabs" id="tabs-wrap"></div>
+    <div style="display:flex; justify-content:flex-end; gap:6px; margin-bottom:6px;">
+      <button id="btn-zoom-out" style="width:34px; height:34px; border:2px solid var(--ink); border-radius:6px; background:#fff; font-size:1.1rem; font-weight:700; cursor:pointer; line-height:1;">－</button>
+      <button id="btn-zoom-reset" style="height:34px; padding:0 10px; border:2px solid var(--ink); border-radius:6px; background:#fff; font-size:0.75rem; font-weight:700; cursor:pointer;">100%</button>
+      <button id="btn-zoom-in" style="width:34px; height:34px; border:2px solid var(--ink); border-radius:6px; background:#fff; font-size:1.1rem; font-weight:700; cursor:pointer; line-height:1;">＋</button>
+    </div>
     <div class="card" style="overflow-x:auto; overflow-y:visible;">
       <div id="grilla-wrap"><div class="status-msg">Elegí un sector arriba</div></div>
     </div>
@@ -287,6 +292,36 @@ const horasTexto = document.getElementById("horas-texto");
 const horasFill = document.getElementById("horas-fill");
 const tabsWrap = document.getElementById("tabs-wrap");
 const grillaWrap = document.getElementById("grilla-wrap");
+
+// ---------------------------------------------------------
+// Zoom manual de la planilla: algunos teléfonos (sobre todo
+// iPhone con la app instalada en pantalla de inicio) no dejan
+// achicar con los dedos, así que se ofrece un control aparte.
+// Usa la propiedad CSS "zoom" (bien soportada en Safari/Chrome
+// móvil) para no tener que recalcular anchos de columna.
+// ---------------------------------------------------------
+const ZOOM_MIN = 0.6, ZOOM_MAX = 1.4, ZOOM_PASO = 0.1;
+let tablaZoom = Number(localStorage.getItem("convocate_zoom")) || 1;
+
+function aplicarZoom() {
+  grillaWrap.style.zoom = tablaZoom;
+  document.getElementById("btn-zoom-reset").textContent = `${Math.round(tablaZoom * 100)}%`;
+  localStorage.setItem("convocate_zoom", tablaZoom);
+}
+
+document.getElementById("btn-zoom-in").addEventListener("click", () => {
+  tablaZoom = Math.min(ZOOM_MAX, Math.round((tablaZoom + ZOOM_PASO) * 100) / 100);
+  aplicarZoom();
+});
+document.getElementById("btn-zoom-out").addEventListener("click", () => {
+  tablaZoom = Math.max(ZOOM_MIN, Math.round((tablaZoom - ZOOM_PASO) * 100) / 100);
+  aplicarZoom();
+});
+document.getElementById("btn-zoom-reset").addEventListener("click", () => {
+  tablaZoom = 1;
+  aplicarZoom();
+});
+aplicarZoom();
 
 let personaActual = null;      // { id, apellido, nombre, empresa }
 let procesosActivos = [];      // procesos_convocatoria ACTIVO
