@@ -337,6 +337,19 @@ function renderGrillaCoord() {
       let cursor = "";
       let dataAttr = "";
 
+      // Fin de semana / feriado: mismo criterio que la vista pública.
+      // Solo pinta de gris, nunca borra el contenido de la celda.
+      let esGrisFinde = false;
+      if (esFilaDia && typeof dia === "number") {
+        const mesBase = MES.slice(0, 7); // "YYYY-MM"
+        const fechaStr = `${mesBase}-${String(dia).padStart(2, "0")}`;
+        const d = new Date(fechaStr + "T12:00:00");
+        const diaSemana = ((d.getDay() + 6) % 7) + 1; // 1=Lunes...7=Domingo
+        const esFinde = diaSemana === 6 || diaSemana === 7;
+        const esFeriado = dia === 12 && coordSectorActual !== "BSE";
+        esGrisFinde = esFinde || esFeriado;
+      }
+
       if (esFilaDia && setGrises && !setGrises.has(c)) {
         // columna fuera de tabla — no clickeable
       } else if (esFilaDia && c !== dia_col && typeof dia === 'number') {
@@ -370,6 +383,7 @@ function renderGrillaCoord() {
       }
 
       const bold = celda.bold ? "font-weight:700;" : "";
+      if (esGrisFinde) bg = "background:#A6A6A6;";
       html += `<td${attrs}${dataAttr} style="padding:3px 5px;text-align:center;vertical-align:middle;${borde}${bg}${bold}${cursor}height:22px;">${contenido}</td>`;
     }
     html += `</tr>`;
