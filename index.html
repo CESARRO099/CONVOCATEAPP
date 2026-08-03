@@ -313,6 +313,9 @@ async function sb(path, opts = {}) {
 }
 
 function nombreEmpresa(e) { return e === "ESPANOLA" ? "ESPAÑOLA" : e; }
+function etiquetaEmpresaPersona(p) {
+  return p.empresa === "SUISAS" ? " (SUISAS)" : " (España)";
+}
 function sinTildes(s) {
   return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
@@ -329,9 +332,7 @@ async function cargarPersonas() {
     const personas = await sb("perfiles?select=id,ficha,ficha_suisas,apellido,nombre,empresa&order=apellido.asc");
     personaSelect.innerHTML = `<option value="">Seleccioná...</option>` +
       personas.map(p => {
-        const esDual = p.ficha && p.ficha_suisas;
-        const label = esDual ? ` (${nombreEmpresa(p.empresa)})` : "";
-        return `<option value="${p.id}">${nombreCompleto(p)}${label}</option>`;
+        return `<option value="${p.id}">${nombreCompleto(p)}${etiquetaEmpresaPersona(p)}</option>`;
       }).join("");
     window.__personas = personas;
   } catch (e) {
@@ -360,8 +361,7 @@ function renderPersonaOptions(lista) {
     return;
   }
   personaOptionsWrap.innerHTML = lista.map((p, i) => {
-    const esDual = p.ficha && p.ficha_suisas;
-    const label = esDual ? ` (${nombreEmpresa(p.empresa)})` : "";
+    const label = etiquetaEmpresaPersona(p);
     return `<div class="persona-opcion" data-idx="${i}" data-id="${p.id}"
       style="padding:9px 12px; cursor:pointer; font-size:0.9rem; border-bottom:1px solid #eee;">${nombreCompleto(p)}${label}</div>`;
   }).join("");
@@ -446,10 +446,9 @@ personaSelect.addEventListener("change", async (e) => {
   }
   personaActual = (window.__personas || []).find(p => p.id === personaId);
   if (personaActual) {
-    const esDual = personaActual.ficha && personaActual.ficha_suisas;
-    pillWrap.innerHTML = esDual
+    pillWrap.innerHTML = personaActual.ficha
       ? `<span class="empresa-pill">${nombreEmpresa(personaActual.empresa)} · Ficha ${personaActual.ficha}</span>`
-      : personaActual.ficha ? `<span class="empresa-pill">Ficha ${personaActual.ficha}</span>` : "";
+      : "";
     // Ocultar bienvenida y mostrar header al elegir persona
     document.getElementById("bienvenida-wrap").style.display = "none";
     const h = document.getElementById("header-top");
