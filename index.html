@@ -302,7 +302,7 @@ const grillaWrap = document.getElementById("grilla-wrap");
 // Usa la propiedad CSS "zoom" (bien soportada en Safari/Chrome
 // móvil) para no tener que recalcular anchos de columna.
 // ---------------------------------------------------------
-const ZOOM_MIN = 0.6, ZOOM_MAX = 1.4, ZOOM_PASO = 0.1;
+const ZOOM_MIN = 0.3, ZOOM_MAX = 1.4, ZOOM_PASO = 0.1;
 let tablaZoom = Number(localStorage.getItem("convocate_zoom")) || 0.6;
 
 function aplicarZoom() {
