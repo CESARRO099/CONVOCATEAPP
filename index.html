@@ -771,6 +771,11 @@ async function renderGrilla() {
         const tG = porCeldaReal[franjaKeyG];
         if (tG && (tG.persona_id || tG.nombre_externo)) {
           contenido = tG.perfiles ? sinTildes(tG.perfiles.apellido).toUpperCase() : sinTildes(tG.nombre_externo).toUpperCase();
+        } else if (celda.v) {
+          // Horario fijo (ej. SUISAS) sin gestión en la app todavía:
+          // mostrar el texto del Excel de solo lectura, sin botones
+          contenido = sinTildes(String(celda.v)).toUpperCase();
+          clases += " gris";
         } else {
           contenido = "";
           clases += " gris";
