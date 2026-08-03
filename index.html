@@ -280,7 +280,7 @@
       <p id="pin-texto" style="font-size:0.85rem; color:var(--ink-soft); margin:0;"></p>
       <input type="tel" id="pin-input" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off"
         style="width:100%; box-sizing:border-box; padding:12px; border:2px solid var(--ink); border-radius:8px; font-size:1.4rem; letter-spacing:0.4em; text-align:center; font-family:inherit;">
-      <input type="tel" id="pin-input-confirmar" inputmode="numeric" maxlength="4" placeholder="Repetí el PIN" autocomplete="off"
+      <input type="tel" id="pin-input-confirmar" inputmode="numeric" maxlength="4" placeholder="Confirmá el PIN" autocomplete="off"
         style="display:none; width:100%; box-sizing:border-box; padding:12px; border:2px solid var(--ink); border-radius:8px; font-size:1.4rem; letter-spacing:0.4em; text-align:center; font-family:inherit;">
       <p id="pin-error" style="font-size:0.8rem; color:#c8102e; margin:0; min-height:1.1em;"></p>
       <button class="btn-primary" id="btn-pin-confirmar">Confirmar</button>
@@ -508,7 +508,7 @@ function pedirPin(personaId, modoRegistro) {
   return new Promise((resolve) => {
     pinTitulo.textContent = modoRegistro ? "Creá tu PIN" : "Ingresá tu PIN";
     pinTexto.textContent = modoRegistro
-      ? "Es la primera vez que elegís este nombre en este dispositivo. Creá un PIN de 4 números para que nadie más pueda usarlo en tu lugar."
+      ? "Elegí un PIN de 4 números por única vez. Lo vas a necesitar solo si alguna vez entrás desde otro dispositivo."
       : "Este nombre ya tiene un PIN creado en otro dispositivo. Ingresalo para continuar.";
     pinInput.value = "";
     pinInputConfirmar.value = "";
