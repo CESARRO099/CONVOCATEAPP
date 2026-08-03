@@ -254,21 +254,6 @@
         <button class="btn-cancel" id="btn-cancelar-cambio">Cancelar</button>
       </div>
     </div>
-
-    <!-- Modal de PIN (crear o verificar) -->
-    <div class="modal-overlay" id="modal-pin">
-      <div class="modal-box">
-        <h3 id="pin-titulo">Creá tu PIN</h3>
-        <p id="pin-texto" style="font-size:0.85rem; color:var(--ink-soft); margin:0;"></p>
-        <input type="tel" id="pin-input" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off"
-          style="width:100%; box-sizing:border-box; padding:12px; border:2px solid var(--ink); border-radius:8px; font-size:1.4rem; letter-spacing:0.4em; text-align:center; font-family:inherit;">
-        <input type="tel" id="pin-input-confirmar" inputmode="numeric" maxlength="4" placeholder="Repetí el PIN" autocomplete="off"
-          style="display:none; width:100%; box-sizing:border-box; padding:12px; border:2px solid var(--ink); border-radius:8px; font-size:1.4rem; letter-spacing:0.4em; text-align:center; font-family:inherit;">
-        <p id="pin-error" style="font-size:0.8rem; color:#c8102e; margin:0; min-height:1.1em;"></p>
-        <button class="btn-primary" id="btn-pin-confirmar">Confirmar</button>
-        <button class="btn-cancel" id="btn-pin-cancelar">Cancelar</button>
-      </div>
-    </div>
     <div class="horas-wrap">
       <div class="horas-row"><span>Horas este mes</span><span id="horas-texto">0 / 80 hs</span></div>
       <div class="horas-bar"><div class="horas-fill" id="horas-fill" style="width:0%"></div></div>
@@ -283,6 +268,23 @@
     </div>
     <div class="card" style="overflow-x:auto; overflow-y:visible;">
       <div id="grilla-wrap"><div class="status-msg">Elegí un sector arriba</div></div>
+    </div>
+  </div>
+
+  <!-- Modal de PIN (crear o verificar) — fuera de convocatoria-wrap
+       a propósito, porque tiene que poder mostrarse ANTES de que
+       convocatoria-wrap pase a display:block -->
+  <div class="modal-overlay" id="modal-pin">
+    <div class="modal-box">
+      <h3 id="pin-titulo">Creá tu PIN</h3>
+      <p id="pin-texto" style="font-size:0.85rem; color:var(--ink-soft); margin:0;"></p>
+      <input type="tel" id="pin-input" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off"
+        style="width:100%; box-sizing:border-box; padding:12px; border:2px solid var(--ink); border-radius:8px; font-size:1.4rem; letter-spacing:0.4em; text-align:center; font-family:inherit;">
+      <input type="tel" id="pin-input-confirmar" inputmode="numeric" maxlength="4" placeholder="Repetí el PIN" autocomplete="off"
+        style="display:none; width:100%; box-sizing:border-box; padding:12px; border:2px solid var(--ink); border-radius:8px; font-size:1.4rem; letter-spacing:0.4em; text-align:center; font-family:inherit;">
+      <p id="pin-error" style="font-size:0.8rem; color:#c8102e; margin:0; min-height:1.1em;"></p>
+      <button class="btn-primary" id="btn-pin-confirmar">Confirmar</button>
+      <button class="btn-cancel" id="btn-pin-cancelar">Cancelar</button>
     </div>
   </div>
 
@@ -1313,7 +1315,28 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-cargarPersonas();
+// ---------------------------------------------------------
+// Auto-login: si este dispositivo ya tiene una persona
+// recordada (y sigue existiendo en la base), entra directo a
+// su vista sin pedirle elegir el nombre de nuevo. El chequeo
+// de PIN sigue corriendo igual (asegurarPin), pero como ya
+// quedó validado en este dispositivo, no vuelve a preguntar.
+// ---------------------------------------------------------
+async function intentarAutoLogin() {
+  const personaId = localStorage.getItem(CLAVE_ULTIMA_PERSONA);
+  if (!personaId) return;
+  const persona = (window.__personas || []).find(p => p.id === personaId);
+  if (!persona) {
+    // La persona ya no existe (se borró/cambió) — limpiar y no insistir
+    localStorage.removeItem(CLAVE_ULTIMA_PERSONA);
+    return;
+  }
+  personaSearch.value = nombreCompleto(persona) + etiquetaEmpresaPersona(persona);
+  personaSelect.value = personaId;
+  personaSelect.dispatchEvent(new Event("change"));
+}
+
+cargarPersonas().then(intentarAutoLogin);
 </script>
 </body>
 </html>
