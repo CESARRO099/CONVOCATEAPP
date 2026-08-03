@@ -312,9 +312,9 @@ async function sb(path, opts = {}) {
   return text ? JSON.parse(text) : null;
 }
 
-function nombreEmpresa(e) { return e === "ESPANOLA" ? "ESPAÑOLA" : e; }
+function nombreEmpresa(e) { return e === "ESPANOLA" ? "ASESP" : e; }
 function etiquetaEmpresaPersona(p) {
-  return p.empresa === "SUISAS" ? " (SUISAS)" : " (España)";
+  return p.empresa === "SUISAS" ? " (SUISAS)" : " (ASESP)";
 }
 function sinTildes(s) {
   return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
