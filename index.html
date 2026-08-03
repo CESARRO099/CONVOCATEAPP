@@ -301,6 +301,7 @@ const MES_ACTUAL = "2026-10"; // mes que se muestra (formato YYYY-MM)
 // =========================================================
 
 const personaSelect = document.getElementById("persona-select");
+const CLAVE_ULTIMA_PERSONA = "convocate_ultima_persona_id";
 const resultadoDiv = document.getElementById("resultado");
 const pillWrap = document.getElementById("empresa-pill-wrap");
 const convocatoriaWrap = document.getElementById("convocatoria-wrap");
@@ -613,13 +614,28 @@ personaSelect.addEventListener("change", async (e) => {
     document.getElementById("bienvenida-wrap").style.display = "none";
     const h = document.getElementById("header-top");
     h.style.display = "";
-    h.innerHTML = `<img class="logo" src="./icon.png" alt="ConvocaTE" style="max-width:48px;"><p>Servicio de Imagenología</p>`;
+    h.innerHTML = `<img class="logo" src="./icon.png" alt="ConvocaTE" style="max-width:48px;"><p>Servicio de Imagenología</p>` +
+      `<button id="btn-cambiar-usuario" style="margin-top:2px; background:transparent; border:none; color:var(--ink-soft); font-family:inherit; font-size:0.72rem; text-decoration:underline; cursor:pointer;">Cambiar de usuario</button>`;
+    document.getElementById("btn-cambiar-usuario").addEventListener("click", cambiarUsuario);
   }
+  // Recordar a esta persona en este dispositivo para la próxima vez
+  localStorage.setItem(CLAVE_ULTIMA_PERSONA, personaId);
   actualizarBotonesCambio();
   convocatoriaWrap.style.display = "block";
   grillaWrap.innerHTML = `<div class="status-msg">Cargando...</div>`;
   await cargarDatosConvocatoria();
 });
+
+function cambiarUsuario() {
+  localStorage.removeItem(CLAVE_ULTIMA_PERSONA);
+  personaActual = null;
+  personaSelect.value = "";
+  personaSearch.value = "";
+  pillWrap.innerHTML = "";
+  convocatoriaWrap.style.display = "none";
+  document.getElementById("header-top").style.display = "none";
+  document.getElementById("bienvenida-wrap").style.display = "block";
+}
 
 
 async function cargarDatosConvocatoria() {
