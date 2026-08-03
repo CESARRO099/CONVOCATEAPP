@@ -329,7 +329,7 @@ function nombreCompleto(p) {
 // ---------------------------------------------------------
 async function cargarPersonas() {
   try {
-    const personas = await sb("perfiles?select=id,ficha,ficha_suisas,apellido,nombre,empresa&order=apellido.asc");
+    const personas = await sb("perfiles?select=id,ficha,ficha_suisas,apellido,nombre,empresa,tope_horas_mensual&order=apellido.asc");
     personaSelect.innerHTML = `<option value="">Seleccioná...</option>` +
       personas.map(p => {
         return `<option value="${p.id}">${nombreCompleto(p)}${etiquetaEmpresaPersona(p)}</option>`;
@@ -481,9 +481,11 @@ async function cargarDatosConvocatoria() {
 
     // Horas acumuladas
     const horasNum = Number(horas) || 0;
+    const tope = Number(personaActual?.tope_horas_mensual) || 82;
     window._horasActuales = horasNum;
-    horasTexto.textContent = `${horasNum.toFixed(1)} / 80 hs`;
-    const pct = Math.min(100, (horasNum / 84) * 100);
+    window._topeHoras = tope;
+    horasTexto.textContent = `${horasNum.toFixed(1)} / ${tope} hs`;
+    const pct = Math.min(100, (horasNum / tope) * 100);
     horasFill.style.width = pct + "%";
     // Color progresivo: rojo (0%) → amarillo (50%) → verde (100%)
     const r = pct < 50 ? 220 : Math.round(220 - (pct - 50) * 3.6);
@@ -902,7 +904,7 @@ async function rechazarTurno(turnoId) {
 
 async function elegirTurno(turnoId) {
   try {
-    if ((window._horasActuales || 0) >= 82) {
+    if ((window._horasActuales || 0) >= (window._topeHoras || 82)) {
       alert("Ya completaste tus horas para este mes.");
       return;
     }
