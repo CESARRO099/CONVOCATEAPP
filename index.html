@@ -994,6 +994,12 @@ async function responderSolicitud(id, aceptar) {
 }
 
 document.getElementById("btn-abrir-cambio").addEventListener("click", async () => {
+  const publicado = await sb(`meses_publicados?select=mes&mes=eq.${MES_ACTUAL}-01`);
+  if (!publicado || !publicado.length) {
+    alert("No es posible modificar la convocatoria de este mes.");
+    return;
+  }
+
   const misTurnos = await sb(
     `turnos?select=id,fecha,franjas_horarias(nombre,sectores(nombre))` +
     `&persona_id=eq.${personaActual.id}` +
