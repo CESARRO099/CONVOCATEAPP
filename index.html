@@ -215,8 +215,13 @@
   </div>
 
   <div class="card">
-    <label class="field-label" for="persona-select">Elegí tu nombre</label>
-    <select id="persona-select">
+    <label class="field-label" for="persona-search">Elegí tu nombre</label>
+    <div id="persona-combo-wrap" style="position:relative;">
+      <input type="text" id="persona-search" autocomplete="off" placeholder="Escribí tu apellido…"
+        style="width:100%; box-sizing:border-box; padding:10px 12px; border:2px solid var(--ink); border-radius:6px; font-family:inherit; font-size:0.95rem; background:#fff;">
+      <div id="persona-options" style="display:none; position:absolute; z-index:50; top:calc(100% + 4px); left:0; right:0; max-height:240px; overflow-y:auto; background:#fff; border:2px solid var(--ink); border-radius:6px; box-shadow:0 4px 10px rgba(0,0,0,0.15);"></div>
+    </div>
+    <select id="persona-select" style="display:none;">
       <option value="">Cargando personas…</option>
     </select>
     <div id="empresa-pill-wrap"></div>
@@ -334,6 +339,98 @@ async function cargarPersonas() {
     resultadoDiv.innerHTML = `<div class="status-msg">No se pudo conectar a Supabase: ${e.message}</div>`;
   }
 }
+
+// ---------------------------------------------------------
+// Buscador con autocompletado: filtra por apellido/nombre a
+// medida que se escribe, se navega con flechas y Enter, y al
+// elegir una opción se sincroniza con el <select> oculto para
+// no tocar el resto de la lógica (que escucha su evento "change").
+// ---------------------------------------------------------
+const personaSearch = document.getElementById("persona-search");
+const personaOptionsWrap = document.getElementById("persona-options");
+let personaOpcionesFiltradas = [];
+let personaIndiceActivo = -1;
+
+function renderPersonaOptions(lista) {
+  personaOpcionesFiltradas = lista;
+  personaIndiceActivo = -1;
+  if (!lista.length) {
+    personaOptionsWrap.innerHTML = `<div style="padding:10px 12px; color:var(--ink-soft); font-size:0.85rem;">Sin resultados</div>`;
+    personaOptionsWrap.style.display = "block";
+    return;
+  }
+  personaOptionsWrap.innerHTML = lista.map((p, i) => {
+    const esDual = p.ficha && p.ficha_suisas;
+    const label = esDual ? ` (${nombreEmpresa(p.empresa)})` : "";
+    return `<div class="persona-opcion" data-idx="${i}" data-id="${p.id}"
+      style="padding:9px 12px; cursor:pointer; font-size:0.9rem; border-bottom:1px solid #eee;">${nombreCompleto(p)}${label}</div>`;
+  }).join("");
+  personaOptionsWrap.style.display = "block";
+}
+
+function resaltarOpcionActiva() {
+  personaOptionsWrap.querySelectorAll(".persona-opcion").forEach((el, i) => {
+    el.style.background = i === personaIndiceActivo ? "#eef2f8" : "";
+  });
+  const activa = personaOptionsWrap.querySelector(`.persona-opcion[data-idx="${personaIndiceActivo}"]`);
+  if (activa) activa.scrollIntoView({ block: "nearest" });
+}
+
+function elegirPersonaDesdeCombo(persona) {
+  if (!persona) return;
+  personaSearch.value = nombreCompleto(persona);
+  personaOptionsWrap.style.display = "none";
+  personaSelect.value = persona.id;
+  personaSelect.dispatchEvent(new Event("change"));
+}
+
+personaSearch.addEventListener("input", () => {
+  const q = sinTildes(personaSearch.value || "").toUpperCase().trim();
+  const todas = window.__personas || [];
+  const filtradas = q ? todas.filter(p => sinTildes(nombreCompleto(p)).toUpperCase().includes(q)) : todas;
+  renderPersonaOptions(filtradas);
+  // Si se borra el texto, también se limpia la selección real
+  if (!q && personaSelect.value) {
+    personaSelect.value = "";
+    personaSelect.dispatchEvent(new Event("change"));
+  }
+});
+
+personaSearch.addEventListener("focus", () => {
+  if (!personaSearch.value) renderPersonaOptions(window.__personas || []);
+});
+
+personaSearch.addEventListener("keydown", (e) => {
+  if (personaOptionsWrap.style.display === "none") return;
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    personaIndiceActivo = Math.min(personaIndiceActivo + 1, personaOpcionesFiltradas.length - 1);
+    resaltarOpcionActiva();
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    personaIndiceActivo = Math.max(personaIndiceActivo - 1, 0);
+    resaltarOpcionActiva();
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    const elegida = personaOpcionesFiltradas[personaIndiceActivo] ?? personaOpcionesFiltradas[0];
+    elegirPersonaDesdeCombo(elegida);
+  } else if (e.key === "Escape") {
+    personaOptionsWrap.style.display = "none";
+  }
+});
+
+personaOptionsWrap.addEventListener("click", (e) => {
+  const opt = e.target.closest(".persona-opcion");
+  if (!opt) return;
+  const persona = personaOpcionesFiltradas[Number(opt.dataset.idx)];
+  elegirPersonaDesdeCombo(persona);
+});
+
+document.addEventListener("click", (e) => {
+  if (!document.getElementById("persona-combo-wrap").contains(e.target)) {
+    personaOptionsWrap.style.display = "none";
+  }
+});
 
 // ---------------------------------------------------------
 // Al elegir una persona: cargar todo lo necesario para la
