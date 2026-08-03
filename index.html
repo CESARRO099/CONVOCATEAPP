@@ -1021,7 +1021,7 @@ document.getElementById("btn-enviar-cambio").addEventListener("click", async () 
   const coberturaId = selCobertura.value;
   if (!turnoId || !coberturaId) return;
 
-  const ok = await sb(`rpc/solicitar_cambio`, {
+  const resultado = await sb(`rpc/solicitar_cambio`, {
     method: "POST",
     body: JSON.stringify({
       p_turno_id: turnoId,
@@ -1031,11 +1031,15 @@ document.getElementById("btn-enviar-cambio").addEventListener("click", async () 
   });
 
   modalCambio.classList.remove("open");
-  if (ok === true) {
+  if (resultado === "ok") {
     const nombre = selCobertura.options[selCobertura.selectedIndex].text.split(",")[0];
     alert(`Solicitud enviada. ${nombre} recibirá una notificación para aceptar o rechazar.`);
+  } else if (resultado === "mes_no_publicado") {
+    alert("No es posible modificar la convocatoria de este mes.");
+  } else if (resultado === "ya_pendiente") {
+    alert("Ya tenés una solicitud pendiente para ese turno.");
   } else {
-    alert("No se pudo enviar la solicitud. Puede que ya tengas una pendiente para ese turno.");
+    alert("No se pudo enviar la solicitud.");
   }
 });
 
