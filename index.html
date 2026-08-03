@@ -277,11 +277,11 @@
   <div class="modal-overlay" id="modal-pin">
     <div class="modal-box">
       <h3 id="pin-titulo">Creá tu PIN</h3>
-      <p id="pin-texto" style="font-size:0.85rem; color:var(--ink-soft); margin:0;"></p>
+      <p id="pin-texto" style="font-size:0.85rem; color:var(--ink-soft); margin:0 0 6px;"></p>
       <input type="tel" id="pin-input" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off"
-        style="width:100%; box-sizing:border-box; padding:12px; border:2px solid var(--ink); border-radius:8px; font-size:1.4rem; letter-spacing:0.4em; text-align:center; font-family:inherit;">
+        style="width:100%; box-sizing:border-box; padding:10px; border:1px solid var(--line); border-radius:8px; font-size:1.15rem; letter-spacing:0.3em; text-align:center; font-family:inherit; background:#fafafa;">
       <input type="tel" id="pin-input-confirmar" inputmode="numeric" maxlength="4" placeholder="Confirmá el PIN" autocomplete="off"
-        style="display:none; width:100%; box-sizing:border-box; padding:12px; border:2px solid var(--ink); border-radius:8px; font-size:1.4rem; letter-spacing:0.4em; text-align:center; font-family:inherit;">
+        style="display:none; width:100%; box-sizing:border-box; padding:10px; border:1px solid var(--line); border-radius:8px; font-size:1.15rem; letter-spacing:0.3em; text-align:center; font-family:inherit; background:#fafafa;">
       <p id="pin-error" style="font-size:0.8rem; color:#c8102e; margin:0; min-height:1.1em;"></p>
       <button class="btn-primary" id="btn-pin-confirmar">Confirmar</button>
       <button class="btn-cancel" id="btn-pin-cancelar">Cancelar</button>
@@ -515,10 +515,12 @@ function pedirPin(personaId, modoRegistro) {
     pinInputConfirmar.style.display = modoRegistro ? "block" : "none";
     pinError.textContent = "";
     modalPin.classList.add("open");
-    pinInput.focus();
+    document.body.style.overflow = "hidden";
+    setTimeout(() => pinInput.focus(), 250);
 
     const limpiar = () => {
       modalPin.classList.remove("open");
+      document.body.style.overflow = "";
       btnPinConfirmar.removeEventListener("click", onConfirmar);
       btnPinCancelar.removeEventListener("click", onCancelar);
     };
