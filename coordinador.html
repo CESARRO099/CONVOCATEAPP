@@ -359,9 +359,16 @@ function renderGrillaCoord() {
           if (turno.persona_id) {
             contenido = turno.perfiles ? (turno.perfiles.apellido||"").toUpperCase() : "ASIGNADO";
             bg = "background:#E3F0E8;";
-          } else {
+          } else if (celda.y) {
             contenido = "LIBRE";
             bg = "background:#FFF9C4;color:#7B6000;font-weight:700;";
+          } else {
+            // Turno vacante cargado en una celda que en realidad NO es
+            // amarilla (no es de convocatoria): mostrar el texto fijo
+            // original del Excel, igual que hace la vista pública, en
+            // vez de tapar el nombre del titular con "LIBRE".
+            contenido = celda.v ?? "";
+            bg = "background:#fff;";
           }
           cursor = "cursor:pointer;";
           dataAttr = ` data-dia="${dia}" data-col="${c}" data-turno-id="${turno.id}"`;
