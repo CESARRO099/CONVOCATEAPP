@@ -995,8 +995,12 @@ async function renderGrilla() {
         if (!setColumnasGrises || setColumnasGrises.has(c)) {
           clases += grisFila ? " gris" : " dia-semana";
         }
-      } else if (esFilaDeDia && celda.r) {
-        // Celda roja en el Excel = solo SUISAS (bloqueada para Española por ahora)
+      } else if ((esFilaDeDia || r > last_day_row) && celda.r) {
+        // Celda roja en el Excel = solo SUISAS (bloqueada para Española por ahora).
+        // El "r > last_day_row" cubre tablas aparte (ej. "cobertura por SUISAS"
+        // en TC) que tienen más filas que el calendario del mes y quedarían
+        // fuera de esFilaDeDia si no fuera por esto — sin afectar ninguna otra
+        // rama ni el cálculo de día/fin de semana.
         contenido = "LIBRE";
         clases += " libre-suisas";
       } else if (esFilaDeDia && celda.y) {
