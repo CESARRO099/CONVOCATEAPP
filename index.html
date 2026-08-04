@@ -985,7 +985,7 @@ async function renderGrilla() {
           contenido = "";
           clases += " gris";
         }
-      } else if (esFilaDeDia && typeof celda.v === 'number' && celda.v >= 1 && celda.v <= 31) {
+      } else if ((esFilaDeDia || r > last_day_row) && typeof celda.v === 'number' && celda.v >= 1 && celda.v <= 31) {
         // Celda con un número de 1 a 31. Si pertenece al calendario
         // principal (columnas_grises lo marca), pintar según fin de
         // semana/feriado. Si es de una tabla aparte con su propio número
@@ -995,6 +995,11 @@ async function renderGrilla() {
         if (!setColumnasGrises || setColumnasGrises.has(c)) {
           clases += grisFila ? " gris" : " dia-semana";
         }
+      } else if ((esFilaDeDia || r > last_day_row) && typeof celda.v === 'string' && /^\d{1,2}\s*A\s*\d{1,2}$/i.test(celda.v.trim())) {
+        // Texto con forma de horario (ej. "8 A 20", "0 A 8"): es información
+        // fija de referencia, no "quién está asignado" — se muestra tal cual,
+        // no se tapa con LIBRE aunque la celda esté marcada en rojo (SUISAS).
+        contenido = celda.v;
       } else if ((esFilaDeDia || r > last_day_row) && celda.r) {
         // Celda roja en el Excel = solo SUISAS (bloqueada para Española por ahora).
         // El "r > last_day_row" cubre tablas aparte (ej. "cobertura por SUISAS"
