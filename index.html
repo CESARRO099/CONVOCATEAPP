@@ -1025,6 +1025,12 @@ async function renderGrilla() {
           }
         } else if (puedoElegirAca && t && !t.persona_id && !t.nombre_externo) {
           contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
+        } else if (t && !t.persona_id && !t.nombre_externo) {
+          // El turno existe en la base y está vacante (por ejemplo, se
+          // liberó por licencia), pero no es el turno de elegir de
+          // quien mira: mostrar LIBRE en vez del texto fijo del Excel.
+          contenido = "LIBRE";
+          clases += " libre-texto";
         }
       }
 
