@@ -359,14 +359,16 @@ function renderGrillaCoord() {
           if (turno.persona_id) {
             contenido = turno.perfiles ? (turno.perfiles.apellido||"").toUpperCase() : "ASIGNADO";
             bg = "background:#E3F0E8;";
-          } else if (celda.y) {
+          } else if (celda.y || turno.origen_vacante === "coordinador") {
+            // Amarilla en el Excel, o liberada a propósito por el
+            // coordinador (aunque no sea amarilla): mostrar LIBRE.
             contenido = "LIBRE";
             bg = "background:#FFF9C4;color:#7B6000;font-weight:700;";
           } else {
             // Turno vacante cargado en una celda que en realidad NO es
-            // amarilla (no es de convocatoria): mostrar el texto fijo
-            // original del Excel, igual que hace la vista pública, en
-            // vez de tapar el nombre del titular con "LIBRE".
+            // amarilla (no es de convocatoria) ni fue liberada a propósito:
+            // mostrar el texto fijo original del Excel, igual que hace
+            // la vista pública, en vez de tapar el nombre del titular.
             contenido = celda.v ?? "";
             bg = "background:#fff;";
           }
@@ -571,7 +573,7 @@ async function recargarTurnos() {
   let desde = 0;
   while (true) {
     const pag = await sbCoord(
-      `turnos?select=id,fecha,col_excel,persona_id,` +
+      `turnos?select=id,fecha,col_excel,persona_id,origen_vacante,` +
       `franjas_horarias!inner(nombre,sector_id,sectores!inner(nombre)),perfiles(apellido)` +
       `&franjas_horarias.sector_id=eq.${sectorId}` +
       `&fecha=gte.${MES_COORD}-01&fecha=lte.${MES_COORD}-31&order=id.asc`,
