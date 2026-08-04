@@ -986,11 +986,14 @@ async function renderGrilla() {
           clases += " gris";
         }
       } else if (esFilaDeDia && typeof celda.v === 'number' && celda.v >= 1 && celda.v <= 31) {
-        // Celda con número de día: pastel si entre semana, gris si finde/feriado
-        if (grisFila) {
-          clases += " gris";
-        } else {
-          clases += " dia-semana";
+        // Celda con un número de 1 a 31. Si pertenece al calendario
+        // principal (columnas_grises lo marca), pintar según fin de
+        // semana/feriado. Si es de una tabla aparte con su propio número
+        // de día (ej. "cobertura por SUISAS" en TC), dejarla sin colorear
+        // especial — pero igual "consumir" la celda acá para que no caiga
+        // después en la rama de rojo/SUISAS y tape el número con "LIBRE".
+        if (!setColumnasGrises || setColumnasGrises.has(c)) {
+          clases += grisFila ? " gris" : " dia-semana";
         }
       } else if (esFilaDeDia && celda.r) {
         // Celda roja en el Excel = solo SUISAS (bloqueada para Española por ahora)
