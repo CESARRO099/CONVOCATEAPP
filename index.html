@@ -957,9 +957,14 @@ async function renderGrilla() {
         const tG = porCeldaReal[franjaKeyG];
         if (tG && (tG.persona_id || tG.nombre_externo)) {
           contenido = tG.perfiles ? sinTildes(tG.perfiles.apellido).toUpperCase() : sinTildes(tG.nombre_externo).toUpperCase();
+        } else if (tG) {
+          // Existe un turno en Supabase y está vacante (por ejemplo,
+          // se liberó por licencia): no mostrar el texto viejo del Excel.
+          contenido = "";
+          clases += " gris";
         } else if (celda.v) {
-          // Horario fijo (ej. SUISAS) sin gestión en la app todavía:
-          // mostrar el texto del Excel de solo lectura, sin botones
+          // No hay ningún turno cargado para esta celda (ej. SUISAS sin
+          // gestión todavía): mostrar el texto del Excel de solo lectura
           contenido = sinTildes(String(celda.v)).toUpperCase();
           clases += " gris";
         } else {
