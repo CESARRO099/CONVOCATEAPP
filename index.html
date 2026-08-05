@@ -1187,6 +1187,21 @@ async function elegirTurno(turnoId) {
       alert("Ya completaste tus horas para este mes.");
       return;
     }
+
+    const chequeo = await sb(`rpc/chequear_conflicto_fija`, {
+      method: "POST",
+      body: JSON.stringify({ p_turno_id: turnoId, p_persona_id: personaActual.id })
+    });
+    const conflicto = Array.isArray(chequeo) ? chequeo[0] : null;
+    if (conflicto && conflicto.hay_conflicto) {
+      const confirma = confirm(
+        `Cuidado: al elegir este turno estás superponiendo las horas con las de tu turno de ` +
+        `${conflicto.sector} (${conflicto.franja}) del ${conflicto.fecha.slice(8,10)}/${conflicto.fecha.slice(5,7)}. ` +
+        `Esas horas quedarán libres para que las elija otro suplente. ¿Confirmás?`
+      );
+      if (!confirma) return;
+    }
+
     const resultado = await sb(`rpc/tomar_turno`, {
       method: "POST",
       body: JSON.stringify({ p_turno_id: turnoId, p_persona_id: personaActual.id })
@@ -1194,7 +1209,6 @@ async function elegirTurno(turnoId) {
     if (resultado === 'ok') {
       await cargarDatosConvocatoria();
     } else if (resultado === 'ok_libero_fija') {
-      alert("Listo, tomaste el turno. Ojo: se liberó tu actividad fija de ese mismo día porque se superponía en el horario — va a quedar disponible para que otro suplente la elija.");
       await cargarDatosConvocatoria();
     } else if (resultado === 'limite_horas') {
       alert("Ya completaste tus horas para este mes.");
