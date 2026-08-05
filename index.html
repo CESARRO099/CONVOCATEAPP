@@ -380,6 +380,11 @@ function nombreCompleto(p) {
   const ap = sinTildes(p.apellido || "").toUpperCase();
   return p.nombre ? `${ap}, ${p.nombre}` : ap;
 }
+function nombreAsignado(p) {
+  // Nombre de quien tiene el turno asignado, marcando (S) si es de SUISAS
+  const ap = sinTildes(p.apellido || "").toUpperCase();
+  return ap + (p.empresa === "SUISAS" ? " (S)" : "");
+}
 
 // ---------------------------------------------------------
 // Carga inicial: personas para el selector
@@ -726,7 +731,7 @@ async function cargarDatosConvocatoria() {
     while (true) {
       const pagina = await sb(
         `turnos?select=id,fecha,persona_id,nombre_externo,origen_vacante,col_excel,` +
-        `franjas_horarias(nombre,sector_id,sectores(nombre)),perfiles(apellido,nombre)` +
+        `franjas_horarias(nombre,sector_id,sectores(nombre)),perfiles(apellido,nombre,empresa)` +
         `&fecha=gte.${MES_ACTUAL}-01&fecha=lte.${MES_ACTUAL}-31&order=id.asc`,
         { headers: { "Range-Unit": "items", "Range": `${desde}-${desde + 999}` } }
       );
@@ -993,7 +998,7 @@ async function renderGrilla() {
           if (esPropio && puedoElegirAca) {
             contenido = `<button class="btn-rechazar" data-turno-id="${tG.id}">Rechazar</button>`;
           } else {
-            contenido = tG.perfiles ? sinTildes(tG.perfiles.apellido).toUpperCase() : sinTildes(tG.nombre_externo).toUpperCase();
+            contenido = tG.perfiles ? nombreAsignado(tG.perfiles) : sinTildes(tG.nombre_externo).toUpperCase();
           }
         } else if (tG && tG.origen_vacante === 'coordinador') {
           // El coordinador liberó esta celda a propósito (ej. por
@@ -1053,7 +1058,7 @@ async function renderGrilla() {
           if (esPropio && puedoElegirAca) {
             contenido = `<button class="btn-rechazar" data-turno-id="${tR.id}">Rechazar</button>`;
           } else {
-            contenido = tR.perfiles ? sinTildes(tR.perfiles.apellido).toUpperCase() : sinTildes(tR.nombre_externo).toUpperCase();
+            contenido = tR.perfiles ? nombreAsignado(tR.perfiles) : sinTildes(tR.nombre_externo).toUpperCase();
           }
         } else if (puedoElegirAca && tR) {
           contenido = `<button class="btn-elegir" data-turno-id="${tR.id}">Elegir</button>`;
@@ -1070,7 +1075,7 @@ async function renderGrilla() {
           if (esPropio && puedoElegirAca) {
             contenido = `<button class="btn-rechazar" data-turno-id="${t.id}">Rechazar</button>`;
           } else {
-            contenido = t.perfiles ? sinTildes(t.perfiles.apellido).toUpperCase() : sinTildes(t.nombre_externo).toUpperCase();
+            contenido = t.perfiles ? nombreAsignado(t.perfiles) : sinTildes(t.nombre_externo).toUpperCase();
           }
         } else if (puedoElegirAca && t) {
           contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
@@ -1089,7 +1094,7 @@ async function renderGrilla() {
             if (esPropio && puedoElegirAca) {
               contenido = `<button class="btn-rechazar" data-turno-id="${t.id}">Rechazar</button>`;
             } else {
-              contenido = t.perfiles ? sinTildes(t.perfiles.apellido).toUpperCase() : sinTildes(t.nombre_externo).toUpperCase();
+              contenido = t.perfiles ? nombreAsignado(t.perfiles) : sinTildes(t.nombre_externo).toUpperCase();
             }
           } else {
             // Vacante creada por coordinador
@@ -1105,7 +1110,7 @@ async function renderGrilla() {
           if (esPropio && puedoElegirAca) {
             contenido = `<button class="btn-rechazar" data-turno-id="${t.id}">Rechazar</button>`;
           } else {
-            contenido = t.perfiles ? sinTildes(t.perfiles.apellido).toUpperCase() : sinTildes(t.nombre_externo).toUpperCase();
+            contenido = t.perfiles ? nombreAsignado(t.perfiles) : sinTildes(t.nombre_externo).toUpperCase();
           }
         } else if (puedoElegirAca && t && !t.persona_id && !t.nombre_externo) {
           contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
