@@ -1256,7 +1256,7 @@ async function cargarSolicitudesPendientes() {
   bannerSolicitud.innerHTML = data.map(s => `
     <div style="background:#FFF8E1;border:1px solid #F9A825;border-radius:8px;padding:12px;margin-bottom:8px;">
       <div style="font-weight:700;font-size:0.9rem;">
-        ${s.solicitante_apellido} quiere cederte un turno
+        ${sinTildes(s.solicitante_apellido)} quiere cederte un turno
       </div>
       <div style="font-size:0.82rem;color:#555;margin:4px 0;">
         ${s.fecha.slice(8,10)}/${s.fecha.slice(5,7)} — ${s.sector} ${s.franja}
