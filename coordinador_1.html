@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Convocate · Coordinador</title>
+<meta name="theme-color" content="#123B4A" />
+<link rel="manifest" href="./manifest-coordinador.json" />
+<link rel="icon" href="./icon.png" type="image/png" />
+<link rel="apple-touch-icon" href="./icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#F4F1EC; --surface:#FFFFFF; --ink:#17262B; --ink-soft:#5B6B70;
+    --primary:#123B4A; --primary-soft:#E7EEEF; --accent:#E8A33D; --accent-soft:#FBEBD1;
+    --ok:#3B7A57; --ok-soft:#E3F0E8; --warn:#B4472A; --warn-soft:#F7E3DE; --line:#E4DFD5; --radius:16px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:"Inter",system-ui,sans-serif;}
+  header{ background:var(--surface); color:var(--ink); padding:20px; border-radius:0 0 20px 20px; border-bottom:1px solid var(--line); text-align:center; }
+  header img.logo{ max-width:200px; width:100%; height:auto; display:block; margin:0 auto 6px; }
+  header p{ margin:4px 0 0; font-size:0.8rem; color:var(--ink-soft); }
+  main{ max-width:640px; margin:0 auto; padding:16px; }
+  .card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:14px; }
+  .card h2{ font-family:"Fraunces",serif; font-size:1rem; margin:0 0 12px; }
+  .proceso-row{ display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px solid var(--line); gap:10px; flex-wrap:wrap; }
+  .proceso-row:first-child{ border-top:none; }
+  .proceso-info .titulo{ font-weight:600; font-size:0.9rem; }
+  .proceso-info .detalle{ font-size:0.78rem; color:var(--ink-soft); }
+  .estado-pill{ font-size:0.7rem; font-weight:600; padding:3px 9px; border-radius:999px; }
+  .estado-ACTIVO{ background:var(--ok-soft); color:var(--ok); }
+  .estado-PAUSADO{ background:var(--warn-soft); color:var(--warn); }
+  .estado-FINALIZADO{ background:var(--line); color:var(--ink-soft); }
+  button{ font-family:inherit; border:none; border-radius:10px; padding:8px 12px; font-size:0.8rem; font-weight:600; cursor:pointer; }
+  .btn-primary{ background:var(--primary); color:#fff; }
+  .btn-warn{ background:var(--warn); color:#fff; }
+  .btn-ok{ background:var(--ok); color:#fff; }
+  select, input{ width:100%; padding:9px 12px; border-radius:10px; border:1.5px solid var(--line); background:var(--bg); font-family:inherit; font-size:0.9rem; margin-bottom:10px; }
+  label{ display:block; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); font-weight:600; margin-bottom:5px; }
+  .status-msg{ font-size:0.8rem; color:var(--ink-soft); text-align:center; padding:14px; }
+  .msg-ok{ color:var(--ok); font-size:0.82rem; margin-top:8px; }
+  .msg-error{ color:var(--warn); font-size:0.82rem; margin-top:8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <img class="logo" src="./logo-completo.png" alt="ConvocaTE - Asociación Española" />
+  <p>Panel del coordinador · Octubre 2026</p>
+</header>
+
+<main>
+  <div class="card">
+    <h2>Gestión de planilla</h2>
+    <label>Sector</label>
+    <select id="coord-sector">
+      <option value="">— elegí un sector —</option>
+      <option>BQ</option><option>BSE</option><option>CCA</option>
+      <option>CENDYTMA</option><option>DENSITO</option><option>EMERG</option>
+      <option>FOTOG</option><option>GREMCA</option><option>GUARDIA</option>
+      <option>POLI</option><option>RESO</option><option>RETEN</option>
+      <option>SOLY</option><option>TC</option><option>TRAUMA</option><option>UCAL</option>
+    </select>
+    <div id="coord-grilla-wrap" style="overflow-x:auto;"></div>
+  </div>
+
+  <!-- Modal de acción sobre celda -->
+  <div id="coord-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:20px;width:min(360px,92vw);display:flex;flex-direction:column;gap:12px;">
+      <div style="font-weight:700;font-size:0.95rem;" id="coord-modal-titulo"></div>
+      <button id="coord-btn-activar" class="btn-ok" style="display:none;">✓ Activar para convocatoria</button>
+      <button id="coord-btn-vacante" class="btn-ok" style="display:none;">◯ Dejar como vacante (LIBRE)</button>
+      <div id="coord-asignar-wrap" style="display:none;">
+        <label>Asignar a</label>
+        <select id="coord-sel-persona"></select>
+        <button class="btn-primary" id="coord-btn-asignar">Asignar</button>
+      </div>
+      <button id="coord-btn-desactivar" class="btn-warn" style="display:none;">✗ Desactivar / Quitar persona</button>
+      <button id="coord-btn-cerrar" style="background:var(--line);color:var(--ink);">Cerrar</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Solicitudes de cambio</h2>
+    <div id="solicitudes-wrap"></div>
+
+    <h2>Procesos activos</h2>
+    <div id="procesos-wrap"><div class="status-msg">Cargando...</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Habilitar a alguien puntual</h2>
+    <label>Grupo</label>
+    <select id="hab-grupo">
+      <option value="RESTO">RESTO</option>
+      <option value="TC">TC</option>
+      <option value="RESO">RESO</option>
+    </select>
+    <label>Tipo</label>
+    <select id="hab-tipo">
+      <option value="GENERAL">General</option>
+      <option value="NOCHEROS">Nocheros (guardia)</option>
+    </select>
+    <label>Persona</label>
+    <select id="hab-persona"><option value="">Cargando...</option></select>
+    <button class="btn-primary" id="btn-habilitar" style="width:100%;">Habilitar ahora</button>
+    <div id="hab-msg"></div>
+  </div>
+
+  <div class="card">
+    <h2>No participará este mes</h2>
+    <label>Grupo</label>
+    <select id="exc-grupo">
+      <option value="RESTO">RESTO</option>
+      <option value="TC">TC</option>
+      <option value="RESO">RESO</option>
+    </select>
+    <label>Persona</label>
+    <select id="exc-persona"><option value="">Cargando...</option></select>
+    <button class="btn-warn" id="btn-excluir" style="width:100%;">Marcar que no participa</button>
+    <div id="exc-msg"></div>
+  </div>
+</main>
+
+<script>
+const SUPABASE_URL = "https://lcnvdgjedxikpqxxyzqr.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_HAAHgNldQ3_wJH0EDrq3DA_u04xA7Yd";
+const MES = "2026-10-01";
+
+async function sb(path, opts = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: {
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+      ...(opts.body ? { "Content-Type": "application/json" } : {}),
+      ...(opts.headers || {})
+    }
+  });
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+let personas = [];
+
+async function cargarPersonas() {
+  personas = await sb("perfiles?select=id,apellido,nombre&order=apellido.asc");
+  const opciones = `<option value="">Seleccioná...</option>` +
+    personas.map(p => `<option value="${p.id}">${[p.nombre, p.apellido].filter(Boolean).join(" ")}</option>`).join("");
+  document.getElementById("hab-persona").innerHTML = opciones;
+  document.getElementById("exc-persona").innerHTML = opciones;
+}
+
+async function cargarProcesos() {
+  const procesos = await sb(`procesos_convocatoria?select=id,grupo,tipo,estado,orden_actual,turno_vence,persona_actual_id&mes=eq.${MES}&order=grupo.asc,tipo.asc`);
+  const wrap = document.getElementById("procesos-wrap");
+  if (!procesos.length) {
+    wrap.innerHTML = `<div class="status-msg">Todavía no arrancó ningún proceso este mes.</div>`;
+    return;
+  }
+  wrap.innerHTML = procesos.map(p => {
+    const persona = personas.find(x => x.id === p.persona_actual_id);
+    const nombrePersona = persona ? [persona.nombre, persona.apellido].filter(Boolean).join(" ") : "—";
+    const vence = p.turno_vence ? new Date(p.turno_vence).toLocaleString("es-UY", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" }) : "—";
+    const btn = p.estado === "PAUSADO"
+      ? `<button class="btn-ok" data-accion="reanudar" data-grupo="${p.grupo}" data-tipo="${p.tipo}">Reanudar</button>`
+      : p.estado === "ACTIVO"
+      ? `<button class="btn-warn" data-accion="pausar" data-grupo="${p.grupo}" data-tipo="${p.tipo}">Pausar</button>`
+      : "";
+    return `
+      <div class="proceso-row">
+        <div class="proceso-info">
+          <div class="titulo">${p.grupo} ${p.tipo === "NOCHEROS" ? "(nocheros)" : ""}</div>
+          <div class="detalle">Turno actual: ${nombrePersona} · vence ${vence}</div>
+        </div>
+        <span class="estado-pill estado-${p.estado}">${p.estado}</span>
+        ${btn}
+      </div>`;
+  }).join("");
+
+  wrap.querySelectorAll("button[data-accion]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const fn = btn.dataset.accion === "pausar" ? "pausar_proceso" : "reanudar_proceso";
+      await sb(`rpc/${fn}`, { method: "POST", body: JSON.stringify({ p_mes: MES, p_grupo: btn.dataset.grupo, p_tipo: btn.dataset.tipo }) });
+      cargarProcesos();
+    });
+  });
+}
+
+document.getElementById("btn-habilitar").addEventListener("click", async () => {
+  const grupo = document.getElementById("hab-grupo").value;
+  const tipo = document.getElementById("hab-tipo").value;
+  const personaId = document.getElementById("hab-persona").value;
+  const msg = document.getElementById("hab-msg");
+  if (!personaId) { msg.innerHTML = `<div class="msg-error">Elegí una persona.</div>`; return; }
+  try {
+    await sb(`rpc/coordinador_habilitar`, {
+      method: "POST",
+      body: JSON.stringify({ p_mes: MES, p_grupo: grupo, p_tipo: tipo, p_persona_id: personaId })
+    });
+    msg.innerHTML = `<div class="msg-ok">✓ Habilitada, se le mandó la notificación.</div>`;
+    cargarProcesos();
+  } catch (e) {
+    msg.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
+  }
+});
+
+document.getElementById("btn-excluir").addEventListener("click", async () => {
+  const grupo = document.getElementById("exc-grupo").value;
+  const personaId = document.getElementById("exc-persona").value;
+  const msg = document.getElementById("exc-msg");
+  if (!personaId) { msg.innerHTML = `<div class="msg-error">Elegí una persona.</div>`; return; }
+  try {
+    await sb(`rpc/marcar_no_participa`, {
+      method: "POST",
+      body: JSON.stringify({ p_persona_id: personaId, p_mes: MES, p_grupo: grupo, p_registrado_por: "COORDINADOR" })
+    });
+    msg.innerHTML = `<div class="msg-ok">✓ Anotado. Si estaba habilitada ahora, ya se la salteó.</div>`;
+    cargarProcesos();
+  } catch (e) {
+    msg.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
+  }
+});
+
+(async () => {
+  await cargarPersonas();
+  await cargarProcesos();
+  await cargarSolicitudes();
+  await cargarPersonasCoord();
+  setInterval(cargarProcesos, 15000);
+  setInterval(cargarSolicitudes, 15000);
+})();
+
+// ---------------------------------------------------------
+// Gestión de planilla del coordinador
+// ---------------------------------------------------------
+const MES_COORD = "2026-10";
+
+async function sbCoord(path, opts = {}) {
+  const { headers: extraHeaders, ...restOpts } = opts;
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      "Content-Type": "application/json",
+      ...extraHeaders
+    },
+    ...restOpts
+  });
+  if (r.status === 204) return true;
+  const data = await r.json();
+  return data;
+}
+
+let coordPersonas = [];
+let coordTurnos = [];
+let coordSectorActual = null;
+let coordEstructura = null;
+let celdaSeleccionada = null;
+
+// Cargar todas las personas
+async function cargarPersonasCoord() {
+  coordPersonas = await sbCoord("perfiles?select=id,apellido,nombre,ficha&order=apellido.asc");
+  const sel = document.getElementById("coord-sel-persona");
+  sel.innerHTML = coordPersonas.map(p =>
+    `<option value="${p.id}">${(p.apellido||"").toUpperCase()}, ${p.nombre||""}</option>`
+  ).join("");
+}
+
+document.getElementById("coord-sector").addEventListener("change", async (e) => {
+  const sector = e.target.value;
+  if (!sector) return;
+  coordSectorActual = sector;
+  document.getElementById("coord-grilla-wrap").innerHTML = `<div class="status-msg">Cargando...</div>`;
+
+  // Cargar estructura de hojas_excel
+  const hojas = await sbCoord(`hojas_excel?select=estructura&sector=eq.${sector}`);
+  if (!hojas || !hojas.length) {
+    document.getElementById("coord-grilla-wrap").innerHTML = `<div class="status-msg">Sin estructura cargada.</div>`;
+    return;
+  }
+  coordEstructura = hojas[0].estructura;
+
+  // Cargar turnos usando recargarTurnos que ya tiene el filtro correcto
+  await recargarTurnos();
+
+  renderGrillaCoord();
+});
+
+function renderGrillaCoord() {
+  const { cols, merges, filas, dia_col, first_day_row, last_day_row, ultima_col_real, columnas_grises } = coordEstructura;
+  const totalCols = ultima_col_real + 1;
+  const setGrises = Array.isArray(columnas_grises) ? new Set(columnas_grises) : null;
+
+  // Indexar turnos por dia-col
+  const porCelda = {};
+  for (const t of coordTurnos) {
+    const dia = Number(t.fecha.slice(8,10));
+    if (t.col_excel != null) porCelda[`${dia}-${t.col_excel}`] = t;
+  }
+
+  // Calcular merges
+  const mergeMap = {};
+  const skip = new Set();
+  for (const m of merges) {
+    mergeMap[`${m.r1-1}-${m.c1-1}`] = { rowspan: m.r2-m.r1+1, colspan: m.c2-m.c1+1 };
+    for (let r = m.r1-1; r <= m.r2-1; r++)
+      for (let c = m.c1-1; c <= m.c2-1; c++)
+        if (!(r === m.r1-1 && c === m.c1-1)) skip.add(`${r}-${c}`);
+  }
+
+  let html = `<table style="border-collapse:collapse;font-size:0.72rem;table-layout:fixed;width:max-content;"><colgroup>`;
+  for (let i = 0; i < totalCols; i++) {
+    const w = anchoCoord(cols[i]);
+    html += `<col style="width:${w}px">`;
+  }
+  html += `</colgroup><tbody>`;
+
+  for (let r = 0; r < filas.length; r++) {
+    html += `<tr>`;
+    for (let c = 0; c < totalCols; c++) {
+      if (skip.has(`${r}-${c}`)) continue;
+      const celda = filas[r][c];
+      const span = mergeMap[`${r}-${c}`];
+      const attrs = span ? ` rowspan="${span.rowspan}" colspan="${span.colspan}"` : "";
+      const bd = celda.bd;
+      const esEnc = r < first_day_row;
+      const borde = esEnc ? "border:none;" :
+        `border-top:${bd.t?"1px solid #000":"none"};border-bottom:${bd.b?"1px solid #000":"none"};border-left:${bd.l?"1px solid #000":"none"};border-right:${bd.r?"1px solid #000":"none"};`;
+
+      let esFilaDia = r >= first_day_row && r <= last_day_row;
+      let dia = esFilaDia ? filas[r][dia_col]?.v : null;
+      let contenido = celda.v ?? "";
+      let bg = "background:#fff;";
+      let cursor = "";
+      let dataAttr = "";
+
+      // Fin de semana / feriado: mismo criterio que la vista pública.
+      // Solo pinta de gris, nunca borra el contenido de la celda.
+      let esGrisFinde = false;
+      if (esFilaDia && typeof dia === "number") {
+        const mesBase = MES.slice(0, 7); // "YYYY-MM"
+        const fechaStr = `${mesBase}-${String(dia).padStart(2, "0")}`;
+        const d = new Date(fechaStr + "T12:00:00");
+        const diaSemana = ((d.getDay() + 6) % 7) + 1; // 1=Lunes...7=Domingo
+        const esFinde = diaSemana === 6 || diaSemana === 7;
+        const esFeriado = dia === 12 && coordSectorActual !== "BSE";
+        esGrisFinde = esFinde || esFeriado;
+      }
+
+      if (esFilaDia && setGrises && !setGrises.has(c)) {
+        // columna fuera de tabla — no clickeable
+      } else if (esFilaDia && c !== dia_col && typeof dia === 'number') {
+        const key = `${dia}-${c}`;
+        const turno = porCelda[key];
+        if (turno) {
+          if (turno.persona_id) {
+            contenido = turno.perfiles
+              ? (turno.perfiles.apellido||"").toUpperCase() + (turno.perfiles.empresa === "SUISAS" ? " (S)" : "")
+              : "ASIGNADO";
+            bg = "background:#E3F0E8;";
+          } else if (celda.y || turno.origen_vacante === "coordinador") {
+            // Amarilla en el Excel, o liberada a propósito por el
+            // coordinador (aunque no sea amarilla): mostrar LIBRE.
+            contenido = "LIBRE";
+            bg = "background:#FFF9C4;color:#7B6000;font-weight:700;";
+          } else {
+            // Turno vacante cargado en una celda que en realidad NO es
+            // amarilla (no es de convocatoria) ni fue liberada a propósito:
+            // mostrar el texto fijo original del Excel, igual que hace
+            // la vista pública, en vez de tapar el nombre del titular.
+            contenido = celda.v ?? "";
+            bg = "background:#fff;";
+          }
+          cursor = "cursor:pointer;";
+          dataAttr = ` data-dia="${dia}" data-col="${c}" data-turno-id="${turno.id}"`;
+        } else if (celda.y) {
+          contenido = "—";
+          bg = "background:#FFF9C4;";
+          cursor = "cursor:pointer;";
+          dataAttr = ` data-dia="${dia}" data-col="${c}" data-turno-id=""`;
+        } else if (celda.v && !celda.g) {
+          // Celda con nombre de titular — también clickeable
+          contenido = String(celda.v);
+          cursor = "cursor:pointer;";
+          dataAttr = ` data-dia="${dia}" data-col="${c}" data-turno-id="" data-valor="${String(celda.v)}"`;
+        } else if (!celda.g) {
+          // Celda vacía dentro de la tabla — clickeable para activar
+          cursor = "cursor:pointer;";
+          dataAttr = ` data-dia="${dia}" data-col="${c}" data-turno-id=""`;
+        }
+      }
+
+      const bold = celda.bold ? "font-weight:700;" : "";
+      if (esGrisFinde) bg = "background:#A6A6A6;";
+      html += `<td${attrs}${dataAttr} style="padding:3px 5px;text-align:center;vertical-align:middle;${borde}${bg}${bold}${cursor}height:22px;">${contenido}</td>`;
+    }
+    html += `</tr>`;
+  }
+  html += `</tbody></table>`;
+
+  const wrap = document.getElementById("coord-grilla-wrap");
+  wrap.innerHTML = html;
+
+  // Click en celda
+  wrap.querySelectorAll("td[data-dia]").forEach(td => {
+    td.addEventListener("click", () => abrirModalCelda(td));
+  });
+}
+
+function anchoCoord(w) {
+  const px = Math.round((w || 8) * 7 + 5);
+  return px < 60 ? px : 80;
+}
+
+function abrirModalCelda(td) {
+  celdaSeleccionada = {
+    dia: Number(td.dataset.dia),
+    col: Number(td.dataset.col),
+    turnoId: td.dataset.turnoId ? Number(td.dataset.turnoId) : null,
+    valorActual: td.dataset.valor || td.textContent.trim()
+  };
+
+  const turno = coordTurnos.find(t => t.id === celdaSeleccionada.turnoId);
+  const titulo = document.getElementById("coord-modal-titulo");
+
+  const contenidoActual = celdaSeleccionada.valorActual || "—";
+  titulo.textContent = `Día ${celdaSeleccionada.dia} · ${contenidoActual}`;
+
+  const btnActivar    = document.getElementById("coord-btn-activar");
+  const btnVacante    = document.getElementById("coord-btn-vacante");
+  const wrapAsignar   = document.getElementById("coord-asignar-wrap");
+  const btnDesactivar = document.getElementById("coord-btn-desactivar");
+
+  // Reset
+  btnActivar.style.display = "none";
+  btnVacante.style.display = "none";
+  wrapAsignar.style.display = "none";
+  btnDesactivar.style.display = "none";
+
+  if (!turno) {
+    // Sin turno en Supabase — puede activar como vacante, asignar directo, o dejar sin convocatoria
+    btnActivar.style.display = "block";
+    btnVacante.style.display = "none";
+    wrapAsignar.style.display = "block";
+    // Si la celda tiene un titular del Excel, mostrar también "dejar sin convocatoria"
+    if (celdaSeleccionada.valorActual && celdaSeleccionada.valorActual !== "—" && celdaSeleccionada.valorActual !== "") {
+      btnDesactivar.style.display = "block";
+      btnDesactivar.textContent = "✗ Dejar sin convocatoria";
+    } else {
+      btnDesactivar.style.display = "none";
+    }
+  } else if (!turno.persona_id) {
+    // Turno vacante — asignar o quitar de convocatoria
+    btnActivar.style.display = "none";
+    btnVacante.style.display = "none";
+    wrapAsignar.style.display = "block";
+    btnDesactivar.style.display = "block";
+    btnDesactivar.textContent = "✗ Quitar de convocatoria";
+  } else {
+    // Turno asignado — dejar vacante, cambiar persona, o quitar
+    btnActivar.style.display = "none";
+    btnVacante.style.display = "block";
+    wrapAsignar.style.display = "block";
+    btnDesactivar.style.display = "block";
+    btnDesactivar.textContent = "✗ Dejar sin convocatoria";
+  }
+
+  document.getElementById("coord-modal").style.display = "flex";
+}
+
+document.getElementById("coord-btn-vacante").addEventListener("click", async () => {
+  if (celdaSeleccionada.turnoId) {
+    // Turno existente — limpiar persona_id para dejarlo vacante
+    await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ persona_id: null, asignado_en: null, origen_vacante: "coordinador" })
+    });
+  } else {
+    // Sin turno — activar como vacante
+    await sbCoord(`rpc/coordinador_activar_celda`, {
+      method: "POST",
+      body: JSON.stringify({
+        p_sector: coordSectorActual,
+        p_dia: celdaSeleccionada.dia,
+        p_col_excel: celdaSeleccionada.col,
+        p_mes: MES_COORD + "-01"
+      })
+    });
+  }
+  document.getElementById("coord-modal").style.display = "none";
+  await recargarTurnos();
+});
+
+document.getElementById("coord-btn-cerrar").addEventListener("click", () => {
+  document.getElementById("coord-modal").style.display = "none";
+});
+
+document.getElementById("coord-btn-activar").addEventListener("click", async () => {
+  // Insertar turno vacante — necesitamos franja_id por col_excel
+  // Buscamos en coordTurnos o hacemos un insert por col_excel
+  const ok = await sbCoord(`rpc/coordinador_activar_celda`, {
+    method: "POST",
+    body: JSON.stringify({
+      p_sector: coordSectorActual,
+      p_dia: celdaSeleccionada.dia,
+      p_col_excel: celdaSeleccionada.col,
+      p_mes: MES_COORD + "-01"
+    })
+  });
+  document.getElementById("coord-modal").style.display = "none";
+  await recargarTurnos();
+});
+
+document.getElementById("coord-btn-asignar").addEventListener("click", async () => {
+  const personaId = document.getElementById("coord-sel-persona").value;
+  if (!personaId) return;
+
+  if (celdaSeleccionada.turnoId) {
+    // Actualizar turno existente
+    await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ persona_id: personaId, asignado_en: new Date().toISOString() })
+    });
+  } else {
+    // Activar y asignar
+    await sbCoord(`rpc/coordinador_activar_celda`, {
+      method: "POST",
+      body: JSON.stringify({
+        p_sector: coordSectorActual,
+        p_dia: celdaSeleccionada.dia,
+        p_col_excel: celdaSeleccionada.col,
+        p_mes: MES_COORD + "-01",
+        p_persona_id: personaId
+      })
+    });
+  }
+  document.getElementById("coord-modal").style.display = "none";
+  await recargarTurnos();
+});
+
+document.getElementById("coord-btn-desactivar").addEventListener("click", async () => {
+  if (!confirm("¿Seguro que querés quitar esta celda de la convocatoria?")) return;
+
+  if (celdaSeleccionada.turnoId) {
+    // Turno existente — borrar
+    await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, { method: "DELETE" });
+  } else {
+    // Sin turno — insertar con persona_id = null y origen = 'sin_convocatoria'
+    // para que pise el valor del Excel y no aparezca como disponible
+    await sbCoord(`rpc/coordinador_activar_celda`, {
+      method: "POST",
+      body: JSON.stringify({
+        p_sector: coordSectorActual,
+        p_dia: celdaSeleccionada.dia,
+        p_col_excel: celdaSeleccionada.col,
+        p_mes: MES_COORD + "-01",
+        p_persona_id: null
+      })
+    });
+  }
+  document.getElementById("coord-modal").style.display = "none";
+  await recargarTurnos();
+});
+
+async function recargarTurnos() {
+  // Obtener sector_id del sector actual
+  const sectores = await sbCoord(`sectores?select=id,nombre&nombre=eq.${coordSectorActual}`);
+  if (!sectores || !sectores.length) return;
+  const sectorId = sectores[0].id;
+
+  coordTurnos = [];
+  let desde = 0;
+  while (true) {
+    const pag = await sbCoord(
+      `turnos?select=id,fecha,col_excel,persona_id,origen_vacante,` +
+      `franjas_horarias!inner(nombre,sector_id,sectores!inner(nombre)),perfiles(apellido,empresa)` +
+      `&franjas_horarias.sector_id=eq.${sectorId}` +
+      `&fecha=gte.${MES_COORD}-01&fecha=lte.${MES_COORD}-31&order=id.asc`,
+      { headers: { "Range-Unit": "items", Range: `${desde}-${desde+999}` } }
+    );
+    if (!pag || !pag.length) break;
+    coordTurnos.push(...pag);
+    if (pag.length < 1000) break;
+    desde += 1000;
+  }
+  renderGrillaCoord();
+}
+
+
+async function cargarSolicitudes() {
+  const data = await sb(
+    `solicitudes_cambio_detalle?estado=eq.PENDIENTE`
+  );
+  const wrap = document.getElementById("solicitudes-wrap");
+  if (!data || !data.length) {
+    wrap.innerHTML = `<p style="color:var(--ink-soft);font-size:0.85rem;">No hay solicitudes pendientes.</p>`;
+    return;
+  }
+  wrap.innerHTML = data.map(s => `
+    <div style="border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;">
+      <div style="font-weight:700;">${s.solicitante_apellido} → cede a ${s.cobertura_apellido}</div>
+      <div style="font-size:0.85rem;color:var(--ink-soft);">
+        ${s.fecha.slice(8,10)}/${s.fecha.slice(5,7)} — ${s.sector} ${s.franja}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button onclick="resolverSolicitud(${s.id}, true)"
+          style="flex:1;padding:8px;background:#2e7d32;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">
+          ✓ Autorizar
+        </button>
+        <button onclick="resolverSolicitud(${s.id}, false)"
+          style="flex:1;padding:8px;background:#c62828;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">
+          ✗ Rechazar
+        </button>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function resolverSolicitud(id, aprobar) {
+  const ok = await sb(`rpc/resolver_solicitud_cambio`, {
+    method: "POST",
+    body: JSON.stringify({ p_solicitud_id: id, p_aprobar: aprobar })
+  });
+  if (ok === true) {
+    await cargarSolicitudes();
+  } else {
+    alert("Error al resolver la solicitud.");
+  }
+}
+</script>
+</body>
+</html>
