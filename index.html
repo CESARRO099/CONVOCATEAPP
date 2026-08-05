@@ -657,13 +657,14 @@ async function cargarDatosConvocatoria() {
         body: JSON.stringify({ p_persona_id: personaActual.id, p_mes: `${MES_ACTUAL}-01` })
       }),
       personaActual.empresa === "SUISAS"
-        ? sb(`participaciones_ronda_suisas?select=id,cupo_ofrecido,horas_tomadas,completo,` +
-             `rondas_suisas(grupo,estado,vence)&persona_id=eq.${personaActual.id}` +
-             `&rondas_suisas.estado=eq.ACTIVA`)
+        ? sb(`rondas_suisas?select=id,grupo,cupo,vence,persona_actual_id,` +
+             `participaciones_ronda_suisas!inner(cupo_ofrecido,horas_tomadas)` +
+             `&estado=eq.ACTIVA&persona_actual_id=eq.${personaActual.id}` +
+             `&participaciones_ronda_suisas.persona_id=eq.${personaActual.id}`)
         : Promise.resolve([])
     ]);
 
-    misParticipacionesSuisas = (misRondasSuisas || []).filter(p => p.rondas_suisas);
+    misParticipacionesSuisas = misRondasSuisas || [];
     sectoresPorNombre = {};
     for (const s of sectores) {
       sectoresPorNombre[s.nombre] = { grupo: s.grupo, franjas: franjas.filter(f => f.sector_id === s.id) };
@@ -672,7 +673,16 @@ async function cargarDatosConvocatoria() {
 
     // Horas acumuladas
     const horasNum = Number(horas) || 0;
-    const tope = Number(personaActual?.tope_horas_mensual) || 82;
+    let tope = Number(personaActual?.tope_horas_mensual) || 82;
+    if (personaActual.empresa === "ESPANOLA") {
+      try {
+        const topeReal = await sb(`rpc/tope_efectivo`, {
+          method: "POST",
+          body: JSON.stringify({ p_persona_id: personaActual.id, p_mes: `${MES_ACTUAL}-01` })
+        });
+        if (typeof topeReal === "number") tope = topeReal;
+      } catch (e) { /* si falla, se queda con el tope nominal */ }
+    }
     window._horasActuales = horasNum;
     window._topeHoras = tope;
     horasTexto.textContent = `${horasNum.toFixed(1)} / ${tope} hs`;
@@ -685,10 +695,9 @@ async function cargarDatosConvocatoria() {
     horasFill.style.background = `rgb(${r},${g},${b})`;
 
     // Banner de turno: ¿hay algún proceso de España donde persona_actual_id
-    // sea esta persona, o alguna ronda activa de SUISAS donde participe?
+    // sea esta persona, o le toca su turno específico en una ronda de SUISAS?
     const miProceso = procesosActivos.find(p => p.persona_actual_id === personaActual.id);
-    const miRondaSuisas = misParticipacionesSuisas.find(p =>
-      !p.completo && (p.horas_tomadas < p.cupo_ofrecido));
+    const miRondaSuisas = misParticipacionesSuisas[0]; // ya viene filtrado por persona_actual_id=yo
 
     if (miProceso) {
       const vence = new Date(miProceso.turno_vence);
@@ -698,11 +707,14 @@ async function cargarDatosConvocatoria() {
         <button class="btn-confirmar" id="btn-confirmar-conv">Confirmar convocatoria</button></div>`;
       document.getElementById("btn-confirmar-conv").addEventListener("click", confirmarConvocatoria);
     } else if (miRondaSuisas) {
-      const restante = (miRondaSuisas.cupo_ofrecido - miRondaSuisas.horas_tomadas).toFixed(1);
-      const vence = new Date(miRondaSuisas.rondas_suisas.vence);
+      const part = miRondaSuisas.participaciones_ronda_suisas[0];
+      const restante = (part.cupo_ofrecido - part.horas_tomadas).toFixed(1);
+      const vence = new Date(miRondaSuisas.vence);
       bannerWrap.innerHTML = `<div class="banner-turno"><span class="dot"></span>
-        Tenés ${restante} hs disponibles para elegir en ${miRondaSuisas.rondas_suisas.grupo} (SUISAS) —
-        hasta las ${vence.toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" })}</div>`;
+        Es tu turno en ${miRondaSuisas.grupo} (SUISAS) — tenés ${restante} hs disponibles,
+        podés elegir hasta las ${vence.toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" })}
+        <button class="btn-confirmar" id="btn-confirmar-conv">Confirmar convocatoria</button></div>`;
+      document.getElementById("btn-confirmar-conv").addEventListener("click", confirmarConvocatoria);
     } else {
       bannerWrap.innerHTML = "";
     }
@@ -751,11 +763,12 @@ function renderTabs() {
 
 function miGrupoHabilitadoAhora() {
   // Devuelve el grupo (TC/RESO/RESTO) donde a esta persona le toca elegir
-  // AHORA, sea por España (procesosActivos) o por una ronda activa de SUISAS
+  // AHORA, sea por España (procesosActivos) o porque es su turno específico
+  // en una ronda secuencial de SUISAS
   const proc = procesosActivos.find(p => p.persona_actual_id === personaActual.id);
   if (proc) return proc.grupo;
-  const ronda = misParticipacionesSuisas.find(p => !p.completo && (p.horas_tomadas < p.cupo_ofrecido));
-  return ronda ? ronda.rondas_suisas.grupo : null;
+  const ronda = misParticipacionesSuisas[0];
+  return ronda ? ronda.grupo : null;
 }
 
 // Convierte el ancho de columna de Excel a pixeles (aproximado)
