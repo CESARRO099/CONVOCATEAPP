@@ -1378,21 +1378,38 @@ function urlBase64ToUint8Array(base64String) {
 function actualizarBotonNotif(personaId) {
   if (!personaId || !("serviceWorker" in navigator) || !("PushManager" in window)) {
     btnNotif.style.display = "none";
+    notifStatus.textContent = "";
     return;
   }
-  btnNotif.style.display = "block";
-  notifStatus.textContent = "";
+  if (Notification.permission === "granted") {
+    // Ya dio el permiso alguna vez en este dispositivo: no hace falta
+    // mostrar el botón. Igual re-registramos la suscripción en silencio
+    // cada vez que entra, por si el navegador la había invalidado sola
+    // (pasa en iOS si no se abre la app por unos días) o si es la
+    // primera vez que ESTE nombre puntual queda registrado en este
+    // dispositivo (caso de gente con dos perfiles, Española + SUISAS).
+    btnNotif.style.display = "none";
+    notifStatus.textContent = "✓ Notificaciones activadas";
+    sincronizarSuscripcion(personaId, { silencioso: true });
+  } else if (Notification.permission === "denied") {
+    btnNotif.style.display = "none";
+    notifStatus.textContent = "Notificaciones bloqueadas en este dispositivo. Para recibir avisos, habilitalas desde los ajustes del teléfono/navegador.";
+  } else {
+    btnNotif.style.display = "block";
+    notifStatus.textContent = "";
+  }
 }
 
-async function activarNotificaciones() {
-  const personaId = personaSelect.value;
-  if (!personaId) return;
-  notifStatus.textContent = "Activando...";
+async function sincronizarSuscripcion(personaId, opts = {}) {
+  const silencioso = opts.silencioso === true;
+  if (!silencioso) notifStatus.textContent = "Activando...";
   try {
-    const permiso = await Notification.requestPermission();
-    if (permiso !== "granted") {
-      notifStatus.textContent = "No diste permiso para notificaciones.";
-      return;
+    if (!silencioso) {
+      const permiso = await Notification.requestPermission();
+      if (permiso !== "granted") {
+        notifStatus.textContent = "No diste permiso para notificaciones.";
+        return;
+      }
     }
     if (!swRegistration) swRegistration = await navigator.serviceWorker.ready;
     let sub = await swRegistration.pushManager.getSubscription();
@@ -1418,10 +1435,22 @@ async function activarNotificaciones() {
         auth: subJson.keys.auth
       })
     });
-    notifStatus.textContent = "✓ Notificaciones activadas"; btnNotif.style.display = 'none';
+    if (!silencioso) {
+      notifStatus.textContent = "✓ Notificaciones activadas";
+      btnNotif.style.display = "none";
+    }
   } catch (e) {
-    notifStatus.textContent = "Error: " + e.message;
+    // En modo silencioso no molestamos al usuario si falla la
+    // renovación en segundo plano; se vuelve a intentar sola la
+    // próxima vez que abra la app. En modo manual (botón) sí avisamos.
+    if (!silencioso) notifStatus.textContent = "Error: " + e.message;
   }
+}
+
+async function activarNotificaciones() {
+  const personaId = personaSelect.value;
+  if (!personaId) return;
+  await sincronizarSuscripcion(personaId, { silencioso: false });
 }
 
 btnNotif.addEventListener("click", activarNotificaciones);
