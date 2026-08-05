@@ -1193,6 +1193,9 @@ async function elegirTurno(turnoId) {
     });
     if (resultado === 'ok') {
       await cargarDatosConvocatoria();
+    } else if (resultado === 'ok_libero_fija') {
+      alert("Listo, tomaste el turno. Ojo: se liberó tu actividad fija de ese mismo día porque se superponía en el horario — va a quedar disponible para que otro suplente la elija.");
+      await cargarDatosConvocatoria();
     } else if (resultado === 'limite_horas') {
       alert("Ya completaste tus horas para este mes.");
       await cargarDatosConvocatoria();
