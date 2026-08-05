@@ -145,10 +145,14 @@ async function sb(path, opts = {}) {
 
 let personas = [];
 
+function sinTildes(s) {
+  return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 async function cargarPersonas() {
   personas = await sb("perfiles?select=id,apellido,nombre&order=apellido.asc");
   const opciones = `<option value="">Seleccioná...</option>` +
-    personas.map(p => `<option value="${p.id}">${[p.nombre, p.apellido].filter(Boolean).join(" ")}</option>`).join("");
+    personas.map(p => `<option value="${p.id}">${[p.nombre, sinTildes(p.apellido)].filter(Boolean).join(" ")}</option>`).join("");
   document.getElementById("hab-persona").innerHTML = opciones;
   document.getElementById("exc-persona").innerHTML = opciones;
 }
@@ -162,7 +166,7 @@ async function cargarProcesos() {
   }
   wrap.innerHTML = procesos.map(p => {
     const persona = personas.find(x => x.id === p.persona_actual_id);
-    const nombrePersona = persona ? [persona.nombre, persona.apellido].filter(Boolean).join(" ") : "—";
+    const nombrePersona = persona ? [persona.nombre, sinTildes(persona.apellido)].filter(Boolean).join(" ") : "—";
     const vence = p.turno_vence ? new Date(p.turno_vence).toLocaleString("es-UY", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" }) : "—";
     const btn = p.estado === "PAUSADO"
       ? `<button class="btn-ok" data-accion="reanudar" data-grupo="${p.grupo}" data-tipo="${p.tipo}">Reanudar</button>`
@@ -265,7 +269,7 @@ async function cargarPersonasCoord() {
   coordPersonas = await sbCoord("perfiles?select=id,apellido,nombre,ficha&order=apellido.asc");
   const sel = document.getElementById("coord-sel-persona");
   sel.innerHTML = coordPersonas.map(p =>
-    `<option value="${p.id}">${(p.apellido||"").toUpperCase()}, ${p.nombre||""}</option>`
+    `<option value="${p.id}">${sinTildes(p.apellido||"").toUpperCase()}, ${p.nombre||""}</option>`
   ).join("");
 }
 
@@ -358,7 +362,7 @@ function renderGrillaCoord() {
         if (turno) {
           if (turno.persona_id) {
             contenido = turno.perfiles
-              ? (turno.perfiles.apellido||"").toUpperCase() + (turno.perfiles.empresa === "SUISAS" ? " (S)" : "")
+              ? sinTildes(turno.perfiles.apellido||"").toUpperCase() + (turno.perfiles.empresa === "SUISAS" ? " (S)" : "")
               : "ASIGNADO";
             bg = "background:#E3F0E8;";
           } else if (celda.y || turno.origen_vacante === "coordinador") {
@@ -479,14 +483,16 @@ document.getElementById("coord-btn-vacante").addEventListener("click", async () 
       body: JSON.stringify({ persona_id: null, asignado_en: null, origen_vacante: "coordinador" })
     });
   } else {
-    // Sin turno — activar como vacante
+    // Sin turno en Supabase (nombre viene del Excel) — crear turno vacante
+    // con origen_vacante='coordinador' para que se muestre como LIBRE
     await sbCoord(`rpc/coordinador_activar_celda`, {
       method: "POST",
       body: JSON.stringify({
         p_sector: coordSectorActual,
         p_dia: celdaSeleccionada.dia,
         p_col_excel: celdaSeleccionada.col,
-        p_mes: MES_COORD + "-01"
+        p_mes: MES_COORD + "-01",
+        p_origen: "coordinador"
       })
     });
   }
@@ -601,7 +607,7 @@ async function cargarSolicitudes() {
   }
   wrap.innerHTML = data.map(s => `
     <div style="border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;">
-      <div style="font-weight:700;">${s.solicitante_apellido} → cede a ${s.cobertura_apellido}</div>
+      <div style="font-weight:700;">${sinTildes(s.solicitante_apellido)} → cede a ${sinTildes(s.cobertura_apellido)}</div>
       <div style="font-size:0.85rem;color:var(--ink-soft);">
         ${s.fecha.slice(8,10)}/${s.fecha.slice(5,7)} — ${s.sector} ${s.franja}
       </div>
