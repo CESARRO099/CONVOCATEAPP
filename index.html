@@ -348,6 +348,7 @@ aplicarZoom();
 
 let personaActual = null;      // { id, apellido, nombre, empresa }
 let procesosActivos = [];      // procesos_convocatoria ACTIVO
+let misParticipacionesSuisas = []; // participaciones activas en rondas SUISAS
 let sectorActual = null;
 let sectoresPorNombre = {};    // nombre -> { grupo, franjas: [{id,nombre}] }
 let turnosDelMes = [];         // todos los turnos de MES_ACTUAL, ya "enriquecidos"
@@ -647,16 +648,22 @@ function cambiarUsuario() {
 
 async function cargarDatosConvocatoria() {
   try {
-    const [sectores, franjas, procesos, horas] = await Promise.all([
+    const [sectores, franjas, procesos, horas, misRondasSuisas] = await Promise.all([
       sb("sectores?select=id,nombre,grupo"),
       sb("franjas_horarias?select=id,nombre,sector_id,es_reten&order=id.asc"),
-      sb("procesos_convocatoria?select=grupo,tipo,estado,persona_actual_id,turno_vence&estado=eq.ACTIVO"),
+      sb("procesos_convocatoria?select=grupo,tipo,estado,persona_actual_id,turno_vence&estado=eq.ACTIVO&empresa=eq.ESPANOLA"),
       sb(`rpc/calcular_horas_acumuladas`, {
         method: "POST",
         body: JSON.stringify({ p_persona_id: personaActual.id, p_mes: `${MES_ACTUAL}-01` })
-      })
+      }),
+      personaActual.empresa === "SUISAS"
+        ? sb(`participaciones_ronda_suisas?select=id,cupo_ofrecido,horas_tomadas,completo,` +
+             `rondas_suisas(grupo,estado,vence)&persona_id=eq.${personaActual.id}` +
+             `&rondas_suisas.estado=eq.ACTIVA`)
+        : Promise.resolve([])
     ]);
 
+    misParticipacionesSuisas = (misRondasSuisas || []).filter(p => p.rondas_suisas);
     sectoresPorNombre = {};
     for (const s of sectores) {
       sectoresPorNombre[s.nombre] = { grupo: s.grupo, franjas: franjas.filter(f => f.sector_id === s.id) };
@@ -677,8 +684,12 @@ async function cargarDatosConvocatoria() {
     const b = 40;
     horasFill.style.background = `rgb(${r},${g},${b})`;
 
-    // Banner de turno: ¿hay algún proceso donde persona_actual_id sea esta persona?
+    // Banner de turno: ¿hay algún proceso de España donde persona_actual_id
+    // sea esta persona, o alguna ronda activa de SUISAS donde participe?
     const miProceso = procesosActivos.find(p => p.persona_actual_id === personaActual.id);
+    const miRondaSuisas = misParticipacionesSuisas.find(p =>
+      !p.completo && (p.horas_tomadas < p.cupo_ofrecido));
+
     if (miProceso) {
       const vence = new Date(miProceso.turno_vence);
       bannerWrap.innerHTML = `<div class="banner-turno"><span class="dot"></span>
@@ -686,6 +697,12 @@ async function cargarDatosConvocatoria() {
         podés elegir hasta las ${vence.toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" })}
         <button class="btn-confirmar" id="btn-confirmar-conv">Confirmar convocatoria</button></div>`;
       document.getElementById("btn-confirmar-conv").addEventListener("click", confirmarConvocatoria);
+    } else if (miRondaSuisas) {
+      const restante = (miRondaSuisas.cupo_ofrecido - miRondaSuisas.horas_tomadas).toFixed(1);
+      const vence = new Date(miRondaSuisas.rondas_suisas.vence);
+      bannerWrap.innerHTML = `<div class="banner-turno"><span class="dot"></span>
+        Tenés ${restante} hs disponibles para elegir en ${miRondaSuisas.rondas_suisas.grupo} (SUISAS) —
+        hasta las ${vence.toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" })}</div>`;
     } else {
       bannerWrap.innerHTML = "";
     }
@@ -733,9 +750,12 @@ function renderTabs() {
 }
 
 function miGrupoHabilitadoAhora() {
-  // Devuelve el grupo (TC/RESO/RESTO) donde a esta persona le toca elegir AHORA, o null
+  // Devuelve el grupo (TC/RESO/RESTO) donde a esta persona le toca elegir
+  // AHORA, sea por España (procesosActivos) o por una ronda activa de SUISAS
   const proc = procesosActivos.find(p => p.persona_actual_id === personaActual.id);
-  return proc ? proc.grupo : null;
+  if (proc) return proc.grupo;
+  const ronda = misParticipacionesSuisas.find(p => !p.completo && (p.horas_tomadas < p.cupo_ofrecido));
+  return ronda ? ronda.rondas_suisas.grupo : null;
 }
 
 // Convierte el ancho de columna de Excel a pixeles (aproximado)
@@ -1001,13 +1021,33 @@ async function renderGrilla() {
         // no se tapa con LIBRE aunque la celda esté marcada en rojo (SUISAS).
         contenido = celda.v;
       } else if ((esFilaDeDia || r > last_day_row) && celda.r) {
-        // Celda roja en el Excel = solo SUISAS (bloqueada para Española por ahora).
-        // El "r > last_day_row" cubre tablas aparte (ej. "cobertura por SUISAS"
-        // en TC) que tienen más filas que el calendario del mes y quedarían
-        // fuera de esFilaDeDia si no fuera por esto — sin afectar ninguna otra
-        // rama ni el cálculo de día/fin de semana.
-        contenido = "LIBRE";
-        clases += " libre-suisas";
+        // Celda roja en el Excel = turno de SUISAS. Antes era texto fijo
+        // ("LIBRE" sin acción); ahora se comporta igual que la amarilla:
+        // si hay alguien asignado lo muestra, si le toca elegir a quien
+        // mira ofrece el botón, si no simplemente dice LIBRE.
+        // El día real de esta celda puede no ser el del calendario
+        // principal (ej. tablas aparte como "cobertura por SUISAS" en TC,
+        // que tienen su propio número de día en la columna anterior).
+        let diaLocal = dia;
+        const posibleDia = filas[r][c - 1]?.v;
+        if (typeof posibleDia === 'number' && posibleDia >= 1 && posibleDia <= 31) {
+          diaLocal = posibleDia;
+        }
+        const franjaKeyR = `${diaLocal}-col:${100 + r}`;
+        const tR = porCeldaReal[franjaKeyR];
+        if (tR && (tR.persona_id || tR.nombre_externo)) {
+          const esPropio = tR.persona_id === personaActual?.id;
+          if (esPropio && puedoElegirAca) {
+            contenido = `<button class="btn-rechazar" data-turno-id="${tR.id}">Rechazar</button>`;
+          } else {
+            contenido = tR.perfiles ? sinTildes(tR.perfiles.apellido).toUpperCase() : sinTildes(tR.nombre_externo).toUpperCase();
+          }
+        } else if (puedoElegirAca && tR) {
+          contenido = `<button class="btn-elegir" data-turno-id="${tR.id}">Elegir</button>`;
+        } else {
+          contenido = "LIBRE";
+          clases += " libre-suisas";
+        }
       } else if (esFilaDeDia && celda.y) {
         // Celda amarilla = disponible para Española, hay que ofrecerla
         const franjaKey = `${dia}-col:${c}`;
