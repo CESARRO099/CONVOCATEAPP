@@ -351,6 +351,7 @@ let procesosActivos = [];      // procesos_convocatoria ACTIVO
 let misParticipacionesSuisas = []; // participaciones activas en rondas SUISAS
 let sectorActual = null;
 let sectoresPorNombre = {};    // nombre -> { grupo, franjas: [{id,nombre}] }
+let misSectoresHabilitados = new Set(); // nombres de sector donde esta persona tiene habilitación personal (personal_sectores)
 let turnosDelMes = [];         // todos los turnos de MES_ACTUAL, ya "enriquecidos"
 let hojasExcelCache = {};      // nombre de sector -> estructura ya cargada desde hojas_excel
 
@@ -653,7 +654,7 @@ function cambiarUsuario() {
 
 async function cargarDatosConvocatoria() {
   try {
-    const [sectores, franjas, procesos, horas, misRondasSuisas] = await Promise.all([
+    const [sectores, franjas, procesos, horas, misRondasSuisas, misHabilitaciones] = await Promise.all([
       sb("sectores?select=id,nombre,grupo"),
       sb("franjas_horarias?select=id,nombre,sector_id,es_reten&order=id.asc"),
       sb("procesos_convocatoria?select=grupo,tipo,estado,persona_actual_id,turno_vence&estado=eq.ACTIVO&empresa=eq.ESPANOLA"),
@@ -666,10 +667,12 @@ async function cargarDatosConvocatoria() {
              `participaciones_ronda_suisas!inner(cupo_ofrecido,horas_tomadas)` +
              `&estado=eq.ACTIVA&persona_actual_id=eq.${personaActual.id}` +
              `&participaciones_ronda_suisas.persona_id=eq.${personaActual.id}`)
-        : Promise.resolve([])
+        : Promise.resolve([]),
+      sb(`personal_sectores?select=sectores(nombre)&persona_id=eq.${personaActual.id}`)
     ]);
 
     misParticipacionesSuisas = misRondasSuisas || [];
+    misSectoresHabilitados = new Set((misHabilitaciones || []).map(h => h.sectores?.nombre).filter(Boolean));
     sectoresPorNombre = {};
     for (const s of sectores) {
       sectoresPorNombre[s.nombre] = { grupo: s.grupo, franjas: franjas.filter(f => f.sector_id === s.id) };
@@ -916,7 +919,14 @@ async function renderGrilla() {
 
   const info = sectoresPorNombre[sectorActual];
   const grupoHabilitado = miGrupoHabilitadoAhora();
-  const puedoElegirAca = info && grupoHabilitado === grupoProcesoDeSector(sectorActual, info.grupo);
+  // Habilitación cruzada: la persona tiene personal_sectores en un sector de
+  // OTRO grupo (ej. Wagner de TC habilitado en DENSITO, que es de RESTO) sin
+  // estar en la lista de prelación de ese grupo. Alcanza con que esté activa
+  // AHORA en cualquier proceso propio y tenga la habilitación personal para
+  // este sector puntual. Debe coincidir con la misma regla de tomar_turno.
+  const tengoTurnoActivoAhora = procesosActivos.some(p => p.persona_actual_id === personaActual.id);
+  const habilitacionCruzada = misSectoresHabilitados.has(sectorActual) && tengoTurnoActivoAhora;
+  const puedoElegirAca = info && (grupoHabilitado === grupoProcesoDeSector(sectorActual, info.grupo) || habilitacionCruzada);
 
   // Indexar turnos de este sector por (dia, col_excel) y también por id
   const porCeldaReal = {};
