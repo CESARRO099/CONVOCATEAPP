@@ -154,9 +154,9 @@ function sinTildes(s) {
 }
 
 async function cargarPersonas() {
-  personas = await sb("perfiles?select=id,apellido,nombre&order=apellido.asc");
+  personas = await sb("perfiles?select=id,apellido,nombre,empresa&order=apellido.asc");
   const opciones = `<option value="">Seleccioná...</option>` +
-    personas.map(p => `<option value="${p.id}">${[p.nombre, sinTildes(p.apellido)].filter(Boolean).join(" ")}</option>`).join("");
+    personas.map(p => `<option value="${p.id}">${[p.nombre, sinTildes(p.apellido)].filter(Boolean).join(" ")} (${p.empresa === "SUISAS" ? "SUISAS" : "Española"})</option>`).join("");
   document.getElementById("hab-persona").innerHTML = opciones;
   document.getElementById("exc-persona").innerHTML = opciones;
 }
@@ -270,10 +270,10 @@ let celdaSeleccionada = null;
 
 // Cargar todas las personas
 async function cargarPersonasCoord() {
-  coordPersonas = await sbCoord("perfiles?select=id,apellido,nombre,ficha&order=apellido.asc");
+  coordPersonas = await sbCoord("perfiles?select=id,apellido,nombre,ficha,empresa&order=apellido.asc");
   const sel = document.getElementById("coord-sel-persona");
   sel.innerHTML = coordPersonas.map(p =>
-    `<option value="${p.id}">${sinTildes(p.apellido||"").toUpperCase()}, ${p.nombre||""}</option>`
+    `<option value="${p.id}">${sinTildes(p.apellido||"").toUpperCase()}, ${p.nombre||""} (${p.empresa === "SUISAS" ? "SUISAS" : "Española"})</option>`
   ).join("");
 }
 
