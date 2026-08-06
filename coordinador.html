@@ -48,6 +48,10 @@
 <header>
   <img class="logo" src="./logo-completo.png" alt="ConvocaTE - Asociación Española" />
   <p>Panel del coordinador · Octubre 2026</p>
+  <button id="btn-notif-coord" style="display:none; margin-top:8px; padding:6px 12px; border:2px solid var(--ink); border-radius:6px; background:transparent; color:var(--ink); font-family:inherit; font-size:0.78rem; font-weight:700; cursor:pointer;">
+    🔔 Activar avisos de coordinador
+  </button>
+  <div id="notif-coord-status" style="margin-top:6px; text-align:center; font-size:0.8rem; color:var(--ink-soft);"></div>
 </header>
 
 <main>
@@ -145,10 +149,14 @@ async function sb(path, opts = {}) {
 
 let personas = [];
 
+function sinTildes(s) {
+  return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 async function cargarPersonas() {
   personas = await sb("perfiles?select=id,apellido,nombre&order=apellido.asc");
   const opciones = `<option value="">Seleccioná...</option>` +
-    personas.map(p => `<option value="${p.id}">${[p.nombre, p.apellido].filter(Boolean).join(" ")}</option>`).join("");
+    personas.map(p => `<option value="${p.id}">${[p.nombre, sinTildes(p.apellido)].filter(Boolean).join(" ")}</option>`).join("");
   document.getElementById("hab-persona").innerHTML = opciones;
   document.getElementById("exc-persona").innerHTML = opciones;
 }
@@ -162,7 +170,7 @@ async function cargarProcesos() {
   }
   wrap.innerHTML = procesos.map(p => {
     const persona = personas.find(x => x.id === p.persona_actual_id);
-    const nombrePersona = persona ? [persona.nombre, persona.apellido].filter(Boolean).join(" ") : "—";
+    const nombrePersona = persona ? [persona.nombre, sinTildes(persona.apellido)].filter(Boolean).join(" ") : "—";
     const vence = p.turno_vence ? new Date(p.turno_vence).toLocaleString("es-UY", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" }) : "—";
     const btn = p.estado === "PAUSADO"
       ? `<button class="btn-ok" data-accion="reanudar" data-grupo="${p.grupo}" data-tipo="${p.tipo}">Reanudar</button>`
@@ -265,7 +273,7 @@ async function cargarPersonasCoord() {
   coordPersonas = await sbCoord("perfiles?select=id,apellido,nombre,ficha&order=apellido.asc");
   const sel = document.getElementById("coord-sel-persona");
   sel.innerHTML = coordPersonas.map(p =>
-    `<option value="${p.id}">${(p.apellido||"").toUpperCase()}, ${p.nombre||""}</option>`
+    `<option value="${p.id}">${sinTildes(p.apellido||"").toUpperCase()}, ${p.nombre||""}</option>`
   ).join("");
 }
 
@@ -358,7 +366,7 @@ function renderGrillaCoord() {
         if (turno) {
           if (turno.persona_id) {
             contenido = turno.perfiles
-              ? (turno.perfiles.apellido||"").toUpperCase() + (turno.perfiles.empresa === "SUISAS" ? " (S)" : "")
+              ? sinTildes(turno.perfiles.apellido||"").toUpperCase() + (turno.perfiles.empresa === "SUISAS" ? " (S)" : "")
               : "ASIGNADO";
             bg = "background:#E3F0E8;";
           } else if (celda.y || turno.origen_vacante === "coordinador") {
@@ -603,7 +611,7 @@ async function cargarSolicitudes() {
   }
   wrap.innerHTML = data.map(s => `
     <div style="border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;">
-      <div style="font-weight:700;">${s.solicitante_apellido} → cede a ${s.cobertura_apellido}</div>
+      <div style="font-weight:700;">${sinTildes(s.solicitante_apellido)} → cede a ${sinTildes(s.cobertura_apellido)}</div>
       <div style="font-size:0.85rem;color:var(--ink-soft);">
         ${s.fecha.slice(8,10)}/${s.fecha.slice(5,7)} — ${s.sector} ${s.franja}
       </div>
@@ -631,6 +639,96 @@ async function resolverSolicitud(id, aprobar) {
   } else {
     alert("Error al resolver la solicitud.");
   }
+}
+
+// ---------------------------------------------------------
+// Notificaciones push del coordinador: avisos propios (ej.
+// "el siguiente en la fila todavía no activó notificaciones"),
+// separadas de las de los suplentes - van a coordinador_push_subscriptions,
+// no a push_subscriptions ni a perfiles.
+// ---------------------------------------------------------
+const VAPID_PUBLIC_KEY_COORD = "BHNTEZRf4uqYFfr_IqFMk6e8w6gcg115m7FRausnVsGjM6e7u48Ec1w-H7KouhwMFmXsuQm1x5WN5O1a37E9HSM";
+const btnNotifCoord = document.getElementById("btn-notif-coord");
+const notifCoordStatus = document.getElementById("notif-coord-status");
+let swRegistrationCoord = null;
+
+function urlBase64ToUint8ArrayCoord(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
+
+async function sincronizarSuscripcionCoord(opts = {}) {
+  const silencioso = opts.silencioso === true;
+  if (!silencioso) notifCoordStatus.textContent = "Activando...";
+  try {
+    if (!silencioso) {
+      const permiso = await Notification.requestPermission();
+      if (permiso !== "granted") {
+        notifCoordStatus.textContent = "No diste permiso para notificaciones.";
+        return;
+      }
+    }
+    if (!swRegistrationCoord) swRegistrationCoord = await navigator.serviceWorker.ready;
+    let sub = await swRegistrationCoord.pushManager.getSubscription();
+    if (!sub) {
+      sub = await swRegistrationCoord.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8ArrayCoord(VAPID_PUBLIC_KEY_COORD)
+      });
+    }
+    const subJson = sub.toJSON();
+    await fetch(`${SUPABASE_URL}/rest/v1/coordinador_push_subscriptions`, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates"
+      },
+      body: JSON.stringify({
+        endpoint: subJson.endpoint,
+        p256dh: subJson.keys.p256dh,
+        auth: subJson.keys.auth
+      })
+    });
+    if (!silencioso) {
+      notifCoordStatus.textContent = "✓ Avisos de coordinador activados";
+      btnNotifCoord.style.display = "none";
+    }
+  } catch (e) {
+    if (!silencioso) notifCoordStatus.textContent = "Error: " + e.message;
+  }
+}
+
+function actualizarBotonNotifCoord() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    btnNotifCoord.style.display = "none";
+    return;
+  }
+  if (Notification.permission === "granted") {
+    btnNotifCoord.style.display = "none";
+    notifCoordStatus.textContent = "✓ Avisos de coordinador activados";
+    sincronizarSuscripcionCoord({ silencioso: true });
+  } else if (Notification.permission === "denied") {
+    btnNotifCoord.style.display = "none";
+    notifCoordStatus.textContent = "Notificaciones bloqueadas en este dispositivo.";
+  } else {
+    btnNotifCoord.style.display = "block";
+    notifCoordStatus.textContent = "";
+  }
+}
+
+btnNotifCoord.addEventListener("click", () => sincronizarSuscripcionCoord({ silencioso: false }));
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js").then((reg) => {
+      swRegistrationCoord = reg;
+      actualizarBotonNotifCoord();
+    }).catch(() => {});
+  });
 }
 </script>
 </body>
