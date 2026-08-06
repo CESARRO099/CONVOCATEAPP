@@ -776,6 +776,17 @@ function miGrupoHabilitadoAhora() {
   return ronda ? ronda.grupo : null;
 }
 
+// El grupo de prelación de España para RESO está dividido en dos procesos
+// independientes (RESO_BSE y RESO_SEDE_CENTRAL) según la sede física del
+// sector, mientras que sectores.grupo solo guarda 'RESO' genérico. Esta
+// función mapea el sector actual al nombre real del proceso para poder
+// comparar contra miGrupoHabilitadoAhora().
+function grupoProcesoDeSector(sectorNombre, grupoRawDelSector) {
+  if (sectorNombre === "BSE") return "RESO_BSE";
+  if (sectorNombre === "RESO") return "RESO_SEDE_CENTRAL";
+  return grupoRawDelSector;
+}
+
 // Convierte el ancho de columna de Excel a pixeles (aproximado)
 function anchoExcelAPx(w) {
   return Math.round((w || 8) * 7 + 5);
@@ -905,7 +916,7 @@ async function renderGrilla() {
 
   const info = sectoresPorNombre[sectorActual];
   const grupoHabilitado = miGrupoHabilitadoAhora();
-  const puedoElegirAca = info && grupoHabilitado === info.grupo;
+  const puedoElegirAca = info && grupoHabilitado === grupoProcesoDeSector(sectorActual, info.grupo);
 
   // Indexar turnos de este sector por (dia, col_excel) y también por id
   const porCeldaReal = {};
