@@ -48,6 +48,10 @@
 <header>
   <img class="logo" src="./logo-completo.png" alt="ConvocaTE - Asociación Española" />
   <p>Panel del coordinador · Octubre 2026</p>
+  <button id="btn-notif-coord" style="display:none; margin-top:8px; padding:6px 12px; border:2px solid var(--ink); border-radius:6px; background:transparent; color:var(--ink); font-family:inherit; font-size:0.78rem; font-weight:700; cursor:pointer;">
+    🔔 Activar avisos de coordinador
+  </button>
+  <div id="notif-coord-status" style="margin-top:6px; text-align:center; font-size:0.8rem; color:var(--ink-soft);"></div>
 </header>
 
 <main>
@@ -635,6 +639,96 @@ async function resolverSolicitud(id, aprobar) {
   } else {
     alert("Error al resolver la solicitud.");
   }
+}
+
+// ---------------------------------------------------------
+// Notificaciones push del coordinador: avisos propios (ej.
+// "el siguiente en la fila todavía no activó notificaciones"),
+// separadas de las de los suplentes - van a coordinador_push_subscriptions,
+// no a push_subscriptions ni a perfiles.
+// ---------------------------------------------------------
+const VAPID_PUBLIC_KEY_COORD = "BHNTEZRf4uqYFfr_IqFMk6e8w6gcg115m7FRausnVsGjM6e7u48Ec1w-H7KouhwMFmXsuQm1x5WN5O1a37E9HSM";
+const btnNotifCoord = document.getElementById("btn-notif-coord");
+const notifCoordStatus = document.getElementById("notif-coord-status");
+let swRegistrationCoord = null;
+
+function urlBase64ToUint8ArrayCoord(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
+
+async function sincronizarSuscripcionCoord(opts = {}) {
+  const silencioso = opts.silencioso === true;
+  if (!silencioso) notifCoordStatus.textContent = "Activando...";
+  try {
+    if (!silencioso) {
+      const permiso = await Notification.requestPermission();
+      if (permiso !== "granted") {
+        notifCoordStatus.textContent = "No diste permiso para notificaciones.";
+        return;
+      }
+    }
+    if (!swRegistrationCoord) swRegistrationCoord = await navigator.serviceWorker.ready;
+    let sub = await swRegistrationCoord.pushManager.getSubscription();
+    if (!sub) {
+      sub = await swRegistrationCoord.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8ArrayCoord(VAPID_PUBLIC_KEY_COORD)
+      });
+    }
+    const subJson = sub.toJSON();
+    await fetch(`${SUPABASE_URL}/rest/v1/coordinador_push_subscriptions`, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates"
+      },
+      body: JSON.stringify({
+        endpoint: subJson.endpoint,
+        p256dh: subJson.keys.p256dh,
+        auth: subJson.keys.auth
+      })
+    });
+    if (!silencioso) {
+      notifCoordStatus.textContent = "✓ Avisos de coordinador activados";
+      btnNotifCoord.style.display = "none";
+    }
+  } catch (e) {
+    if (!silencioso) notifCoordStatus.textContent = "Error: " + e.message;
+  }
+}
+
+function actualizarBotonNotifCoord() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    btnNotifCoord.style.display = "none";
+    return;
+  }
+  if (Notification.permission === "granted") {
+    btnNotifCoord.style.display = "none";
+    notifCoordStatus.textContent = "✓ Avisos de coordinador activados";
+    sincronizarSuscripcionCoord({ silencioso: true });
+  } else if (Notification.permission === "denied") {
+    btnNotifCoord.style.display = "none";
+    notifCoordStatus.textContent = "Notificaciones bloqueadas en este dispositivo.";
+  } else {
+    btnNotifCoord.style.display = "block";
+    notifCoordStatus.textContent = "";
+  }
+}
+
+btnNotifCoord.addEventListener("click", () => sincronizarSuscripcionCoord({ silencioso: false }));
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js").then((reg) => {
+      swRegistrationCoord = reg;
+      actualizarBotonNotifCoord();
+    }).catch(() => {});
+  });
 }
 </script>
 </body>
