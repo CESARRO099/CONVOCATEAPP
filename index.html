@@ -382,9 +382,12 @@ function nombreCompleto(p) {
   return p.nombre ? `${ap}, ${p.nombre}` : ap;
 }
 function nombreAsignado(p) {
-  // Nombre de quien tiene el turno asignado, marcando (S) si es de SUISAS
+  // Nombre de quien tiene el turno asignado: apellido + inicial del nombre
+  // (para distinguir apellidos repetidos como Gonzalez, Ferreira, Martinez,
+  // Gutierrez, Pereira, Rodriguez), marcando (S) si es de SUISAS.
   const ap = sinTildes(p.apellido || "").toUpperCase();
-  return ap + (p.empresa === "SUISAS" ? " (S)" : "");
+  const inicial = p.nombre ? " " + sinTildes(p.nombre).trim().charAt(0).toUpperCase() : "";
+  return ap + inicial + (p.empresa === "SUISAS" ? " (S)" : "");
 }
 
 // ---------------------------------------------------------
