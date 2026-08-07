@@ -1132,7 +1132,9 @@ async function renderGrilla() {
             // Vacante creada por coordinador
             if (puedoElegirAca) {
               contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
-            } else if (sectorActual !== "FOTOG") {
+            } else if (sectorActual === "FOTOG") {
+              contenido = "";
+            } else {
               contenido = "LIBRE";
               clases += " libre-texto";
             }
@@ -1146,15 +1148,20 @@ async function renderGrilla() {
           }
         } else if (puedoElegirAca && t && !t.persona_id && !t.nombre_externo) {
           contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
-        } else if (t && !t.persona_id && !t.nombre_externo && sectorActual !== "FOTOG") {
+        } else if (t && !t.persona_id && !t.nombre_externo) {
           // El turno existe en la base y está vacante (por ejemplo, se
           // liberó por licencia), pero no es el turno de elegir de
           // quien mira: mostrar LIBRE en vez del texto fijo del Excel.
           // FOTOG queda excluido a propósito: ese sector nunca se cubre
-          // por convocatoria, así que no corresponde ofrecerlo ni
-          // mostrarlo como disponible.
-          contenido = "LIBRE";
-          clases += " libre-texto";
+          // por convocatoria, así que se vacía en vez de mostrar el
+          // texto crudo del Excel (que quedaría mostrando el nombre
+          // del titular real de licencia, como si estuviera disponible).
+          if (sectorActual === "FOTOG") {
+            contenido = "";
+          } else {
+            contenido = "LIBRE";
+            clases += " libre-texto";
+          }
         }
       }
 
