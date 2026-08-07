@@ -690,22 +690,30 @@ async function cargarDatosConvocatoria() {
     }
     procesosActivos = procesos;
 
-    // Horas acumuladas
+    // Horas acumuladas: las de licencia cuentan como si fueran horas de
+    // trabajo ya hechas, así que se muestran sumadas contra el tope
+    // completo (no el tope ya reducido) - la persona ve de un vistazo su
+    // total real, en vez de un número que parece tener más margen del que
+    // realmente tiene.
     const horasNum = Number(horas) || 0;
     let tope = Number(personaActual?.tope_horas_mensual) || 82;
+    let horasLicencia = 0;
     if (personaActual.empresa === "ESPANOLA") {
       try {
-        const topeReal = await sb(`rpc/tope_efectivo`, {
+        horasLicencia = await sb(`rpc/horas_licencia_mes`, {
           method: "POST",
           body: JSON.stringify({ p_persona_id: personaActual.id, p_mes: `${MES_ACTUAL}-01` })
         });
-        if (typeof topeReal === "number") tope = topeReal;
-      } catch (e) { /* si falla, se queda con el tope nominal */ }
+        if (typeof horasLicencia !== "number") horasLicencia = 0;
+      } catch (e) { /* si falla, se queda en 0 */ }
     }
-    window._horasActuales = horasNum;
-    window._topeHoras = tope;
-    horasTexto.textContent = `${horasNum.toFixed(1)} / ${tope} hs`;
-    const pct = Math.min(100, (horasNum / tope) * 100);
+    const horasMostradas = horasNum + horasLicencia;
+    window._horasActuales = horasNum; // para los chequeos de límite se sigue usando la real, sin sumar
+    window._topeHoras = tope - horasLicencia; // el tope efectivo real para bloquear elegir
+    horasTexto.textContent = horasLicencia > 0
+      ? `${horasNum.toFixed(1)} trabajo + ${horasLicencia.toFixed(1)} licencia = ${horasMostradas.toFixed(1)} / ${tope} hs`
+      : `${horasMostradas.toFixed(1)} / ${tope} hs`;
+    const pct = Math.min(100, (horasMostradas / tope) * 100);
     horasFill.style.width = pct + "%";
     // Color progresivo: rojo (0%) → amarillo (50%) → verde (100%)
     const r = pct < 50 ? 220 : Math.round(220 - (pct - 50) * 3.6);
