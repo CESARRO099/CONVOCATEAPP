@@ -365,9 +365,12 @@ function renderGrillaCoord() {
         const turno = porCelda[key];
         if (turno) {
           if (turno.persona_id) {
+            const apAmbiguos = new Set(["Alegre", "Ferreira", "Gonzalez", "Gutierrez", "Martinez", "Rodriguez"]);
+            const apSinTildes = sinTildes(turno.perfiles?.apellido || "").trim();
+            const esAmbiguo = apAmbiguos.has(apSinTildes);
             contenido = turno.perfiles
               ? sinTildes(turno.perfiles.apellido||"").toUpperCase()
-                + (turno.perfiles.nombre ? " " + sinTildes(turno.perfiles.nombre).trim().charAt(0).toUpperCase() : "")
+                + (esAmbiguo && turno.perfiles.nombre ? " " + sinTildes(turno.perfiles.nombre).trim().charAt(0).toUpperCase() : "")
                 + (turno.perfiles.empresa === "SUISAS" ? " (S)" : "")
               : "ASIGNADO";
             bg = "background:#E3F0E8;";
