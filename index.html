@@ -381,12 +381,20 @@ function nombreCompleto(p) {
   const ap = sinTildes(p.apellido || "").toUpperCase();
   return p.nombre ? `${ap}, ${p.nombre}` : ap;
 }
+// Apellidos que corresponden a más de una persona distinta de verdad (no
+// solo el mismo funcionario duplicado España/SUISAS). Si en el futuro
+// aparece un apellido ambiguo nuevo, agregarlo acá.
+const APELLIDOS_AMBIGUOS = new Set(["Alegre", "Ferreira", "Gonzalez", "Gutierrez", "Martinez", "Rodriguez"]);
+
 function nombreAsignado(p) {
-  // Nombre de quien tiene el turno asignado: apellido + inicial del nombre
-  // (para distinguir apellidos repetidos como Gonzalez, Ferreira, Martinez,
-  // Gutierrez, Pereira, Rodriguez), marcando (S) si es de SUISAS.
+  // Nombre de quien tiene el turno asignado: apellido, y solo si el
+  // apellido es ambiguo (más de una persona distinta lo comparte) se le
+  // agrega la inicial del nombre para distinguirlas. Marca (S) si es SUISAS.
   const ap = sinTildes(p.apellido || "").toUpperCase();
-  const inicial = p.nombre ? " " + sinTildes(p.nombre).trim().charAt(0).toUpperCase() : "";
+  const apSinTildes = sinTildes(p.apellido || "").trim();
+  const inicial = (APELLIDOS_AMBIGUOS.has(apSinTildes) && p.nombre)
+    ? " " + sinTildes(p.nombre).trim().charAt(0).toUpperCase()
+    : "";
   return ap + inicial + (p.empresa === "SUISAS" ? " (S)" : "");
 }
 
