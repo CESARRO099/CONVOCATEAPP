@@ -366,7 +366,9 @@ function renderGrillaCoord() {
         if (turno) {
           if (turno.persona_id) {
             contenido = turno.perfiles
-              ? sinTildes(turno.perfiles.apellido||"").toUpperCase() + (turno.perfiles.empresa === "SUISAS" ? " (S)" : "")
+              ? sinTildes(turno.perfiles.apellido||"").toUpperCase()
+                + (turno.perfiles.nombre ? " " + sinTildes(turno.perfiles.nombre).trim().charAt(0).toUpperCase() : "")
+                + (turno.perfiles.empresa === "SUISAS" ? " (S)" : "")
               : "ASIGNADO";
             bg = "background:#E3F0E8;";
           } else if (celda.y || turno.origen_vacante === "coordinador") {
@@ -620,7 +622,7 @@ async function recargarTurnos() {
   while (true) {
     const pag = await sbCoord(
       `turnos?select=id,fecha,col_excel,persona_id,origen_vacante,` +
-      `franjas_horarias!inner(nombre,sector_id,sectores!inner(nombre)),perfiles(apellido,empresa)` +
+      `franjas_horarias!inner(nombre,sector_id,sectores!inner(nombre)),perfiles(apellido,nombre,empresa)` +
       `&franjas_horarias.sector_id=eq.${sectorId}` +
       `&fecha=gte.${MES_COORD}-01&fecha=lte.${MES_COORD}-31&order=id.asc`,
       { headers: { "Range-Unit": "items", Range: `${desde}-${desde+999}` } }
