@@ -945,7 +945,15 @@ async function renderGrilla() {
   // este sector puntual. Debe coincidir con la misma regla de tomar_turno.
   const tengoTurnoActivoAhora = procesosActivos.some(p => p.persona_actual_id === personaActual.id);
   const habilitacionCruzada = misSectoresHabilitados.has(sectorActual) && tengoTurnoActivoAhora;
-  const puedoElegirAca = info && (grupoHabilitado === grupoProcesoDeSector(sectorActual, info.grupo) || habilitacionCruzada);
+  // SUISAS no separa BSE / RESO Sede Central como la Española (esas dos
+  // listas son cosa de la Española nada más) — en rondas_suisas el grupo
+  // siempre es el genérico "RESO", cubriendo ambos sectores a la vez. Por
+  // eso acá no se pasa por grupoProcesoDeSector para SUISAS, se compara
+  // directo contra el grupo crudo del sector.
+  const grupoProcesoEfectivo = personaActual.empresa === "SUISAS"
+    ? info?.grupo
+    : grupoProcesoDeSector(sectorActual, info?.grupo);
+  const puedoElegirAca = info && (grupoHabilitado === grupoProcesoEfectivo || habilitacionCruzada);
 
   // Indexar turnos de este sector por (dia, col_excel) y también por id
   const porCeldaReal = {};
