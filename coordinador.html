@@ -15,6 +15,7 @@
     --bg:#F4F1EC; --surface:#FFFFFF; --ink:#17262B; --ink-soft:#5B6B70;
     --primary:#123B4A; --primary-soft:#E7EEEF; --accent:#E8A33D; --accent-soft:#FBEBD1;
     --ok:#3B7A57; --ok-soft:#E3F0E8; --warn:#B4472A; --warn-soft:#F7E3DE; --line:#E4DFD5; --radius:16px;
+    --suisas:#6B3FA0; --suisas-soft:#EFE6F7;
   }
   *{box-sizing:border-box}
   body{margin:0; background:var(--bg); color:var(--ink); font-family:"Inter",system-ui,sans-serif;}
@@ -29,9 +30,10 @@
   .proceso-info .titulo{ font-weight:600; font-size:0.9rem; }
   .proceso-info .detalle{ font-size:0.78rem; color:var(--ink-soft); }
   .estado-pill{ font-size:0.7rem; font-weight:600; padding:3px 9px; border-radius:999px; }
-  .estado-ACTIVO{ background:var(--ok-soft); color:var(--ok); }
-  .estado-PAUSADO{ background:var(--warn-soft); color:var(--warn); }
-  .estado-FINALIZADO{ background:var(--line); color:var(--ink-soft); }
+  .estado-ACTIVO, .estado-ACTIVA{ background:var(--ok-soft); color:var(--ok); }
+  .estado-PAUSADO, .estado-PAUSADA{ background:var(--warn-soft); color:var(--warn); }
+  .estado-FINALIZADO, .estado-FINALIZADA{ background:var(--line); color:var(--ink-soft); }
+  .tag-suisas{ font-size:0.65rem; font-weight:700; padding:2px 7px; border-radius:999px; background:var(--suisas-soft); color:var(--suisas); margin-left:6px; letter-spacing:0.02em; }
   button{ font-family:inherit; border:none; border-radius:10px; padding:8px 12px; font-size:0.8rem; font-weight:600; cursor:pointer; }
   .btn-primary{ background:var(--primary); color:#fff; }
   .btn-warn{ background:var(--warn); color:#fff; }
@@ -91,6 +93,9 @@
 
     <h2>Procesos activos</h2>
     <div id="procesos-wrap"><div class="status-msg">Cargando...</div></div>
+
+    <h2>Procesos activos SUISAS</h2>
+    <div id="procesos-suisas-wrap"><div class="status-msg">Cargando...</div></div>
   </div>
 
   <div class="card">
@@ -197,6 +202,49 @@ async function cargarProcesos() {
   });
 }
 
+// ---------------------------------------------------------
+// Procesos de SUISAS (rondas_suisas) — misma idea que
+// cargarProcesos() de arriba, pero apuntando a la tabla y a las
+// funciones propias de SUISAS (pausar_ronda_suisas / reanudar_ronda_suisas).
+// No toca nada de la Española.
+// ---------------------------------------------------------
+async function cargarProcesosSuisas() {
+  const rondas = await sb(`rondas_suisas?select=id,grupo,numero_ronda,cupo,estado,orden_actual,vence,persona_actual_id&mes=eq.${MES}&order=grupo.asc,numero_ronda.asc`);
+  const wrap = document.getElementById("procesos-suisas-wrap");
+  if (!rondas.length) {
+    wrap.innerHTML = `<div class="status-msg">Todavía no arrancó ninguna ronda de SUISAS este mes.</div>`;
+    return;
+  }
+  wrap.innerHTML = rondas.map(r => {
+    const persona = personas.find(x => x.id === r.persona_actual_id);
+    const nombrePersona = persona ? [persona.nombre, sinTildes(persona.apellido)].filter(Boolean).join(" ") : "—";
+    const vence = r.vence ? new Date(r.vence).toLocaleString("es-UY", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" }) : "—";
+    const cupo = r.cupo != null ? `${Number(r.cupo)}hs c/u` : "—";
+    const btn = r.estado === "PAUSADA"
+      ? `<button class="btn-ok" data-accion-suisas="reanudar" data-grupo="${r.grupo}">Reanudar</button>`
+      : r.estado === "ACTIVA"
+      ? `<button class="btn-warn" data-accion-suisas="pausar" data-grupo="${r.grupo}">Pausar</button>`
+      : "";
+    return `
+      <div class="proceso-row">
+        <div class="proceso-info">
+          <div class="titulo">${r.grupo} <span class="tag-suisas">SUISAS · ronda ${r.numero_ronda}</span></div>
+          <div class="detalle">Turno actual: ${nombrePersona} · cupo ${cupo} · vence ${vence}</div>
+        </div>
+        <span class="estado-pill estado-${r.estado}">${r.estado}</span>
+        ${btn}
+      </div>`;
+  }).join("");
+
+  wrap.querySelectorAll("button[data-accion-suisas]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const fn = btn.dataset.accionSuisas === "pausar" ? "pausar_ronda_suisas" : "reanudar_ronda_suisas";
+      await sb(`rpc/${fn}`, { method: "POST", body: JSON.stringify({ p_mes: MES, p_grupo: btn.dataset.grupo }) });
+      cargarProcesosSuisas();
+    });
+  });
+}
+
 document.getElementById("btn-habilitar").addEventListener("click", async () => {
   const grupo = document.getElementById("hab-grupo").value;
   const tipo = document.getElementById("hab-tipo").value;
@@ -235,9 +283,11 @@ document.getElementById("btn-excluir").addEventListener("click", async () => {
 (async () => {
   await cargarPersonas();
   await cargarProcesos();
+  await cargarProcesosSuisas();
   await cargarSolicitudes();
   await cargarPersonasCoord();
   setInterval(cargarProcesos, 15000);
+  setInterval(cargarProcesosSuisas, 15000);
   setInterval(cargarSolicitudes, 15000);
 })();
 
