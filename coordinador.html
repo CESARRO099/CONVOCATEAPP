@@ -215,11 +215,20 @@ async function cargarProcesosSuisas() {
     wrap.innerHTML = `<div class="status-msg">Todavía no arrancó ninguna ronda de SUISAS este mes.</div>`;
     return;
   }
+  // El cupo real es por persona (participaciones_ronda_suisas.cupo_ofrecido),
+  // no el "cupo" general de la ronda — ese es solo un valor base y puede
+  // no coincidir con excepciones puntuales (ej. reparto front-loaded).
+  const rondaIds = rondas.map(r => r.id).join(",");
+  const participaciones = rondaIds
+    ? await sb(`participaciones_ronda_suisas?select=ronda_id,persona_id,cupo_ofrecido&ronda_id=in.(${rondaIds})`)
+    : [];
   wrap.innerHTML = rondas.map(r => {
     const persona = personas.find(x => x.id === r.persona_actual_id);
     const nombrePersona = persona ? [persona.nombre, sinTildes(persona.apellido)].filter(Boolean).join(" ") : "—";
     const vence = r.vence ? new Date(r.vence).toLocaleString("es-UY", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" }) : "—";
-    const cupo = r.cupo != null ? `${Number(r.cupo)}hs c/u` : "—";
+    const partActual = participaciones.find(p => p.ronda_id === r.id && p.persona_id === r.persona_actual_id);
+    const cupoReal = partActual ? partActual.cupo_ofrecido : r.cupo;
+    const cupo = cupoReal != null ? `${Number(cupoReal)}hs` : "—";
     const btn = r.estado === "PAUSADA"
       ? `<button class="btn-ok" data-accion-suisas="reanudar" data-grupo="${r.grupo}">Reanudar</button>`
       : r.estado === "ACTIVA"
