@@ -1100,7 +1100,13 @@ async function renderGrilla() {
           diaLocal = posibleDia;
         }
         const franjaKeyR = `${diaLocal}-col:${100 + r}`;
-        const tR = porCeldaReal[franjaKeyR];
+        let tR = porCeldaReal[franjaKeyR];
+        if (!tR) {
+          // Respaldo: columna roja "normal" (no es una sub-tabla aparte con
+          // su propio número de día), buscar con el mismo esquema que usa
+          // la rama amarilla, por el col_excel real de la celda.
+          tR = porCeldaReal[`${diaLocal}-col:${c}`];
+        }
         if (tR && (tR.persona_id || tR.nombre_externo)) {
           const esPropio = tR.persona_id === personaActual?.id;
           if (esPropio && puedoElegirAca) {
