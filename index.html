@@ -753,7 +753,7 @@ async function cargarDatosConvocatoria() {
     while (true) {
       const pagina = await sb(
         `turnos?select=id,fecha,persona_id,nombre_externo,origen_vacante,col_excel,` +
-        `franjas_horarias(nombre,sector_id,sectores(nombre)),perfiles(apellido,nombre,empresa)` +
+        `franjas_horarias(nombre,sector_id,sectores(nombre)),perfiles(apellido,nombre,empresa,ficha)` +
         `&fecha=gte.${MES_ACTUAL}-01&fecha=lte.${MES_ACTUAL}-31&order=id.asc`,
         { headers: { "Range-Unit": "items", "Range": `${desde}-${desde + 999}` } }
       );
@@ -1041,7 +1041,7 @@ async function renderGrilla() {
       // Horario (columna P), sin relación con el día de la grilla principal
       // de esa misma fila. Se busca el turno real por fecha + nombre de
       // franja, no por col_excel.
-      if (sectorActual === "TC" && r >= 14 && r <= 48 && c === 13) {
+      if (sectorActual === "TC" && r >= 14 && r <= 48 && (c === 13 || c === 12)) {
         const diaG = filas[r][14]?.v;
         const horarioG = (filas[r][15]?.v || "").toString().trim();
         if (typeof diaG === "number" && horarioG) {
@@ -1051,7 +1051,18 @@ async function renderGrilla() {
             t.fecha === fechaG &&
             (t.franjas_horarias?.nombre || "").trim() === horarioG
           );
-          if (tG) {
+          if (c === 12) {
+            // Nº Externo: se completa solo con el mismo turno de la columna
+            // Apellido de al lado. No es clickeable por separado.
+            if (tG && (tG.persona_id || tG.nombre_externo) && tG.perfiles) {
+              contenido = tG.perfiles.ficha != null ? String(tG.perfiles.ficha) : "";
+            } else if (tG) {
+              contenido = "LIBRE";
+              clases += " libre-texto";
+            } else {
+              contenido = "";
+            }
+          } else if (tG) {
             if (tG.persona_id || tG.nombre_externo) {
               const esPropio = tG.persona_id === personaActual?.id;
               if (esPropio && puedoElegirAca) {
