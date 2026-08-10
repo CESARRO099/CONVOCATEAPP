@@ -513,7 +513,10 @@ function renderGrillaCoord() {
       }
 
       const bold = celda.bold ? "font-weight:700;" : "";
-      if (esGrisFinde && !esGuardiaTCEspecial) bg = "background:#A6A6A6;";
+      // Mismo criterio que la vista pública: el gris de fin de semana solo
+      // pinta las columnas que están en columnas_grises (la tabla real),
+      // no cualquier columna del ancho total.
+      if (esGrisFinde && !esGuardiaTCEspecial && setGrises && setGrises.has(c)) bg = "background:#A6A6A6;";
       // Cualquier celda fuera de la lógica de turnos (referencias al pie,
       // notas de LA/FR/LIBRE, etc.) se puede editar con doble click,
       // directo desde el panel, sin depender de pedírselo a otra sesión.
