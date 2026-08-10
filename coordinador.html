@@ -360,7 +360,11 @@ document.getElementById("coord-sector").addEventListener("change", async (e) => 
 
 function renderGrillaCoord() {
   const { cols, merges, filas, dia_col, first_day_row, last_day_row, ultima_col_real, columnas_grises } = coordEstructura;
-  const totalCols = ultima_col_real + 1;
+  // TC tiene, más allá de las 8 columnas reales de la Poli, una sección
+  // vieja de julio ("GUARDIA" / cobertura por Española / por Suisas) que
+  // quedó congelada y desactualizada. Se corta la grilla ahí — la Guardia
+  // TC real y en vivo se muestra aparte, en renderGuardiaTC().
+  const totalCols = coordSectorActual === "TC" ? Math.min(ultima_col_real + 1, 10) : ultima_col_real + 1;
   const setGrises = Array.isArray(columnas_grises) ? new Set(columnas_grises) : null;
 
   // Indexar turnos por dia-col
