@@ -471,7 +471,7 @@ function renderGrillaCoord() {
       // grilla principal de esa misma fila. Se busca el turno real por
       // fecha + nombre de franja, no por col_excel.
       let esGuardiaTCEspecial = false;
-      if (coordSectorActual === "TC" && r >= 14 && r <= 48 && c === 13) {
+      if (coordSectorActual === "TC" && r >= 14 && r <= 48 && (c === 13 || c === 12)) {
         esGuardiaTCEspecial = true;
         const diaG = filas[r][14]?.v;
         const horarioG = (filas[r][15]?.v || "").toString().trim();
@@ -482,7 +482,19 @@ function renderGrillaCoord() {
             t.fecha === fechaG && (t.franjas_horarias?.nombre || "").trim() === horarioG
           );
           bg = "background:#fff;";
-          if (turnoG) {
+          if (c === 12) {
+            // Nº Externo: se completa solo, en base al mismo turno de la
+            // columna Apellido de al lado. No es clickeable por separado.
+            if (turnoG && turnoG.persona_id && turnoG.perfiles) {
+              contenido = turnoG.perfiles.ficha != null ? String(turnoG.perfiles.ficha) : "";
+              bg = "background:#E3F0E8;";
+            } else if (turnoG) {
+              contenido = "LIBRE";
+              bg = "background:#FFF9C4;color:#7B6000;font-weight:700;";
+            } else {
+              contenido = "";
+            }
+          } else if (turnoG) {
             if (turnoG.persona_id) {
               contenido = turnoG.perfiles
                 ? sinTildes(turnoG.perfiles.apellido||"").toUpperCase() + (turnoG.perfiles.empresa === "SUISAS" ? " (S)" : "")
@@ -719,7 +731,7 @@ async function recargarTurnos() {
   while (true) {
     const pag = await sbCoord(
       `turnos?select=id,fecha,col_excel,persona_id,origen_vacante,` +
-      `franjas_horarias!inner(nombre,sector_id,sectores!inner(nombre)),perfiles(apellido,nombre,empresa)` +
+      `franjas_horarias!inner(nombre,sector_id,sectores!inner(nombre)),perfiles(apellido,nombre,empresa,ficha)` +
       `&franjas_horarias.sector_id=eq.${sectorId}` +
       `&fecha=gte.${MES_COORD}-01&fecha=lte.${MES_COORD}-31&order=id.asc`,
       { headers: { "Range-Unit": "items", Range: `${desde}-${desde+999}` } }
