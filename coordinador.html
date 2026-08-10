@@ -465,8 +465,43 @@ function renderGrillaCoord() {
         }
       }
 
+      // Guardia TC: tabla aparte "COBERTURA POR SUISAS" (filas 15 a 49,
+      // columna Apellido = N). Cada fila tiene su propio Día (columna O) y
+      // Horario (columna P) — no tienen nada que ver con el día de la
+      // grilla principal de esa misma fila. Se busca el turno real por
+      // fecha + nombre de franja, no por col_excel.
+      let esGuardiaTCEspecial = false;
+      if (coordSectorActual === "TC" && r >= 14 && r <= 48 && c === 13) {
+        esGuardiaTCEspecial = true;
+        const diaG = filas[r][14]?.v;
+        const horarioG = (filas[r][15]?.v || "").toString().trim();
+        if (typeof diaG === "number" && horarioG) {
+          const mesBase = MES.slice(0, 7);
+          const fechaG = `${mesBase}-${String(diaG).padStart(2, "0")}`;
+          const turnoG = coordTurnos.find(t =>
+            t.fecha === fechaG && (t.franjas_horarias?.nombre || "").trim() === horarioG
+          );
+          bg = "background:#fff;";
+          if (turnoG) {
+            if (turnoG.persona_id) {
+              contenido = turnoG.perfiles
+                ? sinTildes(turnoG.perfiles.apellido||"").toUpperCase() + (turnoG.perfiles.empresa === "SUISAS" ? " (S)" : "")
+                : "ASIGNADO";
+              bg = "background:#E3F0E8;";
+            } else {
+              contenido = "LIBRE";
+              bg = "background:#FFF9C4;color:#7B6000;font-weight:700;";
+            }
+            cursor = "cursor:pointer;";
+            dataAttr = ` data-dia="${diaG}" data-col="-1" data-turno-id="${turnoG.id}"`;
+          } else {
+            contenido = "";
+          }
+        }
+      }
+
       const bold = celda.bold ? "font-weight:700;" : "";
-      if (esGrisFinde) bg = "background:#A6A6A6;";
+      if (esGrisFinde && !esGuardiaTCEspecial) bg = "background:#A6A6A6;";
       // Cualquier celda fuera de la lógica de turnos (referencias al pie,
       // notas de LA/FR/LIBRE, etc.) se puede editar con doble click,
       // directo desde el panel, sin depender de pedírselo a otra sesión.
