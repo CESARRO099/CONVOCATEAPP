@@ -1,0 +1,1552 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Convocate</title>
+<meta name="theme-color" content="#123B4A" />
+<link rel="manifest" href="./manifest.json" />
+<link rel="icon" href="./icon.png" type="image/png" />
+<link rel="apple-touch-icon" href="./icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg: #F4F1EC;
+    --surface: #FFFFFF;
+    --ink: #17262B;
+    --ink-soft: #5B6B70;
+    --primary: #123B4A;
+    --primary-soft: #E7EEEF;
+    --accent: #E8A33D;
+    --accent-soft: #FBEBD1;
+    --ok: #3B7A57;
+    --ok-soft: #E3F0E8;
+    --line: #E4DFD5;
+    --radius: 18px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", system-ui, sans-serif;
+    min-height:100vh;
+    -webkit-tap-highlight-color: transparent;
+  }
+  header.top{
+    background: var(--surface);
+    color: var(--ink);
+    padding: 20px 20px 24px;
+    border-radius: 0 0 24px 24px;
+    border-bottom: 1px solid var(--line);
+    position: relative;
+    overflow:hidden;
+    text-align: center;
+  }
+  header.top img.logo{
+    max-width: 240px;
+    width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto 6px;
+  }
+  header.top h1{
+    font-family:"Fraunces", serif;
+    font-weight:600;
+    font-size: 1.4rem;
+    margin: 0 0 4px;
+    letter-spacing:-0.01em;
+  }
+  header.top p{
+    margin:0;
+    font-size:0.82rem;
+    color: var(--ink-soft);
+  }
+  main{ max-width: 960px; margin: 0 auto; padding: 16px 14px 60px; }
+
+  .card{
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  label.field-label{
+    display:block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  select{
+    width:100%;
+    padding: 11px 14px;
+    border-radius: 12px;
+    border: 1.5px solid var(--line);
+    background: var(--bg);
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--ink);
+    appearance: none;
+  }
+  .empresa-pill{
+    display:inline-block;
+    margin-top:10px;
+    font-size:0.7rem;
+    font-weight:600;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--primary-soft);
+    color: var(--primary);
+  }
+  .banner-turno{
+    display:flex; align-items:center; gap:10px;
+    background: var(--ok-soft);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    font-size: 0.85rem;
+    color: var(--ok);
+    font-weight: 500;
+  }
+  .banner-turno .dot{
+    width:9px; height:9px; border-radius:50%; background: var(--ok); flex:0 0 auto;
+  }
+  .horas-wrap{ margin-bottom: 14px; }
+  .horas-row{
+    display:flex; justify-content:space-between; font-size:0.75rem; color:var(--ink-soft); margin-bottom:5px;
+  }
+  .horas-bar{ height:6px; background:var(--line); border-radius:4px; overflow:hidden; }
+  .horas-fill{ height:100%; background: var(--accent); }
+
+  .tabs{
+    display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; margin-bottom:12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab{
+    flex:0 0 auto; padding:7px 14px; border-radius:999px; font-size:0.78rem;
+    background: transparent; color: var(--ink-soft); border:1px solid var(--line);
+    cursor:pointer; white-space:nowrap;
+  }
+  .tab.active{ background: var(--primary); color:#fff; border-color:var(--primary); }
+
+  table.grilla{
+    border-collapse:collapse; font-size:0.78rem; table-layout:fixed; width:max-content;
+  }
+  table.grilla td, table.grilla th{
+    padding: 4px 6px; text-align:center; vertical-align:middle;
+    color: #000; overflow:hidden; white-space:nowrap;
+    background:#fff; height: 24px; min-height: 24px;
+  }
+  td.gris{ background:#A6A6A6 !important; }
+  td.dia-semana{ background:#BDD7EE !important; }
+  td.libre-texto{ color: #00C853; font-weight:700; }
+  td.libre-suisas{ color: #D32F2F; font-weight:700; }
+  button.btn-elegir{
+    width:100%; border:1px solid #000; border-radius:6px; padding:3px 1px;
+    background: var(--ok); color:#fff; font-family:inherit; font-size:0.7rem; font-weight:700;
+    cursor:pointer;
+  }
+  button.btn-elegir:active{ opacity:0.8; }
+  button.btn-confirmar{
+    margin-left: 12px; background: #fff; color: var(--ok); border: 1px solid var(--ok);
+    border-radius: 6px; padding: 4px 10px; font-size: 0.75rem; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+  }
+  button.btn-confirmar:active{ opacity: 0.8; }
+  .btn-cambio{
+    display: inline-block; margin-top: 8px;
+    background: #0a2966; color: #fff;
+    border: none; border-radius: 6px;
+    padding: 6px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+    font-family: inherit;
+    animation: pulso 2.5s ease-in-out infinite;
+  }
+  @keyframes pulso {
+    0%   { box-shadow: 0 0 0 0 rgba(10,41,102,0.5); }
+    60%  { box-shadow: 0 0 0 8px rgba(10,41,102,0); }
+    100% { box-shadow: 0 0 0 0 rgba(10,41,102,0); }
+  }
+  .btn-cambio:active{ opacity: 0.85; transform: scale(0.98); }
+  .modal-overlay{
+    display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: rgba(0,0,0,0.45);
+    z-index: 100; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open{ display: flex; }
+  .modal-box{
+    background: var(--surface); border-radius: 12px; padding: 24px;
+    width: min(420px, 92vw); max-height: 80vh; overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  .modal-box > *{ margin: 0 0 14px; }
+  .modal-box > *:last-child{ margin-bottom: 0; }
+  .modal-box h3{ margin: 0 0 14px; font-size: 1rem; }
+  .modal-box select, .modal-box button{
+    width: 100%; padding: 10px; border-radius: 8px; font-size: 0.9rem;
+    font-family: inherit; border: 1px solid var(--line); cursor: pointer;
+  }
+  .modal-box .btn-primary{
+    background: var(--ok); color: #fff; border: none; font-weight: 700;
+  }
+  .modal-box .btn-cancel{
+    background: var(--bg); color: var(--ink); font-weight: 600;
+  }
+  button.btn-rechazar{
+    width:100%; border:1px solid #c00; border-radius:6px; padding:3px 1px;
+    background: #c00; color:#fff; font-family:inherit; font-size:0.7rem; font-weight:700;
+    cursor:pointer;
+  }
+  button.btn-rechazar:active{ opacity:0.8; }
+  .status-msg{ font-size:0.8rem; color: var(--ink-soft); text-align:center; padding: 20px 10px; }
+  footer.hint{ text-align:center; font-size: 0.72rem; color: var(--ink-soft); padding: 10px 24px 4px; }
+</style>
+</head>
+<body>
+
+<header class="top" id="header-top" style="display:none;"></header>
+
+<main>
+  <div id="bienvenida-wrap" style="text-align:center; padding: 1.5rem 0 0.5rem;">
+    <img src="./icon.png" alt="ConvocaTE" style="max-width:130px; width:55%; height:auto; margin: 0 auto 0.75rem; display:block;" />
+    <h1 style="font-family:Georgia,serif; font-size:2.2rem; font-weight:700; margin:0 0 2px; letter-spacing:-0.02em; color:#0a2966;">Convoca<span style="color:#c8102e;">T</span><span style="color:#f5a800;">E</span></h1>
+    <p style="font-size:0.82rem; color:var(--ink-soft); margin:0 0 1rem;">Servicio de Imagenología</p>
+  </div>
+
+  <div class="card">
+    <label class="field-label" for="persona-search">Elegí tu nombre</label>
+    <div id="persona-combo-wrap" style="position:relative;">
+      <input type="text" id="persona-search" autocomplete="off" placeholder="Escribí tu apellido…"
+        style="width:100%; box-sizing:border-box; padding:10px 12px; border:2px solid var(--ink); border-radius:6px; font-family:inherit; font-size:0.95rem; background:#fff;">
+      <div id="persona-options" style="display:none; position:absolute; z-index:50; top:calc(100% + 4px); left:0; right:0; max-height:240px; overflow-y:auto; background:#fff; border:2px solid var(--ink); border-radius:6px; box-shadow:0 4px 10px rgba(0,0,0,0.15);"></div>
+    </div>
+    <select id="persona-select" style="display:none;">
+      <option value="">Cargando personas…</option>
+    </select>
+    <div id="empresa-pill-wrap"></div>
+    <button id="btn-notif" style="display:none; margin-top:10px; padding:6px 12px; border:2px solid var(--ink); border-radius:6px; background:transparent; color:var(--ink); font-family:inherit; font-size:0.78rem; font-weight:700; cursor:pointer;">
+      🔔 Activar notificaciones de la APP
+    </button>
+    <div id="notif-status" class="detalle" style="margin-top:8px; text-align:center; font-size:0.8rem; color:var(--ink-soft);"></div>
+  </div>
+
+  <div id="convocatoria-wrap" style="display:none;">
+    <div id="banner-turno-wrap"></div>
+    <div id="banner-solicitud-wrap"></div>
+
+    <!-- Botón siempre visible para solicitar cambio -->
+    <div id="cambio-wrap" style="display:none; padding: 0 0 8px;">
+      <button class="btn-cambio" id="btn-abrir-cambio">Realizar un cambio en la convocatoria</button>
+    </div>
+
+    <!-- Modal de solicitud de cambio -->
+    <div class="modal-overlay" id="modal-cambio">
+      <div class="modal-box">
+        <h3>Solicitar cambio de turno</h3>
+        <div>
+          <label style="font-size:0.85rem;font-weight:600;">Turno que querés ceder</label>
+          <select id="sel-turno-ceder"></select>
+        </div>
+        <div>
+          <label style="font-size:0.85rem;font-weight:600;">Quién te cubre</label>
+          <select id="sel-cobertura"></select>
+        </div>
+        <button class="btn-primary" id="btn-enviar-cambio">Enviar solicitud</button>
+        <button class="btn-cancel" id="btn-cancelar-cambio">Cancelar</button>
+      </div>
+    </div>
+    <div class="horas-wrap">
+      <div class="horas-row"><span>Horas este mes</span><span id="horas-texto">0 / 80 hs</span></div>
+      <div class="horas-bar"><div class="horas-fill" id="horas-fill" style="width:0%"></div></div>
+    </div>
+    <div class="tabs" id="tabs-wrap"></div>
+    <div style="display:flex; justify-content:flex-end; margin-bottom:6px;">
+      <div style="display:flex; align-items:center; background:#f4f4f4; border-radius:20px; padding:2px;">
+        <button id="btn-zoom-out" style="width:28px; height:28px; border:none; border-radius:50%; background:transparent; color:var(--ink-soft); font-size:0.95rem; cursor:pointer; line-height:1;">－</button>
+        <button id="btn-zoom-reset" style="height:28px; padding:0 8px; border:none; background:transparent; color:var(--ink-soft); font-size:0.72rem; cursor:pointer;">100%</button>
+        <button id="btn-zoom-in" style="width:28px; height:28px; border:none; border-radius:50%; background:transparent; color:var(--ink-soft); font-size:0.95rem; cursor:pointer; line-height:1;">＋</button>
+      </div>
+    </div>
+    <div class="card" style="overflow-x:auto; overflow-y:visible;">
+      <div id="grilla-wrap"><div class="status-msg">Elegí un sector arriba</div></div>
+    </div>
+  </div>
+
+  <!-- Modal de PIN (crear o verificar) — fuera de convocatoria-wrap
+       a propósito, porque tiene que poder mostrarse ANTES de que
+       convocatoria-wrap pase a display:block -->
+  <div class="modal-overlay" id="modal-pin">
+    <div class="modal-box">
+      <h3 id="pin-titulo">Creá tu PIN</h3>
+      <p id="pin-texto" style="font-size:0.85rem; color:var(--ink-soft);"></p>
+      <input type="tel" id="pin-input" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off"
+        style="width:100%; box-sizing:border-box; padding:10px; border:1px solid var(--line); border-radius:8px; font-size:1.15rem; letter-spacing:0.3em; text-align:center; font-family:inherit; background:#fafafa;">
+      <input type="tel" id="pin-input-confirmar" inputmode="numeric" maxlength="4" placeholder="Confirmá el PIN" autocomplete="off"
+        style="display:none; width:100%; box-sizing:border-box; padding:10px; border:1px solid var(--line); border-radius:8px; font-size:1.15rem; letter-spacing:0.3em; text-align:center; font-family:inherit; background:#fafafa;">
+      <p id="pin-error" style="font-size:0.8rem; color:#c8102e; min-height:1.1em;"></p>
+      <button class="btn-primary" id="btn-pin-confirmar">Confirmar</button>
+      <button class="btn-cancel" id="btn-pin-cancelar">Cancelar</button>
+    </div>
+  </div>
+
+  <div id="resultado"></div>
+</main>
+
+<footer class="hint">Octubre 2026 · datos en vivo desde Supabase</footer>
+
+<script>
+// =========================================================
+// CONFIGURACIÓN
+// =========================================================
+const SUPABASE_URL = "https://lcnvdgjedxikpqxxyzqr.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_HAAHgNldQ3_wJH0EDrq3DA_u04xA7Yd";
+const MES_ACTUAL = "2026-10"; // mes que se muestra (formato YYYY-MM)
+// =========================================================
+
+const personaSelect = document.getElementById("persona-select");
+const CLAVE_ULTIMA_PERSONA = "convocate_ultima_persona_id";
+const resultadoDiv = document.getElementById("resultado");
+const pillWrap = document.getElementById("empresa-pill-wrap");
+const convocatoriaWrap = document.getElementById("convocatoria-wrap");
+const bannerWrap = document.getElementById("banner-turno-wrap");
+const horasTexto = document.getElementById("horas-texto");
+const horasFill = document.getElementById("horas-fill");
+const tabsWrap = document.getElementById("tabs-wrap");
+const grillaWrap = document.getElementById("grilla-wrap");
+
+// ---------------------------------------------------------
+// Zoom manual de la planilla: algunos teléfonos (sobre todo
+// iPhone con la app instalada en pantalla de inicio) no dejan
+// achicar con los dedos, así que se ofrece un control aparte.
+// Usa la propiedad CSS "zoom" (bien soportada en Safari/Chrome
+// móvil) para no tener que recalcular anchos de columna.
+// ---------------------------------------------------------
+const ZOOM_MIN = 0.3, ZOOM_MAX = 1.4, ZOOM_PASO = 0.1;
+let tablaZoom = Number(localStorage.getItem("convocate_zoom")) || 0.6;
+
+function aplicarZoom() {
+  grillaWrap.style.zoom = tablaZoom;
+  document.getElementById("btn-zoom-reset").textContent = `${Math.round(tablaZoom * 100)}%`;
+  localStorage.setItem("convocate_zoom", tablaZoom);
+}
+
+document.getElementById("btn-zoom-in").addEventListener("click", () => {
+  tablaZoom = Math.min(ZOOM_MAX, Math.round((tablaZoom + ZOOM_PASO) * 100) / 100);
+  aplicarZoom();
+});
+document.getElementById("btn-zoom-out").addEventListener("click", () => {
+  tablaZoom = Math.max(ZOOM_MIN, Math.round((tablaZoom - ZOOM_PASO) * 100) / 100);
+  aplicarZoom();
+});
+document.getElementById("btn-zoom-reset").addEventListener("click", () => {
+  tablaZoom = 0.6;
+  aplicarZoom();
+});
+aplicarZoom();
+
+let personaActual = null;      // { id, apellido, nombre, empresa }
+let procesosActivos = [];      // procesos_convocatoria ACTIVO
+let misParticipacionesSuisas = []; // participaciones activas en rondas SUISAS
+let sectorActual = null;
+let sectoresPorNombre = {};    // nombre -> { grupo, franjas: [{id,nombre}] }
+let misSectoresHabilitados = new Set(); // nombres de sector donde esta persona tiene habilitación personal (personal_sectores)
+let turnosDelMes = [];         // todos los turnos de MES_ACTUAL, ya "enriquecidos"
+let hojasExcelCache = {};      // nombre de sector -> estructura ya cargada desde hojas_excel
+
+async function sb(path, opts = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: {
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+      ...(opts.body ? { "Content-Type": "application/json" } : {}),
+      ...(opts.headers || {})
+    }
+  });
+  if (!res.ok) throw new Error(`Error en ${path}: ${res.status} ${await res.text()}`);
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+function nombreEmpresa(e) { return e === "ESPANOLA" ? "ASESP" : e; }
+function etiquetaEmpresaPersona(p) {
+  return p.empresa === "SUISAS" ? " (SUISAS)" : " (ASESP)";
+}
+function sinTildes(s) {
+  return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+function nombreCompleto(p) { 
+  const ap = sinTildes(p.apellido || "").toUpperCase();
+  return p.nombre ? `${ap}, ${p.nombre}` : ap;
+}
+// Apellidos que corresponden a más de una persona distinta de verdad (no
+// solo el mismo funcionario duplicado España/SUISAS). Si en el futuro
+// aparece un apellido ambiguo nuevo, agregarlo acá.
+const APELLIDOS_AMBIGUOS = new Set(["Alegre", "Ferreira", "Gonzalez", "Gutierrez", "Martinez", "Rodriguez"]);
+
+function nombreAsignado(p) {
+  // Nombre de quien tiene el turno asignado: apellido, y solo si el
+  // apellido es ambiguo (más de una persona distinta lo comparte) se le
+  // agrega la inicial del nombre para distinguirlas. Marca (S) si es SUISAS.
+  const ap = sinTildes(p.apellido || "").toUpperCase();
+  const apSinTildes = sinTildes(p.apellido || "").trim();
+  const inicial = (APELLIDOS_AMBIGUOS.has(apSinTildes) && p.nombre)
+    ? " " + sinTildes(p.nombre).trim().charAt(0).toUpperCase()
+    : "";
+  return ap + inicial + (p.empresa === "SUISAS" ? " (S)" : "");
+}
+
+// ---------------------------------------------------------
+// Carga inicial: personas para el selector
+// ---------------------------------------------------------
+async function cargarPersonas() {
+  try {
+    const personas = await sb("perfiles?select=id,ficha,ficha_suisas,apellido,nombre,empresa,tope_horas_mensual&order=apellido.asc");
+    personaSelect.innerHTML = `<option value="">Seleccioná...</option>` +
+      personas.map(p => {
+        return `<option value="${p.id}">${nombreCompleto(p)}${etiquetaEmpresaPersona(p)}</option>`;
+      }).join("");
+    window.__personas = personas;
+  } catch (e) {
+    personaSelect.innerHTML = `<option value="">Error de conexión</option>`;
+    resultadoDiv.innerHTML = `<div class="status-msg">No se pudo conectar a Supabase: ${e.message}</div>`;
+  }
+}
+
+// ---------------------------------------------------------
+// Buscador con autocompletado: filtra por apellido/nombre a
+// medida que se escribe, se navega con flechas y Enter, y al
+// elegir una opción se sincroniza con el <select> oculto para
+// no tocar el resto de la lógica (que escucha su evento "change").
+// ---------------------------------------------------------
+const personaSearch = document.getElementById("persona-search");
+const personaOptionsWrap = document.getElementById("persona-options");
+let personaOpcionesFiltradas = [];
+let personaIndiceActivo = -1;
+
+function renderPersonaOptions(lista) {
+  personaOpcionesFiltradas = lista;
+  personaIndiceActivo = -1;
+  if (!lista.length) {
+    personaOptionsWrap.innerHTML = `<div style="padding:10px 12px; color:var(--ink-soft); font-size:0.85rem;">Sin resultados</div>`;
+    personaOptionsWrap.style.display = "block";
+    return;
+  }
+  personaOptionsWrap.innerHTML = lista.map((p, i) => {
+    const label = etiquetaEmpresaPersona(p);
+    return `<div class="persona-opcion" data-idx="${i}" data-id="${p.id}"
+      style="padding:9px 12px; cursor:pointer; font-size:0.9rem; border-bottom:1px solid #eee;">${nombreCompleto(p)}${label}</div>`;
+  }).join("");
+  personaOptionsWrap.style.display = "block";
+}
+
+function resaltarOpcionActiva() {
+  personaOptionsWrap.querySelectorAll(".persona-opcion").forEach((el, i) => {
+    el.style.background = i === personaIndiceActivo ? "#eef2f8" : "";
+  });
+  const activa = personaOptionsWrap.querySelector(`.persona-opcion[data-idx="${personaIndiceActivo}"]`);
+  if (activa) activa.scrollIntoView({ block: "nearest" });
+}
+
+function elegirPersonaDesdeCombo(persona) {
+  if (!persona) return;
+  personaSearch.value = nombreCompleto(persona);
+  personaOptionsWrap.style.display = "none";
+  personaSelect.value = persona.id;
+  personaSelect.dispatchEvent(new Event("change"));
+}
+
+personaSearch.addEventListener("input", () => {
+  const q = sinTildes(personaSearch.value || "").toUpperCase().trim();
+  const todas = window.__personas || [];
+  const filtradas = q ? todas.filter(p => sinTildes(nombreCompleto(p)).toUpperCase().includes(q)) : todas;
+  renderPersonaOptions(filtradas);
+  // Si se borra el texto, también se limpia la selección real
+  if (!q && personaSelect.value) {
+    personaSelect.value = "";
+    personaSelect.dispatchEvent(new Event("change"));
+  }
+});
+
+personaSearch.addEventListener("focus", () => {
+  if (!personaSearch.value) renderPersonaOptions(window.__personas || []);
+});
+
+personaSearch.addEventListener("keydown", (e) => {
+  if (personaOptionsWrap.style.display === "none") return;
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    personaIndiceActivo = Math.min(personaIndiceActivo + 1, personaOpcionesFiltradas.length - 1);
+    resaltarOpcionActiva();
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    personaIndiceActivo = Math.max(personaIndiceActivo - 1, 0);
+    resaltarOpcionActiva();
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    const elegida = personaOpcionesFiltradas[personaIndiceActivo] ?? personaOpcionesFiltradas[0];
+    elegirPersonaDesdeCombo(elegida);
+  } else if (e.key === "Escape") {
+    personaOptionsWrap.style.display = "none";
+  }
+});
+
+personaOptionsWrap.addEventListener("click", (e) => {
+  const opt = e.target.closest(".persona-opcion");
+  if (!opt) return;
+  const persona = personaOpcionesFiltradas[Number(opt.dataset.idx)];
+  elegirPersonaDesdeCombo(persona);
+});
+
+document.addEventListener("click", (e) => {
+  if (!document.getElementById("persona-combo-wrap").contains(e.target)) {
+    personaOptionsWrap.style.display = "none";
+  }
+});
+
+// ---------------------------------------------------------
+// Sistema de PIN: la primera vez que alguien elige su nombre
+// en un dispositivo, crea un PIN de 4 dígitos. Si después se
+// elige ese mismo nombre desde otro dispositivo (o se borró el
+// dato local), hay que ingresar el PIN para poder seguir. Una
+// vez validado, ese dispositivo queda "recordado" y no vuelve
+// a preguntar.
+// ---------------------------------------------------------
+const modalPin = document.getElementById("modal-pin");
+const pinTitulo = document.getElementById("pin-titulo");
+const pinTexto = document.getElementById("pin-texto");
+const pinInput = document.getElementById("pin-input");
+const pinInputConfirmar = document.getElementById("pin-input-confirmar");
+const pinError = document.getElementById("pin-error");
+const btnPinConfirmar = document.getElementById("btn-pin-confirmar");
+const btnPinCancelar = document.getElementById("btn-pin-cancelar");
+
+function claveLocalPin(personaId) { return `convocate_pin_ok_${personaId}`; }
+
+function pedirPin(personaId, modoRegistro) {
+  return new Promise((resolve) => {
+    pinTitulo.textContent = modoRegistro ? "Creá tu PIN" : "Ingresá tu PIN";
+    pinTexto.textContent = modoRegistro
+      ? "Elegí un PIN de 4 números por única vez. Lo vas a necesitar solo si alguna vez entrás desde otro dispositivo."
+      : "Este nombre ya tiene un PIN creado en otro dispositivo. Ingresalo para continuar.";
+    pinInput.value = "";
+    pinInputConfirmar.value = "";
+    pinInputConfirmar.style.display = modoRegistro ? "block" : "none";
+    pinError.textContent = "";
+    modalPin.classList.add("open");
+    document.body.style.overflow = "hidden";
+    setTimeout(() => pinInput.focus(), 250);
+
+    const limpiar = () => {
+      modalPin.classList.remove("open");
+      document.body.style.overflow = "";
+      btnPinConfirmar.removeEventListener("click", onConfirmar);
+      btnPinCancelar.removeEventListener("click", onCancelar);
+    };
+
+    async function onConfirmar() {
+      const pin = pinInput.value.trim();
+      if (!/^[0-9]{4}$/.test(pin)) {
+        pinError.textContent = "El PIN tiene que ser de 4 números.";
+        return;
+      }
+      if (modoRegistro) {
+        if (pin !== pinInputConfirmar.value.trim()) {
+          pinError.textContent = "Los dos PIN no coinciden.";
+          return;
+        }
+        const ok = await sb(`rpc/registrar_pin`, {
+          method: "POST",
+          body: JSON.stringify({ p_persona_id: personaId, p_pin: pin })
+        });
+        if (ok === true) {
+          localStorage.setItem(claveLocalPin(personaId), "1");
+          limpiar();
+          resolve(true);
+        } else {
+          pinError.textContent = "No se pudo crear el PIN. Puede que ya exista uno — recargá la página.";
+        }
+      } else {
+        const ok = await sb(`rpc/verificar_pin`, {
+          method: "POST",
+          body: JSON.stringify({ p_persona_id: personaId, p_pin: pin })
+        });
+        if (ok === true) {
+          localStorage.setItem(claveLocalPin(personaId), "1");
+          limpiar();
+          resolve(true);
+        } else {
+          pinError.textContent = "PIN incorrecto.";
+        }
+      }
+    }
+
+    function onCancelar() {
+      limpiar();
+      resolve(false);
+    }
+
+    btnPinConfirmar.addEventListener("click", onConfirmar);
+    btnPinCancelar.addEventListener("click", onCancelar);
+  });
+}
+
+// Verifica (o pide crear) el PIN de una persona. Devuelve true si
+// quedó habilitado para continuar, false si canceló o falló.
+async function asegurarPin(personaId) {
+  if (localStorage.getItem(claveLocalPin(personaId))) return true;
+  const tiene = await sb(`rpc/tiene_pin`, {
+    method: "POST",
+    body: JSON.stringify({ p_persona_id: personaId })
+  });
+  return await pedirPin(personaId, tiene !== true);
+}
+
+
+// ---------------------------------------------------------
+// Al elegir una persona: primero verificar el PIN (crear el
+// primero si no tiene, o pedirlo si ya existe en otro
+// dispositivo), y recién ahí cargar todo lo necesario para la
+// pantalla de convocatoria
+// ---------------------------------------------------------
+personaSelect.addEventListener("change", async (e) => {
+  const personaId = e.target.value;
+  actualizarBotonNotif(personaId);
+  if (!personaId) {
+    convocatoriaWrap.style.display = "none";
+    pillWrap.innerHTML = "";
+    return;
+  }
+
+  const habilitado = await asegurarPin(personaId);
+  if (!habilitado) {
+    // Canceló o falló la verificación: no dejar entrar con este nombre
+    personaSelect.value = "";
+    personaSearch.value = "";
+    convocatoriaWrap.style.display = "none";
+    pillWrap.innerHTML = "";
+    return;
+  }
+
+  personaActual = (window.__personas || []).find(p => p.id === personaId);
+  if (personaActual) {
+    pillWrap.innerHTML = personaActual.ficha
+      ? `<span class="empresa-pill">${nombreEmpresa(personaActual.empresa)} · Ficha ${personaActual.ficha}</span>`
+      : "";
+    // Ocultar bienvenida y mostrar header al elegir persona
+    document.getElementById("bienvenida-wrap").style.display = "none";
+    const h = document.getElementById("header-top");
+    h.style.display = "";
+    h.innerHTML = `<img class="logo" src="./icon.png" alt="ConvocaTE" style="max-width:48px;"><p>Servicio de Imagenología</p>` +
+      `<button id="btn-cambiar-usuario" style="margin-top:2px; background:transparent; border:none; color:var(--ink-soft); font-family:inherit; font-size:0.72rem; text-decoration:underline; cursor:pointer;">Cambiar de usuario</button>`;
+    document.getElementById("btn-cambiar-usuario").addEventListener("click", cambiarUsuario);
+  }
+  // Recordar a esta persona en este dispositivo para la próxima vez
+  localStorage.setItem(CLAVE_ULTIMA_PERSONA, personaId);
+  actualizarBotonesCambio();
+  convocatoriaWrap.style.display = "block";
+  grillaWrap.innerHTML = `<div class="status-msg">Cargando...</div>`;
+  await cargarDatosConvocatoria();
+});
+
+function cambiarUsuario() {
+  localStorage.removeItem(CLAVE_ULTIMA_PERSONA);
+  personaActual = null;
+  personaSelect.value = "";
+  personaSearch.value = "";
+  pillWrap.innerHTML = "";
+  convocatoriaWrap.style.display = "none";
+  document.getElementById("header-top").style.display = "none";
+  document.getElementById("bienvenida-wrap").style.display = "block";
+}
+
+
+async function cargarDatosConvocatoria() {
+  try {
+    const [sectores, franjas, procesos, horas, misRondasSuisas, misHabilitaciones] = await Promise.all([
+      sb("sectores?select=id,nombre,grupo"),
+      sb("franjas_horarias?select=id,nombre,sector_id,es_reten&order=id.asc"),
+      sb("procesos_convocatoria?select=grupo,tipo,estado,persona_actual_id,turno_vence&estado=in.(ACTIVO,PAUSADO)&empresa=eq.ESPANOLA"),
+      sb(`rpc/calcular_horas_acumuladas`, {
+        method: "POST",
+        body: JSON.stringify({ p_persona_id: personaActual.id, p_mes: `${MES_ACTUAL}-01` })
+      }),
+      personaActual.empresa === "SUISAS"
+        ? sb(`rondas_suisas?select=id,grupo,cupo,vence,persona_actual_id,` +
+             `participaciones_ronda_suisas!inner(cupo_ofrecido,horas_tomadas)` +
+             `&estado=eq.ACTIVA&persona_actual_id=eq.${personaActual.id}` +
+             `&participaciones_ronda_suisas.persona_id=eq.${personaActual.id}`)
+        : Promise.resolve([]),
+      sb(`personal_sectores?select=sectores(nombre)&persona_id=eq.${personaActual.id}`)
+    ]);
+
+    misParticipacionesSuisas = misRondasSuisas || [];
+    misSectoresHabilitados = new Set((misHabilitaciones || []).map(h => h.sectores?.nombre).filter(Boolean));
+    sectoresPorNombre = {};
+    for (const s of sectores) {
+      sectoresPorNombre[s.nombre] = { grupo: s.grupo, franjas: franjas.filter(f => f.sector_id === s.id) };
+    }
+    procesosActivos = procesos;
+
+    // Horas acumuladas: las de licencia cuentan como si fueran horas de
+    // trabajo ya hechas, así que se muestran sumadas contra el tope
+    // completo (no el tope ya reducido) - la persona ve de un vistazo su
+    // total real, en vez de un número que parece tener más margen del que
+    // realmente tiene.
+    const horasNum = Number(horas) || 0;
+    let tope = Number(personaActual?.tope_horas_mensual) || 82;
+    let horasLicencia = 0;
+    if (personaActual.empresa === "ESPANOLA") {
+      try {
+        horasLicencia = await sb(`rpc/horas_licencia_mes`, {
+          method: "POST",
+          body: JSON.stringify({ p_persona_id: personaActual.id, p_mes: `${MES_ACTUAL}-01` })
+        });
+        if (typeof horasLicencia !== "number") horasLicencia = 0;
+      } catch (e) { /* si falla, se queda en 0 */ }
+    }
+    const horasMostradas = horasNum + horasLicencia;
+    window._horasActuales = horasNum; // para los chequeos de límite se sigue usando la real, sin sumar
+    window._topeHoras = tope - horasLicencia; // el tope efectivo real para bloquear elegir
+    horasTexto.textContent = horasLicencia > 0
+      ? `${horasNum.toFixed(1)} trabajo + ${horasLicencia.toFixed(1)} licencia = ${horasMostradas.toFixed(1)} / ${tope} hs`
+      : `${horasMostradas.toFixed(1)} / ${tope} hs`;
+    const pct = Math.min(100, (horasMostradas / tope) * 100);
+    horasFill.style.width = pct + "%";
+    // Color progresivo: rojo (0%) → amarillo (50%) → verde (100%)
+    const r = pct < 50 ? 220 : Math.round(220 - (pct - 50) * 3.6);
+    const g = pct < 50 ? Math.round(pct * 3.6) : 180;
+    const b = 40;
+    horasFill.style.background = `rgb(${r},${g},${b})`;
+
+    // Banner de turno: ¿hay algún proceso de España donde persona_actual_id
+    // sea esta persona, o le toca su turno específico en una ronda de SUISAS?
+    const miProceso = procesosActivos.find(p => p.persona_actual_id === personaActual.id);
+    const miRondaSuisas = misParticipacionesSuisas[0]; // ya viene filtrado por persona_actual_id=yo
+
+    if (miProceso) {
+      const vence = new Date(miProceso.turno_vence);
+      bannerWrap.innerHTML = `<div class="banner-turno"><span class="dot"></span>
+        Es tu turno en ${miProceso.grupo}${miProceso.tipo === "NOCHEROS" ? " (guardias)" : ""} —
+        podés elegir hasta las ${vence.toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" })}
+        <button class="btn-confirmar" id="btn-confirmar-conv">Confirmar convocatoria</button></div>`;
+      document.getElementById("btn-confirmar-conv").addEventListener("click", confirmarConvocatoria);
+    } else if (miRondaSuisas) {
+      const part = miRondaSuisas.participaciones_ronda_suisas[0];
+      const restante = (part.cupo_ofrecido - part.horas_tomadas).toFixed(1);
+      const vence = new Date(miRondaSuisas.vence);
+      bannerWrap.innerHTML = `<div class="banner-turno"><span class="dot"></span>
+        Es tu turno en ${miRondaSuisas.grupo} (SUISAS) — tenés ${restante} hs disponibles,
+        podés elegir hasta las ${vence.toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" })}
+        <button class="btn-confirmar" id="btn-confirmar-conv">Confirmar convocatoria</button></div>`;
+      document.getElementById("btn-confirmar-conv").addEventListener("click", confirmarConvocatoria);
+    } else {
+      bannerWrap.innerHTML = "";
+    }
+
+    // Traer TODOS los turnos del mes, paginando de a 1000 para no perder
+    // registros por el limite por defecto de Supabase
+    turnosDelMes = [];
+    let desde = 0;
+    while (true) {
+      const pagina = await sb(
+        `turnos?select=id,fecha,persona_id,nombre_externo,origen_vacante,col_excel,` +
+        `franjas_horarias(nombre,sector_id,sectores(nombre)),perfiles(apellido,nombre,empresa)` +
+        `&fecha=gte.${MES_ACTUAL}-01&fecha=lte.${MES_ACTUAL}-31&order=id.asc`,
+        { headers: { "Range-Unit": "items", "Range": `${desde}-${desde + 999}` } }
+      );
+      if (!pagina || !pagina.length) break;
+      turnosDelMes.push(...pagina);
+      if (pagina.length < 1000) break;
+      desde += 1000;
+    }
+
+    renderTabs();
+  } catch (e) {
+    grillaWrap.innerHTML = `<div class="status-msg">Error cargando datos: ${e.message}</div>`;
+  }
+}
+
+function renderTabs() {
+  const nombres = Object.keys(sectoresPorNombre).sort();
+  tabsWrap.innerHTML = nombres.map(n =>
+    `<button class="tab${n === sectorActual ? " active" : ""}" data-sector="${n}">${n}</button>`
+  ).join("");
+  tabsWrap.querySelectorAll(".tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      sectorActual = btn.dataset.sector;
+      renderTabs();
+      renderGrilla();
+    });
+  });
+  if (!sectorActual && nombres.length) {
+    sectorActual = nombres[0];
+    renderTabs();
+  }
+  if (sectorActual) renderGrilla();
+}
+
+function miGrupoHabilitadoAhora() {
+  // Devuelve el grupo (TC/RESO/RESTO) donde a esta persona le toca elegir
+  // AHORA, sea por España (procesosActivos) o porque es su turno específico
+  // en una ronda secuencial de SUISAS
+  const proc = procesosActivos.find(p => p.persona_actual_id === personaActual.id);
+  if (proc) return proc.grupo;
+  const ronda = misParticipacionesSuisas[0];
+  return ronda ? ronda.grupo : null;
+}
+
+// El grupo de prelación de España para RESO está dividido en dos procesos
+// independientes (RESO_BSE y RESO_SEDE_CENTRAL) según la sede física del
+// sector, mientras que sectores.grupo solo guarda 'RESO' genérico. Esta
+// función mapea el sector actual al nombre real del proceso para poder
+// comparar contra miGrupoHabilitadoAhora().
+function grupoProcesoDeSector(sectorNombre, grupoRawDelSector) {
+  if (sectorNombre === "BSE") return "RESO_BSE";
+  if (sectorNombre === "RESO") return "RESO_SEDE_CENTRAL";
+  return grupoRawDelSector;
+}
+
+// Convierte el ancho de columna de Excel a pixeles (aproximado)
+function anchoExcelAPx(w) {
+  return Math.round((w || 8) * 7 + 5);
+}
+
+// Busca hacia arriba, dentro de las filas de encabezado (antes de first_day_row),
+// el texto mas cercano en esa columna (para matchear contra franjas_horarias.nombre)
+// Traducción de encabezados del Excel -> nombre de franja en Supabase
+// Clave: "SECTOR|ENCABEZADO_EXCEL" -> nombre en Supabase
+const HEADER_MAP = {
+  "BQ|6:30 A 8:30": "6:30 a 8:30",
+  "BQ|8 A 12": "8 A 12 (D)",
+  "BQ|8 A 12 (E)": "8 A 12 (E)",
+  "BQ|12 A 16 (F)": "12 A 16 (F)",
+  "BQ|12 A 16 (G)": "12 A 16 (G)",
+  "BQ|16 A 20 (H)": "16 A 20 (H)",
+  "BQ|16 A 20 (I)": "16 A 20 (I)",
+  "BQ|16 A 20": "16 A 20 (H)",
+  "BQ|16 A 20 SUP": "16 A 20 SUP",
+  "BSE|8 A 12": "8 A 12",
+  "BSE|12 A 16": "12 A 16",
+  "BSE|16 A 20": "16 A 20",
+  "BSE|20 A 24": "20 A 24",
+  "CCA|8 A 12": "8 A 12",
+  "CCA|12 A 16": "12 A 16",
+  "CCA|16 A 20": "16 A 20",
+  "CENDYTMA|7:30 A 11:30": "7:30 A 11:30",
+  "CENDYTMA|11:30 A 15:30": "11:30 A 15:30",
+  "CENDYTMA|15:30 A 19:30": "15:30 A 19:30",
+  "CENDYTMA|FUJI 8 A 12": "FUJI 8 A 12",
+  "CENDYTMA|FUJI 9 A 12": "FUJI 9 A 12",
+  "CENDYTMA|12 A 15": "FUJI 12 A 15",
+  "CENDYTMA|12 A 16": "FUJI 12 A 16",
+  "DENSITO|7:30 A 11:30": "7:30 A 11:30",
+  "DENSITO|12 A 16": "12 A 16",
+  "EMERG|1 A 7": "1 A 7",
+  "EMERG|7 A 11": "7 A 11",
+  "EMERG|12 A 16": "12 A 16",
+  "EMERG|16 A 20": "16 A 20",
+  "EMERG|20 A 1": "20 A 1",
+  "FOTOG|7 A 13": "7 A 13",
+  "FOTOG|8 A 14": "8 A 14",
+  "FOTOG|13 A 19": "13 A 19",
+  "GREMCA|9 A 12": "9 A 12",
+  "GUARDIA|7 A 19": "7 A 19",
+  "GUARDIA|8 A 20": "8 A 20",
+  "GUARDIA|20 A 7": "20 A 7",
+  "GUARDIA|19 A 7": "19 A 7",
+  "POLI|SALA 2 (7 A 11)": "SALA 2 (7 A 11)",
+  "POLI|TRAUMA / POLI (7 A 11)": "TRAUMA/POLI (7 A 11)",
+  "POLI|PORTATILES (8 A 12)": "PORTATILES (8 A 12)",
+  "POLI|SUPERNUMERARIO (8 A 12)": "SUPERNUMERARIO (8 A 12)",
+  "POLI|EMER/POLI (11 A 15)": "EMER/POLI (11 A 15)",
+  "POLI|PORTATILES (12 A 16)": "PORTATILES (12 A 16)",
+  "POLI|SALA 1 (12 A 16)": "SALA 1 (12 A 16)",
+  "POLI|SALA 2 (12 A 16)": "SALA 2 (12 A 16)",
+  "POLI|SALA 2 (15:30 A 19:30)": "SALA 2 (15:30 A 19:30)",
+  "POLI|PORTATILES (16 A 20)": "PORTATILES (16 A 20)",
+  "POLI|SALA 2 (16:30 A 20:30)": "SALA 2 (16:30 A 20:30)",
+  "POLI|NOCTURNA (20 A 0)": "NOCTURNA (20 A 0)",
+  "POLI|FONASA (8 A 12)": "FONASA (8 A 12)",
+  "RESO|7:30 A 11:30": "7:30 A 11:30",
+  "RESO|11:30 A 15:30": "11:30 A 15:30",
+  "RESO|12 A 16 (1,5 T)": "12 A 16 (1,5T)",
+  "RESO|12 A 16 (1,5T)": "12 A 16 (1,5T)",
+  "RESO|15:30 A 19:30": "15:30 A 19:30",
+  "RESO|16 A 20 (1,5T)": "16 A 20 (1,5T)",
+  "RESO|19:30 A 23:30": "19:30 A 23:30",
+  "RESO|8 A 14": "8 A 14",
+  "RESO|14 A 20": "14 A 20",
+  "RESO|20 A 24": "20 A 24",
+  "RETEN|20 A 8": "20 A 8 (LUN-VIE)",
+  "RETEN|20 A 24": "20 A 24 (LUN-VIE)",
+  "RETEN|8 A 20": "8 A 20 (FIN DE SEMANA)",
+  "RETEN|20 A 8 FDS": "20 A 8 (FIN DE SEMANA)",
+  "SOLY|7 A 11": "7 A 11",
+  "SOLY|12 A 16": "12 A 16",
+  "SOLY|16 A 20": "16 A 20",
+  "SOLY|16 A 20 TC": "16 A 20 TC",
+  "SOLY|9 A 13": "9 A 13",
+  "TC|8 A 12 (C)": "8 A 12 (C)",
+  "TC|8 A 12 (D)": "8 A 12 (D)",
+  "TC|12 A 16 (E)": "12 A 16 (E)",
+  "TC|12 A 16 (F)": "12 A 16 (F)",
+  "TC|16 A 20 (G)": "16 A 20 (G)",
+  "TC|16 A 20 (H)": "16 A 20 (H)",
+  "TC|20 A 24 (I)": "20 A 24 (I)",
+  "TC|20 A 24 (J)": "20 A 24 (J)",
+  "TRAUMA|8 A 12": "8 A 12",
+  "TRAUMA|12 A 16": "12 A 16",
+  "TRAUMA|16 A 20": "16 A 20",
+  "UCAL|6 A 12": "6 A 12",
+  "UCAL|12 A 16": "12 A 16",
+  "UCAL|16 A 20": "16 A 20",
+};
+
+function textoEncabezado(estructura, col, sector) {
+  for (let r = estructura.first_day_row - 1; r >= 0; r--) {
+    const v = estructura.filas[r][col]?.v;
+    if (v && String(v).trim() !== "") {
+      const raw = String(v).trim();
+      // Traducir usando HEADER_MAP si hay sector
+      if (sector) {
+        const mapped = HEADER_MAP[`${sector}|${raw.toUpperCase()}`]
+                    || HEADER_MAP[`${sector}|${raw}`];
+        if (mapped) return mapped;
+      }
+      return raw;
+    }
+  }
+  return "";
+}
+
+async function renderGrilla() {
+  grillaWrap.innerHTML = `<div class="status-msg">Cargando planilla...</div>`;
+
+  let estructura = hojasExcelCache[sectorActual];
+  if (!estructura) {
+    const filas2 = await sb(`hojas_excel?select=estructura&sector=eq.${sectorActual}`);
+    if (!filas2 || !filas2.length) {
+      grillaWrap.innerHTML = `<div class="status-msg">No hay estructura cargada para ${sectorActual}.</div>`;
+      return;
+    }
+    estructura = filas2[0].estructura;
+    hojasExcelCache[sectorActual] = estructura;
+  }
+
+  const info = sectoresPorNombre[sectorActual];
+  const grupoHabilitado = miGrupoHabilitadoAhora();
+  // Habilitación cruzada: la persona tiene personal_sectores en un sector de
+  // OTRO grupo (ej. Wagner de TC habilitado en DENSITO, que es de RESTO) sin
+  // estar en la lista de prelación de ese grupo. Alcanza con que esté activa
+  // AHORA en cualquier proceso propio y tenga la habilitación personal para
+  // este sector puntual. Debe coincidir con la misma regla de tomar_turno.
+  const tengoTurnoActivoAhora = procesosActivos.some(p => p.persona_actual_id === personaActual.id);
+  const habilitacionCruzada = misSectoresHabilitados.has(sectorActual) && tengoTurnoActivoAhora;
+  // SUISAS no separa BSE / RESO Sede Central como la Española (esas dos
+  // listas son cosa de la Española nada más) — en rondas_suisas el grupo
+  // siempre es el genérico "RESO", cubriendo ambos sectores a la vez. Por
+  // eso acá no se pasa por grupoProcesoDeSector para SUISAS, se compara
+  // directo contra el grupo crudo del sector.
+  const grupoProcesoEfectivo = personaActual.empresa === "SUISAS"
+    ? info?.grupo
+    : grupoProcesoDeSector(sectorActual, info?.grupo);
+  const puedoElegirAca = info && (grupoHabilitado === grupoProcesoEfectivo || habilitacionCruzada);
+
+  // Indexar turnos de este sector por (dia, col_excel) y también por id
+  const porCeldaReal = {};
+  const porTurnoId = {};
+  for (const t of turnosDelMes) {
+    if (!t.franjas_horarias || t.franjas_horarias.sectores?.nombre !== sectorActual) continue;
+    const dia = Number(t.fecha.slice(8, 10));
+    const key = t.col_excel != null ? `${dia}-col:${t.col_excel}` : `${dia}-${t.franjas_horarias.nombre}`;
+    porCeldaReal[key] = t;
+    porTurnoId[t.id] = t;
+  }
+
+  const { cols, merges, filas, dia_col, first_day_row, last_day_row, ultima_col_real, columnas_grises } = estructura;
+
+  // Limite real de columnas con contenido (evita la cola vacia que arrastran
+  // algunas hojas de Excel, ej. BQ/EMERG/POLI/SOLY llegan a Z aunque la
+  // planilla real termine mucho antes). Si el sector todavia no tiene este
+  // limite cargado en Supabase, se usa cols.length como antes (sin recorte).
+  const totalCols = (typeof ultima_col_real === "number") ? ultima_col_real + 1 : cols.length;
+  // Set de columnas que realmente tienen bordeado en el Excel (las unicas
+  // que reciben el gris de fin de semana/feriado). Esto cubre no solo los
+  // costados (margen a la izquierda, notas/relleno a la derecha) sino
+  // tambien columnas separadoras en el medio de hojas con dos tablas lado
+  // a lado (ej. CENDYTMA). Si el sector todavia no tiene esto cargado, se
+  // pintan todas las columnas como antes (comportamiento viejo).
+  const setColumnasGrises = Array.isArray(columnas_grises) ? new Set(columnas_grises) : null;
+
+  // Marcar que celdas quedan "cubiertas" por una combinacion (merge), y el
+  // tamaño de colspan/rowspan que corresponde al ancla de cada combinacion
+  const cubierta = new Set();
+  const ancla = {}; // "r-c" -> {rowspan, colspan}
+  for (const m of merges) {
+    const r1 = m.r1 - 1, c1 = m.c1 - 1, r2 = m.r2 - 1, c2 = m.c2 - 1;
+    ancla[`${r1}-${c1}`] = { rowspan: r2 - r1 + 1, colspan: c2 - c1 + 1 };
+    for (let r = r1; r <= r2; r++) {
+      for (let c = c1; c <= c2; c++) {
+        if (r === r1 && c === c1) continue;
+        cubierta.add(`${r}-${c}`);
+      }
+    }
+  }
+
+  let html = `<table class="grilla"><colgroup>`;
+  for (let i = 0; i < cols.slice(0, totalCols).length; i++) {
+    const anchoOriginal = anchoExcelAPx(cols[i]);
+    // Columnas angostas (dias, separadores < 60px) = ancho original
+    // Columnas de datos = 90px fijo para que entre cualquier apellido
+    const ancho = anchoOriginal < 60 ? anchoOriginal : 120;
+    html += `<col style="width:${ancho}px">`;
+  }
+  html += `</colgroup><tbody>`;
+
+  for (let r = 0; r < filas.length; r++) {
+    const esFilaDeDia = r >= first_day_row && r <= last_day_row;
+    let dia = null;
+    let grisFila = false;
+    if (esFilaDeDia) {
+      dia = filas[r][dia_col].v;
+      const fechaStr = `${MES_ACTUAL}-${String(dia).padStart(2, "0")}`;
+      const d = new Date(fechaStr + "T12:00:00");
+      const diaSemana = ((d.getDay() + 6) % 7) + 1; // 1=Lunes...7=Domingo
+      const esFinde = diaSemana === 6 || diaSemana === 7;
+      const esFeriado = dia === 12 && sectorActual !== 'BSE';
+      grisFila = esFinde || esFeriado;
+    }
+
+    html += `<tr>`;
+    for (let c = 0; c < totalCols; c++) {
+      if (cubierta.has(`${r}-${c}`)) continue;
+      const celda = filas[r][c];
+      const span = ancla[`${r}-${c}`];
+      const attrs = span ? ` rowspan="${span.rowspan}" colspan="${span.colspan}"` : "";
+      const bd = celda.bd;
+      const esEncabezado = r < first_day_row;
+      const borderStyle = esEncabezado
+        ? "border:none;"
+        : `border-top:${bd.t ? "1px solid #000" : "none"};border-bottom:${bd.b ? "1px solid #000" : "none"};border-left:${bd.l ? "1px solid #000" : "none"};border-right:${bd.r ? "1px solid #000" : "none"};`;
+      const boldStyle = celda.bold ? "font-weight:700;" : "";
+
+      let contenido = celda.v ?? "";
+      let clases = "";
+
+      if (esFilaDeDia && celda.g && c !== dia_col) {
+        // Celda gris en el Excel = no se trabaja ese día en esa franja
+        // PERO si hay un turno asignado en Supabase, mostrar el nombre igual
+        const franjaKeyG = `${dia}-col:${c}`;
+        const tG = porCeldaReal[franjaKeyG];
+        if (tG && (tG.persona_id || tG.nombre_externo)) {
+          const esPropio = tG.persona_id === personaActual?.id;
+          if (esPropio && puedoElegirAca) {
+            contenido = `<button class="btn-rechazar" data-turno-id="${tG.id}">Rechazar</button>`;
+          } else {
+            contenido = tG.perfiles ? nombreAsignado(tG.perfiles) : sinTildes(tG.nombre_externo).toUpperCase();
+          }
+        } else if (tG && tG.origen_vacante === 'coordinador') {
+          // El coordinador liberó esta celda a propósito (ej. por
+          // licencia): ofrecerla a convocatoria igual que una amarilla.
+          if (puedoElegirAca) {
+            contenido = `<button class="btn-elegir" data-turno-id="${tG.id}">Elegir</button>`;
+          } else {
+            contenido = "LIBRE";
+            clases += " libre-texto";
+          }
+        } else if (tG) {
+          // Existe un turno en Supabase y está vacante (por ejemplo,
+          // se liberó por licencia): no mostrar el texto viejo del Excel.
+          contenido = "";
+          clases += " gris";
+        } else if (celda.v) {
+          // No hay ningún turno cargado para esta celda (ej. SUISAS sin
+          // gestión todavía): mostrar el texto del Excel de solo lectura
+          contenido = sinTildes(String(celda.v)).toUpperCase();
+          clases += " gris";
+        } else {
+          contenido = "";
+          clases += " gris";
+        }
+      } else if ((esFilaDeDia || r > last_day_row) && typeof celda.v === 'number' && celda.v >= 1 && celda.v <= 31) {
+        // Celda con un número de 1 a 31. Si pertenece al calendario
+        // principal (columnas_grises lo marca), pintar según fin de
+        // semana/feriado. Si es de una tabla aparte con su propio número
+        // de día (ej. "cobertura por SUISAS" en TC), dejarla sin colorear
+        // especial — pero igual "consumir" la celda acá para que no caiga
+        // después en la rama de rojo/SUISAS y tape el número con "LIBRE".
+        if (!setColumnasGrises || setColumnasGrises.has(c)) {
+          clases += grisFila ? " gris" : " dia-semana";
+        }
+      } else if ((esFilaDeDia || r > last_day_row) && typeof celda.v === 'string' && /^\d{1,2}\s*A\s*\d{1,2}$/i.test(celda.v.trim())) {
+        // Texto con forma de horario (ej. "8 A 20", "0 A 8"): es información
+        // fija de referencia, no "quién está asignado" — se muestra tal cual,
+        // no se tapa con LIBRE aunque la celda esté marcada en rojo (SUISAS).
+        contenido = celda.v;
+      } else if ((esFilaDeDia || r > last_day_row) && celda.r) {
+        // Celda roja en el Excel = turno de SUISAS. Antes era texto fijo
+        // ("LIBRE" sin acción); ahora se comporta igual que la amarilla:
+        // si hay alguien asignado lo muestra, si le toca elegir a quien
+        // mira ofrece el botón, si no simplemente dice LIBRE.
+        // El día real de esta celda puede no ser el del calendario
+        // principal (ej. tablas aparte como "cobertura por SUISAS" en TC,
+        // que tienen su propio número de día en la columna anterior).
+        let diaLocal = dia;
+        const posibleDia = filas[r][c - 1]?.v;
+        if (typeof posibleDia === 'number' && posibleDia >= 1 && posibleDia <= 31) {
+          diaLocal = posibleDia;
+        }
+        const franjaKeyR = `${diaLocal}-col:${100 + r}`;
+        let tR = porCeldaReal[franjaKeyR];
+        if (!tR) {
+          // Respaldo: columna roja "normal" (no es una sub-tabla aparte con
+          // su propio número de día), buscar con el mismo esquema que usa
+          // la rama amarilla, por el col_excel real de la celda.
+          tR = porCeldaReal[`${diaLocal}-col:${c}`];
+        }
+        if (tR && (tR.persona_id || tR.nombre_externo)) {
+          const esPropio = tR.persona_id === personaActual?.id;
+          if (esPropio && puedoElegirAca) {
+            contenido = `<button class="btn-rechazar" data-turno-id="${tR.id}">Rechazar</button>`;
+          } else {
+            contenido = tR.perfiles ? nombreAsignado(tR.perfiles) : sinTildes(tR.nombre_externo).toUpperCase();
+          }
+        } else if (puedoElegirAca && tR) {
+          contenido = `<button class="btn-elegir" data-turno-id="${tR.id}">Elegir</button>`;
+        } else {
+          contenido = "LIBRE";
+          clases += " libre-suisas";
+        }
+      } else if (esFilaDeDia && celda.y) {
+        // Celda amarilla = disponible para Española, hay que ofrecerla
+        const franjaKey = `${dia}-col:${c}`;
+        const t = porCeldaReal[franjaKey] || porCeldaReal[`${dia}-${textoEncabezado(estructura, c, sectorActual)}`];
+        if (t && (t.persona_id || t.nombre_externo)) {
+          const esPropio = t.persona_id === personaActual?.id;
+          if (esPropio && puedoElegirAca) {
+            contenido = `<button class="btn-rechazar" data-turno-id="${t.id}">Rechazar</button>`;
+          } else {
+            contenido = t.perfiles ? nombreAsignado(t.perfiles) : sinTildes(t.nombre_externo).toUpperCase();
+          }
+        } else if (puedoElegirAca && t) {
+          contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
+        } else {
+          contenido = "LIBRE";
+          clases += " libre-texto";
+        }
+      } else if (esFilaDeDia) {
+        // Celda con texto o vacía — verificar si hay turno en Supabase que tenga prioridad
+        const franjaKey = `${dia}-col:${c}`;
+        const t = porCeldaReal[franjaKey];
+        if (t && t.origen_vacante === 'coordinador') {
+          // Turno modificado por el coordinador — tiene prioridad sobre el Excel
+          if (t.persona_id || t.nombre_externo) {
+            const esPropio = t.persona_id === personaActual?.id;
+            if (esPropio && puedoElegirAca) {
+              contenido = `<button class="btn-rechazar" data-turno-id="${t.id}">Rechazar</button>`;
+            } else {
+              contenido = t.perfiles ? nombreAsignado(t.perfiles) : sinTildes(t.nombre_externo).toUpperCase();
+            }
+          } else {
+            // Vacante creada por coordinador
+            if (puedoElegirAca) {
+              contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
+            } else if (sectorActual === "FOTOG") {
+              contenido = "";
+            } else {
+              contenido = "LIBRE";
+              clases += " libre-texto";
+            }
+          }
+        } else if (t && (t.persona_id || t.nombre_externo)) {
+          const esPropio = t.persona_id === personaActual?.id;
+          if (esPropio && puedoElegirAca) {
+            contenido = `<button class="btn-rechazar" data-turno-id="${t.id}">Rechazar</button>`;
+          } else {
+            contenido = t.perfiles ? nombreAsignado(t.perfiles) : sinTildes(t.nombre_externo).toUpperCase();
+          }
+        } else if (puedoElegirAca && t && !t.persona_id && !t.nombre_externo) {
+          contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
+        } else if (t && !t.persona_id && !t.nombre_externo) {
+          // El turno existe en la base y está vacante (por ejemplo, se
+          // liberó por licencia), pero no es el turno de elegir de
+          // quien mira: mostrar LIBRE en vez del texto fijo del Excel.
+          // FOTOG queda excluido a propósito: ese sector nunca se cubre
+          // por convocatoria, así que se vacía en vez de mostrar el
+          // texto crudo del Excel (que quedaría mostrando el nombre
+          // del titular real de licencia, como si estuviera disponible).
+          if (sectorActual === "FOTOG") {
+            contenido = "";
+          } else {
+            contenido = "LIBRE";
+            clases += " libre-texto";
+          }
+        }
+      }
+
+      if (grisFila && (setColumnasGrises ? setColumnasGrises.has(c) : true)) clases += " gris";
+
+      // Columna de días: sticky para no perderse al hacer scroll horizontal
+      const esColDia = esFilaDeDia && c === dia_col;
+      const stickyStyle = esColDia ? "position:sticky;left:0;z-index:2;background:inherit;" : "";
+
+      html += `<td${attrs} style="${borderStyle}${boldStyle}${stickyStyle}" class="${clases.trim()}">${contenido}</td>`;
+    }
+    html += `</tr>`;
+  }
+  html += `</tbody></table>`;
+  grillaWrap.innerHTML = html;
+
+  grillaWrap.querySelectorAll(".btn-elegir").forEach(btn => {
+    btn.addEventListener("click", () => elegirTurno(Number(btn.dataset.turnoId)));
+  });
+  grillaWrap.querySelectorAll(".btn-rechazar").forEach(btn => {
+    btn.addEventListener("click", () => rechazarTurno(Number(btn.dataset.turnoId)));
+  });
+}
+
+async function confirmarConvocatoria() {
+  if (!confirm("¿Confirmás que terminaste de elegir tus horas?")) return;
+  try {
+    const ok = await sb(`rpc/confirmar_convocatoria`, {
+      method: "POST",
+      body: JSON.stringify({ p_persona_id: personaActual.id })
+    });
+    if (ok === true) {
+      await cargarDatosConvocatoria();
+    } else {
+      alert("No se pudo confirmar la convocatoria.");
+    }
+  } catch (e) {
+    alert("Error: " + e.message);
+  }
+}
+
+async function rechazarTurno(turnoId) {
+  try {
+    const ok = await sb(`rpc/dejar_turno`, {
+      method: "POST",
+      body: JSON.stringify({ p_turno_id: turnoId, p_persona_id: personaActual.id })
+    });
+    if (ok === true) {
+      // Actualizar localmente el turno en turnosDelMes para que el re-render
+      // lo encuentre como vacante (persona_id = null) aunque col_excel sea null
+      const turno = turnosDelMes.find(t => t.id === turnoId);
+      if (turno) {
+        turno.persona_id = null;
+        turno.perfiles = null;
+        turno.asignado_en = null;
+      }
+      await cargarDatosConvocatoria();
+    } else {
+      alert("No se pudo rechazar ese turno.");
+      await cargarDatosConvocatoria();
+    }
+  } catch (e) {
+    alert("Error al rechazar el turno: " + e.message);
+  }
+}
+
+async function elegirTurno(turnoId) {
+  try {
+    if ((window._horasActuales || 0) >= (window._topeHoras || 82)) {
+      alert("Ya completaste tus horas para este mes.");
+      return;
+    }
+
+    const chequeo = await sb(`rpc/chequear_conflicto_fija`, {
+      method: "POST",
+      body: JSON.stringify({ p_turno_id: turnoId, p_persona_id: personaActual.id })
+    });
+    const conflicto = Array.isArray(chequeo) ? chequeo[0] : null;
+    if (conflicto && conflicto.hay_conflicto) {
+      const confirma = confirm(
+        `Cuidado: al elegir este turno estás superponiendo las horas con las de tu turno de ` +
+        `${conflicto.sector} (${conflicto.franja}) del ${conflicto.fecha.slice(8,10)}/${conflicto.fecha.slice(5,7)}. ` +
+        `Esas horas quedarán libres para que las elija otro suplente. ¿Confirmás?`
+      );
+      if (!confirma) return;
+    }
+
+    const resultado = await sb(`rpc/tomar_turno`, {
+      method: "POST",
+      body: JSON.stringify({ p_turno_id: turnoId, p_persona_id: personaActual.id })
+    });
+    if (resultado === 'ok') {
+      await cargarDatosConvocatoria();
+    } else if (resultado === 'ok_libero_fija') {
+      await cargarDatosConvocatoria();
+    } else if (resultado === 'limite_horas') {
+      alert("Ya completaste tus horas para este mes.");
+      await cargarDatosConvocatoria();
+    } else if (resultado === 'superposicion') {
+      alert("Ya tenés un turno en ese mismo horario ese día.");
+      await cargarDatosConvocatoria();
+    } else if (resultado === 'ya_tomado') {
+      alert("Este turno ya fue tomado por otro.");
+      await cargarDatosConvocatoria();
+    } else {
+      alert("No es tu turno para elegir.");
+      await cargarDatosConvocatoria();
+    }
+  } catch (e) {
+    alert("Error al elegir el turno: " + e.message);
+  }
+}
+
+// ---------------------------------------------------------
+// Solicitudes de cambio de turno
+// ---------------------------------------------------------
+const cambioWrap      = document.getElementById("cambio-wrap");
+const modalCambio     = document.getElementById("modal-cambio");
+const selTurno        = document.getElementById("sel-turno-ceder");
+const selCobertura    = document.getElementById("sel-cobertura");
+const bannerSolicitud = document.getElementById("banner-solicitud-wrap");
+
+// Cargar solicitudes donde esta persona es la cobertura propuesta (paso 2)
+async function cargarSolicitudesPendientes() {
+  if (!personaActual) return;
+  const data = await sb(
+    `solicitudes_cambio_detalle?estado=eq.ESPERANDO_COBERTURA` +
+    `&cobertura_id=eq.${personaActual.id}`
+  );
+  if (!data || !data.length) {
+    bannerSolicitud.innerHTML = "";
+    return;
+  }
+  bannerSolicitud.innerHTML = data.map(s => `
+    <div style="background:#FFF8E1;border:1px solid #F9A825;border-radius:8px;padding:12px;margin-bottom:8px;">
+      <div style="font-weight:700;font-size:0.9rem;">
+        ${sinTildes(s.solicitante_apellido)} quiere cederte un turno
+      </div>
+      <div style="font-size:0.82rem;color:#555;margin:4px 0;">
+        ${s.fecha.slice(8,10)}/${s.fecha.slice(5,7)} — ${s.sector} ${s.franja}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button onclick="responderSolicitud(${s.id}, true)"
+          style="flex:1;padding:7px;background:#2e7d32;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">
+          ✓ Aceptar
+        </button>
+        <button onclick="responderSolicitud(${s.id}, false)"
+          style="flex:1;padding:7px;background:#c62828;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">
+          ✗ Rechazar
+        </button>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function responderSolicitud(id, aceptar) {
+  const ok = await sb(`rpc/responder_solicitud_cambio`, {
+    method: "POST",
+    body: JSON.stringify({
+      p_solicitud_id: id,
+      p_cobertura_id: personaActual.id,
+      p_aceptar: aceptar
+    })
+  });
+  if (ok === true) {
+    await cargarSolicitudesPendientes();
+    if (aceptar) {
+      alert("Aceptaste cubrir el turno. El coordinador lo confirmará en breve.");
+    } else {
+      alert("Rechazaste la solicitud.");
+    }
+  } else {
+    alert("Error al responder la solicitud.");
+  }
+}
+
+document.getElementById("btn-abrir-cambio").addEventListener("click", async () => {
+  const publicado = await sb(`meses_publicados?select=mes&mes=eq.${MES_ACTUAL}-01`);
+  if (!publicado || !publicado.length) {
+    alert("No es posible modificar la convocatoria de este mes.");
+    return;
+  }
+
+  const misTurnos = await sb(
+    `turnos?select=id,fecha,franjas_horarias(nombre,sectores(nombre))` +
+    `&persona_id=eq.${personaActual.id}` +
+    `&fecha=gte.${MES_ACTUAL}-01&fecha=lte.${MES_ACTUAL}-31&order=fecha.asc`
+  );
+  selTurno.innerHTML = misTurnos.map(t =>
+    `<option value="${t.id}">${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ` +
+    `${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}</option>`
+  ).join("");
+
+  selCobertura.innerHTML = (window.__personas || [])
+    .filter(p => p.id !== personaActual.id)
+    .map(p => `<option value="${p.id}">${nombreCompleto(p)}</option>`)
+    .join("");
+
+  modalCambio.classList.add("open");
+});
+
+document.getElementById("btn-cancelar-cambio").addEventListener("click", () => {
+  modalCambio.classList.remove("open");
+});
+
+document.getElementById("btn-enviar-cambio").addEventListener("click", async () => {
+  const turnoId     = Number(selTurno.value);
+  const coberturaId = selCobertura.value;
+  if (!turnoId || !coberturaId) return;
+
+  const resultado = await sb(`rpc/solicitar_cambio`, {
+    method: "POST",
+    body: JSON.stringify({
+      p_turno_id: turnoId,
+      p_solicitante_id: personaActual.id,
+      p_cobertura_id: coberturaId
+    })
+  });
+
+  modalCambio.classList.remove("open");
+  if (resultado === "ok") {
+    const nombre = selCobertura.options[selCobertura.selectedIndex].text.split(",")[0];
+    alert(`Solicitud enviada. ${nombre} recibirá una notificación para aceptar o rechazar.`);
+  } else if (resultado === "mes_no_publicado") {
+    alert("No es posible modificar la convocatoria de este mes.");
+  } else if (resultado === "ya_pendiente") {
+    alert("Ya tenés una solicitud pendiente para ese turno.");
+  } else {
+    alert("No se pudo enviar la solicitud.");
+  }
+});
+
+function actualizarBotonesCambio() {
+  if (personaActual) {
+    cambioWrap.style.display = "block";
+    cargarSolicitudesPendientes();
+  } else {
+    cambioWrap.style.display = "none";
+    bannerSolicitud.innerHTML = "";
+  }
+}
+
+
+const VAPID_PUBLIC_KEY = "BHNTEZRf4uqYFfr_IqFMk6e8w6gcg115m7FRausnVsGjM6e7u48Ec1w-H7KouhwMFmXsuQm1x5WN5O1a37E9HSM";
+const btnNotif = document.getElementById("btn-notif");
+const notifStatus = document.getElementById("notif-status");
+let swRegistration = null;
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
+
+function actualizarBotonNotif(personaId) {
+  if (!personaId || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+    btnNotif.style.display = "none";
+    notifStatus.textContent = "";
+    return;
+  }
+  if (Notification.permission === "granted") {
+    // Ya dio el permiso alguna vez en este dispositivo: no hace falta
+    // mostrar el botón. Igual re-registramos la suscripción en silencio
+    // cada vez que entra, por si el navegador la había invalidado sola
+    // (pasa en iOS si no se abre la app por unos días) o si es la
+    // primera vez que ESTE nombre puntual queda registrado en este
+    // dispositivo (caso de gente con dos perfiles, Española + SUISAS).
+    btnNotif.style.display = "none";
+    notifStatus.textContent = "✓ Notificaciones activadas";
+    sincronizarSuscripcion(personaId, { silencioso: true });
+  } else if (Notification.permission === "denied") {
+    btnNotif.style.display = "none";
+    notifStatus.textContent = "Notificaciones bloqueadas en este dispositivo. Para recibir avisos, habilitalas desde los ajustes del teléfono/navegador.";
+  } else {
+    btnNotif.style.display = "block";
+    notifStatus.textContent = "";
+  }
+}
+
+async function sincronizarSuscripcion(personaId, opts = {}) {
+  const silencioso = opts.silencioso === true;
+  if (!silencioso) notifStatus.textContent = "Activando...";
+  try {
+    if (!silencioso) {
+      const permiso = await Notification.requestPermission();
+      if (permiso !== "granted") {
+        notifStatus.textContent = "No diste permiso para notificaciones.";
+        return;
+      }
+    }
+    if (!swRegistration) swRegistration = await navigator.serviceWorker.ready;
+    let sub = await swRegistration.pushManager.getSubscription();
+    if (!sub) {
+      sub = await swRegistration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    const subJson = sub.toJSON();
+    await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions`, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates"
+      },
+      body: JSON.stringify({
+        persona_id: personaId,
+        endpoint: subJson.endpoint,
+        p256dh: subJson.keys.p256dh,
+        auth: subJson.keys.auth
+      })
+    });
+    if (!silencioso) {
+      notifStatus.textContent = "✓ Notificaciones activadas";
+      btnNotif.style.display = "none";
+    }
+  } catch (e) {
+    // En modo silencioso no molestamos al usuario si falla la
+    // renovación en segundo plano; se vuelve a intentar sola la
+    // próxima vez que abra la app. En modo manual (botón) sí avisamos.
+    if (!silencioso) notifStatus.textContent = "Error: " + e.message;
+  }
+}
+
+async function activarNotificaciones() {
+  const personaId = personaSelect.value;
+  if (!personaId) return;
+  await sincronizarSuscripcion(personaId, { silencioso: false });
+}
+
+btnNotif.addEventListener("click", activarNotificaciones);
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js").then((reg) => { swRegistration = reg; }).catch(() => {});
+  });
+}
+
+// ---------------------------------------------------------
+// Auto-login: si este dispositivo ya tiene una persona
+// recordada (y sigue existiendo en la base), entra directo a
+// su vista sin pedirle elegir el nombre de nuevo. El chequeo
+// de PIN sigue corriendo igual (asegurarPin), pero como ya
+// quedó validado en este dispositivo, no vuelve a preguntar.
+// ---------------------------------------------------------
+async function intentarAutoLogin() {
+  const personaId = localStorage.getItem(CLAVE_ULTIMA_PERSONA);
+  if (!personaId) return;
+  const persona = (window.__personas || []).find(p => p.id === personaId);
+  if (!persona) {
+    // La persona ya no existe (se borró/cambió) — limpiar y no insistir
+    localStorage.removeItem(CLAVE_ULTIMA_PERSONA);
+    return;
+  }
+  personaSearch.value = nombreCompleto(persona) + etiquetaEmpresaPersona(persona);
+  personaSelect.value = personaId;
+  personaSelect.dispatchEvent(new Event("change"));
+}
+
+cargarPersonas().then(intentarAutoLogin);
+</script>
+</body>
+</html>
