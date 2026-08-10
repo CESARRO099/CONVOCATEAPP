@@ -973,7 +973,12 @@ async function renderGrilla() {
   // algunas hojas de Excel, ej. BQ/EMERG/POLI/SOLY llegan a Z aunque la
   // planilla real termine mucho antes). Si el sector todavia no tiene este
   // limite cargado en Supabase, se usa cols.length como antes (sin recorte).
-  const totalCols = (typeof ultima_col_real === "number") ? ultima_col_real + 1 : cols.length;
+  // TC tiene, más allá de las 8 columnas reales de la Poli, una sección
+  // vieja de julio ("GUARDIA" / cobertura por Española / por Suisas) que
+  // quedó congelada y desactualizada. Se corta la grilla ahí — la Guardia
+  // TC real y en vivo se muestra aparte, en renderGuardiaTC().
+  const totalColsBase = (typeof ultima_col_real === "number") ? ultima_col_real + 1 : cols.length;
+  const totalCols = sectorActual === "TC" ? Math.min(totalColsBase, 10) : totalColsBase;
   // Set de columnas que realmente tienen bordeado en el Excel (las unicas
   // que reciben el gris de fin de semana/feriado). Esto cubre no solo los
   // costados (margen a la izquierda, notas/relleno a la derecha) sino
