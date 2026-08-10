@@ -69,6 +69,7 @@
       <option>SOLY</option><option>TC</option><option>TRAUMA</option><option>UCAL</option>
     </select>
     <div id="coord-grilla-wrap" style="overflow-x:auto;"></div>
+    <div id="coord-extra-wrap" style="overflow-x:auto;margin-top:16px;"></div>
   </div>
 
   <!-- Modal de acción sobre celda -->
@@ -354,6 +355,7 @@ document.getElementById("coord-sector").addEventListener("change", async (e) => 
   await recargarTurnos();
 
   renderGrillaCoord();
+  renderExtraCoord();
 });
 
 function renderGrillaCoord() {
@@ -512,6 +514,83 @@ function renderGrillaCoord() {
       } else {
         alert("No se pudo guardar el cambio.");
       }
+    });
+  });
+}
+
+// Turnos que no pertenecen a la grilla tipo Excel (col_excel = null): por
+// ejemplo la Guardia de TC (0 A 8 / 8 A 20 / 20 A 8 / 20 A 0), que nunca
+// tuvo columna asignada en la planilla original. Se muestran acá aparte,
+// leyendo siempre en vivo de turnos/franjas_horarias (nunca de hojas_excel),
+// para que el coordinador pueda asignarlos sin depender de la grilla Excel.
+function renderExtraCoord() {
+  const wrap = document.getElementById("coord-extra-wrap");
+  const extra = coordTurnos.filter(t => t.col_excel == null);
+  if (!extra.length) { wrap.innerHTML = ""; return; }
+
+  extra.sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.franjas_horarias?.nombre||"").localeCompare(b.franjas_horarias?.nombre||""));
+
+  let html = `<div style="margin:10px 0 6px;font-weight:700;">Turnos fuera de la grilla (Guardia / cobertura sin columna fija)</div>`;
+  html += `<table style="border-collapse:collapse;font-size:0.8rem;"><thead><tr>` +
+    `<th style="padding:4px 8px;border:1px solid #ccc;">Fecha</th>` +
+    `<th style="padding:4px 8px;border:1px solid #ccc;">Franja</th>` +
+    `<th style="padding:4px 8px;border:1px solid #ccc;">Estado</th>` +
+    `</tr></thead><tbody>`;
+
+  for (const t of extra) {
+    const dia = t.fecha.slice(8,10);
+    const mes = t.fecha.slice(5,7);
+    let contenido, bg;
+    if (t.persona_id) {
+      const nombre = t.perfiles
+        ? sinTildes(t.perfiles.apellido||"").toUpperCase() + (t.perfiles.empresa === "SUISAS" ? " (S)" : "")
+        : "ASIGNADO";
+      contenido = nombre;
+      bg = "background:#E3F0E8;";
+    } else {
+      contenido = "LIBRE";
+      bg = "background:#FFF9C4;color:#7B6000;font-weight:700;";
+    }
+    html += `<tr data-turno-id="${t.id}" data-dia="${Number(dia)}" style="cursor:pointer;">` +
+      `<td style="padding:4px 8px;border:1px solid #ccc;">${dia}/${mes}</td>` +
+      `<td style="padding:4px 8px;border:1px solid #ccc;">${t.franjas_horarias?.nombre || ""}</td>` +
+      `<td style="padding:4px 8px;border:1px solid #ccc;${bg}">${contenido}</td>` +
+      `</tr>`;
+  }
+  html += `</tbody></table>`;
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll("tr[data-turno-id]").forEach(tr => {
+    tr.addEventListener("click", () => {
+      celdaSeleccionada = {
+        dia: Number(tr.dataset.dia),
+        col: null,
+        turnoId: Number(tr.dataset.turnoId),
+        valorActual: tr.children[2].textContent.trim()
+      };
+      const titulo = document.getElementById("coord-modal-titulo");
+      titulo.textContent = `Día ${celdaSeleccionada.dia} · ${celdaSeleccionada.valorActual}`;
+
+      const btnActivar    = document.getElementById("coord-btn-activar");
+      const btnVacante    = document.getElementById("coord-btn-vacante");
+      const wrapAsignar   = document.getElementById("coord-asignar-wrap");
+      const btnDesactivar = document.getElementById("coord-btn-desactivar");
+
+      btnActivar.style.display = "none";
+      wrapAsignar.style.display = "block";
+
+      const turno = coordTurnos.find(x => x.id === celdaSeleccionada.turnoId);
+      if (turno.persona_id) {
+        btnVacante.style.display = "block";
+        btnDesactivar.style.display = "block";
+        btnDesactivar.textContent = "✗ Dejar sin convocatoria";
+      } else {
+        btnVacante.style.display = "none";
+        btnDesactivar.style.display = "block";
+        btnDesactivar.textContent = "✗ Quitar de convocatoria";
+      }
+
+      document.getElementById("coord-modal").style.display = "flex";
     });
   });
 }
@@ -695,6 +774,7 @@ async function recargarTurnos() {
     desde += 1000;
   }
   renderGrillaCoord();
+  renderExtraCoord();
 }
 
 
