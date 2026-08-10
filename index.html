@@ -271,7 +271,6 @@
     </div>
     <div class="card" style="overflow-x:auto; overflow-y:visible;">
       <div id="grilla-wrap"><div class="status-msg">Elegí un sector arriba</div></div>
-      <div id="grilla-guardia-tc-wrap"></div>
     </div>
   </div>
 
@@ -973,12 +972,7 @@ async function renderGrilla() {
   // algunas hojas de Excel, ej. BQ/EMERG/POLI/SOLY llegan a Z aunque la
   // planilla real termine mucho antes). Si el sector todavia no tiene este
   // limite cargado en Supabase, se usa cols.length como antes (sin recorte).
-  // TC tiene, más allá de las 8 columnas reales de la Poli, una sección
-  // vieja de julio ("GUARDIA" / cobertura por Española / por Suisas) que
-  // quedó congelada y desactualizada. Se corta la grilla ahí — la Guardia
-  // TC real y en vivo se muestra aparte, en renderGuardiaTC().
-  const totalColsBase = (typeof ultima_col_real === "number") ? ultima_col_real + 1 : cols.length;
-  const totalCols = sectorActual === "TC" ? Math.min(totalColsBase, 10) : totalColsBase;
+  const totalCols = (typeof ultima_col_real === "number") ? ultima_col_real + 1 : cols.length;
   // Set de columnas que realmente tienen bordeado en el Excel (las unicas
   // que reciben el gris de fin de semana/feriado). Esto cubre no solo los
   // costados (margen a la izquierda, notas/relleno a la derecha) sino
@@ -1210,56 +1204,6 @@ async function renderGrilla() {
     btn.addEventListener("click", () => elegirTurno(Number(btn.dataset.turnoId)));
   });
   grillaWrap.querySelectorAll(".btn-rechazar").forEach(btn => {
-    btn.addEventListener("click", () => rechazarTurno(Number(btn.dataset.turnoId)));
-  });
-
-  renderGuardiaTC(puedoElegirAca);
-}
-
-// Guardia TC (franjas 0 A 8 / 8 A 20 / 20 A 8 / 20 A 0): no son parte del
-// calendario tipo Excel de la Poli TC, son cobertura de fin de semana/noche
-// sin titular fijo. Se listan acá aparte, leyendo siempre en vivo de
-// turnos/franjas_horarias, con los mismos botones Elegir/Rechazar y la
-// misma regla de habilitación de siempre (puedoElegirAca).
-const GUARDIA_TC_FRANJA_IDS = [85, 86, 87, 88];
-
-function renderGuardiaTC(puedoElegirAca) {
-  const wrap = document.getElementById("grilla-guardia-tc-wrap");
-  if (sectorActual !== "TC") { wrap.innerHTML = ""; return; }
-
-  const extra = turnosDelMes.filter(t => GUARDIA_TC_FRANJA_IDS.includes(t.franja_horaria_id));
-  if (!extra.length) { wrap.innerHTML = ""; return; }
-
-  extra.sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.franjas_horarias?.nombre||"").localeCompare(b.franjas_horarias?.nombre||""));
-
-  let html = `<div style="margin:10px 0 6px;font-weight:700;">Guardia TC</div>`;
-  html += `<table class="grilla"><thead><tr><th>Fecha</th><th>Franja</th><th>Estado</th></tr></thead><tbody>`;
-
-  for (const t of extra) {
-    const dia = t.fecha.slice(8,10);
-    const mes = t.fecha.slice(5,7);
-    let contenido;
-    if (t.persona_id || t.nombre_externo) {
-      const esPropio = t.persona_id === personaActual?.id;
-      if (esPropio && puedoElegirAca) {
-        contenido = `<button class="btn-rechazar" data-turno-id="${t.id}">Rechazar</button>`;
-      } else {
-        contenido = t.perfiles ? nombreAsignado(t.perfiles) : sinTildes(t.nombre_externo).toUpperCase();
-      }
-    } else if (puedoElegirAca) {
-      contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
-    } else {
-      contenido = "LIBRE";
-    }
-    html += `<tr><td>${dia}/${mes}</td><td>${t.franjas_horarias?.nombre || ""}</td><td>${contenido}</td></tr>`;
-  }
-  html += `</tbody></table>`;
-  wrap.innerHTML = html;
-
-  wrap.querySelectorAll(".btn-elegir").forEach(btn => {
-    btn.addEventListener("click", () => elegirTurno(Number(btn.dataset.turnoId)));
-  });
-  wrap.querySelectorAll(".btn-rechazar").forEach(btn => {
     btn.addEventListener("click", () => rechazarTurno(Number(btn.dataset.turnoId)));
   });
 }
