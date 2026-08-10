@@ -271,7 +271,6 @@
     </div>
     <div class="card" style="overflow-x:auto; overflow-y:visible;">
       <div id="grilla-wrap"><div class="status-msg">Elegí un sector arriba</div></div>
-      <div id="grilla-extra-wrap"></div>
     </div>
   </div>
 
@@ -1205,53 +1204,6 @@ async function renderGrilla() {
     btn.addEventListener("click", () => elegirTurno(Number(btn.dataset.turnoId)));
   });
   grillaWrap.querySelectorAll(".btn-rechazar").forEach(btn => {
-    btn.addEventListener("click", () => rechazarTurno(Number(btn.dataset.turnoId)));
-  });
-
-  renderGrillaExtra(porTurnoId, puedoElegirAca);
-}
-
-// Turnos que no tienen columna en la grilla tipo Excel (col_excel = null):
-// por ejemplo la Guardia de TC (0 A 8 / 8 A 20 / 20 A 8 / 20 A 0). Nunca
-// tuvieron columna asignada en la planilla original, así que no se pueden
-// dibujar dentro de la tabla. Se listan acá aparte, leyendo siempre en vivo
-// de turnos/franjas_horarias, con los mismos botones Elegir/Rechazar de
-// siempre para no cambiar el flujo que ya conocen los suplentes.
-function renderGrillaExtra(porTurnoId, puedoElegirAca) {
-  const wrap = document.getElementById("grilla-extra-wrap");
-  const extra = Object.values(porTurnoId).filter(t => t.col_excel == null);
-  if (!extra.length) { wrap.innerHTML = ""; return; }
-
-  extra.sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.franjas_horarias?.nombre||"").localeCompare(b.franjas_horarias?.nombre||""));
-
-  let html = `<div style="margin:10px 0 6px;font-weight:700;">Guardia / cobertura</div>`;
-  html += `<table class="grilla"><thead><tr><th>Fecha</th><th>Franja</th><th>Estado</th></tr></thead><tbody>`;
-
-  for (const t of extra) {
-    const dia = t.fecha.slice(8,10);
-    const mes = t.fecha.slice(5,7);
-    let contenido;
-    if (t.persona_id || t.nombre_externo) {
-      const esPropio = t.persona_id === personaActual?.id;
-      if (esPropio && puedoElegirAca) {
-        contenido = `<button class="btn-rechazar" data-turno-id="${t.id}">Rechazar</button>`;
-      } else {
-        contenido = t.perfiles ? nombreAsignado(t.perfiles) : sinTildes(t.nombre_externo).toUpperCase();
-      }
-    } else if (puedoElegirAca) {
-      contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
-    } else {
-      contenido = "LIBRE";
-    }
-    html += `<tr><td>${dia}/${mes}</td><td>${t.franjas_horarias?.nombre || ""}</td><td>${contenido}</td></tr>`;
-  }
-  html += `</tbody></table>`;
-  wrap.innerHTML = html;
-
-  wrap.querySelectorAll(".btn-elegir").forEach(btn => {
-    btn.addEventListener("click", () => elegirTurno(Number(btn.dataset.turnoId)));
-  });
-  wrap.querySelectorAll(".btn-rechazar").forEach(btn => {
     btn.addEventListener("click", () => rechazarTurno(Number(btn.dataset.turnoId)));
   });
 }
