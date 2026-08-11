@@ -226,7 +226,10 @@
   </div>
 
   <div class="card">
-    <label class="field-label" for="persona-search">Elegí tu nombre</label>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <label class="field-label" for="persona-search" style="margin-bottom:0;">Elegí tu nombre</label>
+      <button id="btn-cambiar-usuario" style="display:none; background:transparent; border:none; color:var(--ink-soft); font-family:inherit; font-size:0.72rem; text-decoration:underline; cursor:pointer;">Cambiar de usuario</button>
+    </div>
     <div id="persona-combo-wrap" style="position:relative;">
       <input type="text" id="persona-search" autocomplete="off" placeholder="Escribí tu apellido…"
         style="width:100%; box-sizing:border-box; padding:10px 12px; border:2px solid var(--ink); border-radius:6px; font-family:inherit; font-size:0.95rem; background:#fff;">
@@ -649,9 +652,14 @@ personaSelect.addEventListener("change", async (e) => {
     document.getElementById("bienvenida-wrap").style.display = "none";
     const h = document.getElementById("header-top");
     h.style.display = "";
-    h.innerHTML = `<img class="logo" src="./icon.png" alt="ConvocaTE" style="max-width:48px;"><p>Servicio de Imagenología</p>` +
-      `<button id="btn-cambiar-usuario" style="margin-top:2px; background:transparent; border:none; color:var(--ink-soft); font-family:inherit; font-size:0.72rem; text-decoration:underline; cursor:pointer;">Cambiar de usuario</button>`;
-    document.getElementById("btn-cambiar-usuario").addEventListener("click", cambiarUsuario);
+    h.innerHTML = `<img class="logo" src="./icon.png" alt="ConvocaTE" style="max-width:48px;"><p>Servicio de Imagenología</p>`;
+    // NUEVO (11 ago 2026): "Cambiar de usuario" se movio de header-top a la
+    // fila de "Elegí tu nombre" (misma fila, alineado a la derecha), para
+    // que quede mas visible y en un solo lugar en vez de apilado debajo
+    // del nombre del servicio.
+    const btnCambiar = document.getElementById("btn-cambiar-usuario");
+    btnCambiar.style.display = "";
+    btnCambiar.onclick = cambiarUsuario;
   }
   // Recordar a esta persona en este dispositivo para la próxima vez
   localStorage.setItem(CLAVE_ULTIMA_PERSONA, personaId);
@@ -669,6 +677,7 @@ function cambiarUsuario() {
   pillWrap.innerHTML = "";
   convocatoriaWrap.style.display = "none";
   document.getElementById("header-top").style.display = "none";
+  document.getElementById("btn-cambiar-usuario").style.display = "none";
   document.getElementById("bienvenida-wrap").style.display = "block";
 }
 
