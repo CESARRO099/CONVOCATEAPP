@@ -953,7 +953,15 @@ async function renderGrilla() {
   const grupoProcesoEfectivo = personaActual.empresa === "SUISAS"
     ? info?.grupo
     : grupoProcesoDeSector(sectorActual, info?.grupo);
-  const puedoElegirAca = info && (grupoHabilitado === grupoProcesoEfectivo || habilitacionCruzada);
+  // NUEVO (11 ago 2026): SOLY tiene ademas la franja 67 (TC Soly), que
+  // pertenece al grupo especial TC_SOLY en vez de RESTO. Si a la persona le
+  // toca elegir ahi (grupoHabilitado === "TC_SOLY"), tambien se habilita la
+  // vista del sector SOLY.
+  const puedoElegirAca = info && (
+    grupoHabilitado === grupoProcesoEfectivo
+    || habilitacionCruzada
+    || (sectorActual === "SOLY" && grupoHabilitado === "TC_SOLY")
+  );
 
   // Indexar turnos de este sector por (dia, col_excel) y también por id
   const porCeldaReal = {};
