@@ -292,12 +292,30 @@
   }
   [data-theme="dark"] .calendario-celda.con-turno .turno-linea{ color:#8FD6AB; }
 
+  #btn-mis-turnos{
+    background: var(--accent-soft);
+    color:#7A4A0A;
+    border:1px solid var(--accent);
+  }
+  [data-theme="dark"] #btn-mis-turnos{ color:#F5C784; }
   #btn-mis-turnos.activo{
     background:var(--primary); color:#fff; border-color:var(--primary);
   }
   #btn-mis-turnos:active{ opacity:0.85; }
+  .mis-turnos-marquee{
+    display:inline-block; white-space:nowrap;
+    animation: mis-turnos-desliza 7s linear infinite;
+  }
+  #btn-mis-turnos.activo .mis-turnos-marquee{
+    animation: none; transform: translateX(0);
+  }
+  @keyframes mis-turnos-desliza{
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
 </style>
 </head>
+
 <body>
 
 <button id="btn-tema" aria-label="Cambiar tema" title="Cambiar tema">🌙</button>
@@ -326,7 +344,9 @@
     </select>
     <div id="empresa-pill-row" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
       <div id="empresa-pill-wrap"></div>
-      <button id="btn-mis-turnos" style="display:none; flex:0 0 auto; background:transparent; border:1px solid var(--line); color:var(--ink-soft); font-family:inherit; font-size:0.72rem; font-weight:600; padding:5px 10px; border-radius:999px; cursor:pointer; white-space:nowrap;">📅 Mis turnos</button>
+      <button id="btn-mis-turnos" style="display:none; flex:0 0 auto; width:118px; overflow:hidden; font-family:inherit; font-size:0.72rem; font-weight:600; padding:5px 0; border-radius:999px; cursor:pointer;">
+        <span class="mis-turnos-marquee">📅&nbsp;Mis turnos&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;📅&nbsp;Mis turnos&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+      </button>
     </div>
     <button id="btn-notif" style="display:none; margin-top:10px; padding:6px 12px; border:2px solid var(--ink); border-radius:6px; background:transparent; color:var(--ink); font-family:inherit; font-size:0.78rem; font-weight:700; cursor:pointer;">
       🔔 Activar notificaciones de la APP
