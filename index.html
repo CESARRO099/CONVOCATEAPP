@@ -1115,6 +1115,20 @@ async function renderGrilla() {
   // pintan todas las columnas como antes (comportamiento viejo).
   const setColumnasGrises = Array.isArray(columnas_grises) ? new Set(columnas_grises) : null;
 
+  // NUEVO (11 ago 2026): en modo oscuro, la columna de días queda pegada
+  // a la izquierda con fondo blanco (sticky), pero a la derecha la tabla
+  // termina justo en la última columna real, sin nada blanco después —
+  // se ve "cortada". Cesar pidió agregar una columna blanca de relleno
+  // al final, solo en las hojas donde se nota. Es puramente visual: una
+  // columna y celda extra por fila, fuera del rango de merges/colspans
+  // (que solo cubren 0..totalCols-1), asi que no puede pisar ninguna
+  // combinacion de celdas existente.
+  const sectoresConEspaciador = new Set([
+    "BSE", "CCA", "CENDYTMA", "DENSITO", "FOTOG", "GREMCA",
+    "POLI", "RESO", "RETEN", "SOLY", "TRAUMA", "UCAL"
+  ]);
+  const necesitaEspaciador = sectoresConEspaciador.has(sectorActual);
+
   // Marcar que celdas quedan "cubiertas" por una combinacion (merge), y el
   // tamaño de colspan/rowspan que corresponde al ancla de cada combinacion
   const cubierta = new Set();
@@ -1138,6 +1152,7 @@ async function renderGrilla() {
     const ancho = anchoOriginal < 60 ? anchoOriginal : 120;
     html += `<col style="width:${ancho}px">`;
   }
+  if (necesitaEspaciador) html += `<col style="width:16px">`;
   html += `</colgroup><tbody>`;
 
   for (let r = 0; r < filas.length; r++) {
@@ -1373,6 +1388,7 @@ async function renderGrilla() {
 
       html += `<td${attrs} style="${borderStyle}${boldStyle}${stickyStyle}" class="${clases.trim()}">${contenido}</td>`;
     }
+    if (necesitaEspaciador) html += `<td style="border:none;"></td>`;
     html += `</tr>`;
   }
   html += `</tbody></table>`;
