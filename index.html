@@ -710,16 +710,40 @@ async function cargarDatosConvocatoria() {
     const horasMostradas = horasNum + horasLicencia;
     window._horasActuales = horasNum; // para los chequeos de límite se sigue usando la real, sin sumar
     window._topeHoras = tope - horasLicencia; // el tope efectivo real para bloquear elegir
-    horasTexto.textContent = horasLicencia > 0
-      ? `${horasNum.toFixed(1)} trabajo + ${horasLicencia.toFixed(1)} licencia = ${horasMostradas.toFixed(1)} / ${tope} hs`
-      : `${horasMostradas.toFixed(1)} / ${tope} hs`;
-    const pct = Math.min(100, (horasMostradas / tope) * 100);
-    horasFill.style.width = pct + "%";
-    // Color progresivo: rojo (0%) → amarillo (50%) → verde (100%)
-    const r = pct < 50 ? 220 : Math.round(220 - (pct - 50) * 3.6);
-    const g = pct < 50 ? Math.round(pct * 3.6) : 180;
-    const b = 40;
-    horasFill.style.background = `rgb(${r},${g},${b})`;
+
+    // NUEVO (11 ago 2026): SUISAS no tiene tope mensual de 80/82hs - ese
+    // número no le aplica. En vez de mostrar "X / 80 hs", se muestra el
+    // progreso contra el cupo ofrecido en la ronda activa (lo que sí tiene
+    // sentido para esa persona en este momento).
+    const participacionActiva = personaActual.empresa === "SUISAS"
+      ? misParticipacionesSuisas[0]?.participaciones_ronda_suisas?.[0]
+      : null;
+
+    if (participacionActiva) {
+      const cupoRonda = Number(participacionActiva.cupo_ofrecido) || 0;
+      const tomadasRonda = Number(participacionActiva.horas_tomadas) || 0;
+      horasTexto.textContent = `${tomadasRonda.toFixed(0)} / ${cupoRonda.toFixed(0)} hs`;
+      const pctRonda = cupoRonda > 0 ? Math.min(100, (tomadasRonda / cupoRonda) * 100) : 0;
+      horasFill.style.width = pctRonda + "%";
+      const rR = pctRonda < 50 ? 220 : Math.round(220 - (pctRonda - 50) * 3.6);
+      const gR = pctRonda < 50 ? Math.round(pctRonda * 3.6) : 180;
+      horasFill.style.background = `rgb(${rR},${gR},40)`;
+    } else if (personaActual.empresa === "SUISAS") {
+      // SUISAS sin ronda activa ahora mismo: mostrar solo el total, sin tope.
+      horasTexto.textContent = `${horasNum.toFixed(0)} hs`;
+      horasFill.style.width = "0%";
+    } else {
+      horasTexto.textContent = horasLicencia > 0
+        ? `${horasNum.toFixed(1)} trabajo + ${horasLicencia.toFixed(1)} licencia = ${horasMostradas.toFixed(1)} / ${tope} hs`
+        : `${horasMostradas.toFixed(1)} / ${tope} hs`;
+      const pct = Math.min(100, (horasMostradas / tope) * 100);
+      horasFill.style.width = pct + "%";
+      // Color progresivo: rojo (0%) → amarillo (50%) → verde (100%)
+      const r = pct < 50 ? 220 : Math.round(220 - (pct - 50) * 3.6);
+      const g = pct < 50 ? Math.round(pct * 3.6) : 180;
+      const b = 40;
+      horasFill.style.background = `rgb(${r},${g},${b})`;
+    }
 
     // Banner de turno: ¿hay algún proceso de España donde persona_actual_id
     // sea esta persona, o le toca su turno específico en una ronda de SUISAS?
