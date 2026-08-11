@@ -709,7 +709,10 @@ async function cargarDatosConvocatoria() {
     }
     const horasMostradas = horasNum + horasLicencia;
     window._horasActuales = horasNum; // para los chequeos de límite se sigue usando la real, sin sumar
-    window._topeHoras = tope - horasLicencia; // el tope efectivo real para bloquear elegir
+    // NUEVO (11 ago 2026): SUISAS no tiene tope mensual de 80/82hs - ese
+    // límite es exclusivo de España. Para SUISAS el único límite real es
+    // el cupo de la ronda activa, que el backend ya controla aparte.
+    window._topeHoras = personaActual.empresa === "SUISAS" ? Infinity : (tope - horasLicencia);
 
     // NUEVO (11 ago 2026): SUISAS no tiene tope mensual de 80/82hs - ese
     // número no le aplica. En vez de mostrar "X / 80 hs", se muestra el
