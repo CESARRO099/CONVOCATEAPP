@@ -243,6 +243,20 @@
     font-size:1rem; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,0.12);
   }
   #btn-tema:active{ opacity:0.8; }
+
+  /* Skeleton loader: reemplaza el texto "Cargando..." por barras que
+     laten suavemente, imitando la forma de la grilla de turnos mientras
+     llegan los datos reales de Supabase. Solo animación de opacidad
+     (no layout), funciona igual en modo claro y oscuro via var(--line). */
+  @keyframes skeleton-pulso{ 0%,100%{ opacity:0.5; } 50%{ opacity:0.15; } }
+  .skeleton-wrap{ padding:6px 2px; }
+  .skeleton-fila{ display:flex; gap:8px; align-items:center; padding:5px 0; }
+  .skeleton-barra{
+    height:20px; border-radius:6px; background:var(--line);
+    animation: skeleton-pulso 1.4s ease-in-out infinite;
+  }
+  .skeleton-barra.dia{ width:32px; flex:0 0 auto; }
+  .skeleton-barra.dato{ flex:1; }
 </style>
 </head>
 <body>
@@ -353,6 +367,20 @@ const MES_ACTUAL = "2026-10"; // mes que se muestra (formato YYYY-MM)
 
 const personaSelect = document.getElementById("persona-select");
 const CLAVE_ULTIMA_PERSONA = "convocate_ultima_persona_id";
+
+// Skeleton loader para la grilla de turnos: barras que laten en vez del
+// texto "Cargando...". Es puramente visual, no depende de ningun dato.
+function skeletonGrilla(filasCant = 10, colsCant = 5) {
+  let html = "";
+  for (let i = 0; i < filasCant; i++) {
+    let cols = `<div class="skeleton-barra dia" style="animation-delay:${(i * 0.05).toFixed(2)}s"></div>`;
+    for (let c = 0; c < colsCant; c++) {
+      cols += `<div class="skeleton-barra dato" style="animation-delay:${(i * 0.05 + c * 0.02).toFixed(2)}s"></div>`;
+    }
+    html += `<div class="skeleton-fila">${cols}</div>`;
+  }
+  return `<div class="skeleton-wrap">${html}</div>`;
+}
 
 // Modo oscuro: se recuerda la preferencia en este dispositivo; si nunca
 // se eligió, arranca según la preferencia del sistema operativo.
@@ -715,7 +743,7 @@ personaSelect.addEventListener("change", async (e) => {
   localStorage.setItem(CLAVE_ULTIMA_PERSONA, personaId);
   actualizarBotonesCambio();
   convocatoriaWrap.style.display = "block";
-  grillaWrap.innerHTML = `<div class="status-msg">Cargando...</div>`;
+  grillaWrap.innerHTML = skeletonGrilla();
   await cargarDatosConvocatoria();
   // Estado inicial del chequeo automatico: si ya le tocaba el turno al
   // entrar (banner con boton "Confirmar convocatoria"), arrancar en true
@@ -1103,7 +1131,7 @@ function textoEncabezado(estructura, col, sector) {
 }
 
 async function renderGrilla() {
-  grillaWrap.innerHTML = `<div class="status-msg">Cargando planilla...</div>`;
+  grillaWrap.innerHTML = skeletonGrilla();
 
   let estructura = hojasExcelCache[sectorActual];
   if (!estructura) {
