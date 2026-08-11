@@ -717,9 +717,63 @@ personaSelect.addEventListener("change", async (e) => {
   convocatoriaWrap.style.display = "block";
   grillaWrap.innerHTML = `<div class="status-msg">Cargando...</div>`;
   await cargarDatosConvocatoria();
+  // Estado inicial del chequeo automatico: si ya le tocaba el turno al
+  // entrar (banner con boton "Confirmar convocatoria"), arrancar en true
+  // para no disparar un refresco de mas en el primer ciclo de 25s.
+  miTurnoAnterior = !!bannerWrap.querySelector(".banner-turno .btn-confirmar");
+  iniciarChequeoAutomatico();
+});
+
+// NUEVO (11 ago 2026): chequeo automatico en segundo plano - antes había
+// que cerrar y volver a abrir la app para enterarse de que te tocó el
+// turno. Cada 25s se revisa en silencio (sin tocar la pantalla) si
+// cambió el estado "es mi turno ahora"; si cambió, recién ahí se hace el
+// refresco completo (banner + horas + grilla). Si no cambió nada, no se
+// nota absolutamente nada en pantalla - no hay parpadeo cada 25s.
+let miTurnoAnterior = false;
+let intervaloChequeoTurno = null;
+
+async function chequearMiTurnoEnSilencio() {
+  if (!personaActual || convocatoriaWrap.style.display === "none") return;
+  // No interrumpir si hay un modal abierto (ej. solicitando un cambio de turno)
+  if (document.querySelector(".modal-overlay.open")) return;
+  try {
+    const [procesos, misRondasSuisas] = await Promise.all([
+      sb(`procesos_convocatoria?select=persona_actual_id&estado=in.(ACTIVO,PAUSADO)` +
+         `&empresa=eq.ESPANOLA&persona_actual_id=eq.${personaActual.id}`),
+      personaActual.empresa === "SUISAS"
+        ? sb(`rondas_suisas?select=id&estado=eq.ACTIVA&persona_actual_id=eq.${personaActual.id}`)
+        : Promise.resolve([])
+    ]);
+    const esMiTurnoAhora = (procesos && procesos.length > 0) || (misRondasSuisas && misRondasSuisas.length > 0);
+    if (esMiTurnoAhora !== miTurnoAnterior) {
+      miTurnoAnterior = esMiTurnoAhora;
+      await cargarDatosConvocatoria();
+    }
+  } catch (e) { /* si falla el chequeo silencioso, se reintenta en el proximo ciclo */ }
+}
+
+function iniciarChequeoAutomatico() {
+  detenerChequeoAutomatico();
+  intervaloChequeoTurno = setInterval(chequearMiTurnoEnSilencio, 25000);
+}
+function detenerChequeoAutomatico() {
+  if (intervaloChequeoTurno) { clearInterval(intervaloChequeoTurno); intervaloChequeoTurno = null; }
+}
+// Pausar mientras la app esta en segundo plano (celular bloqueado / otra
+// pestaña) para no gastar datos ni batería de más, y retomar al volver.
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    detenerChequeoAutomatico();
+  } else if (personaActual) {
+    chequearMiTurnoEnSilencio();
+    iniciarChequeoAutomatico();
+  }
 });
 
 function cambiarUsuario() {
+  detenerChequeoAutomatico();
+  miTurnoAnterior = false;
   localStorage.removeItem(CLAVE_ULTIMA_PERSONA);
   personaActual = null;
   personaSelect.value = "";
