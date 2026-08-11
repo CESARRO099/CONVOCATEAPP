@@ -257,6 +257,18 @@
   }
   .skeleton-barra.dia{ width:32px; flex:0 0 auto; }
   .skeleton-barra.dato{ flex:1; }
+
+  /* Spinner dentro de los botones Elegir/Rechazar: feedback inmediato al
+     tocar, para que no parezca que "no pasó nada" y evitar el doble toque
+     por desconfianza (sobre todo con gente que no confía en que ya se
+     mandó). Usa currentColor asi que hereda el blanco del texto del boton. */
+  @keyframes btn-girar{ to{ transform:rotate(360deg); } }
+  .btn-spinner{
+    display:inline-block; width:13px; height:13px;
+    border:2px solid rgba(255,255,255,0.4); border-top-color:#fff;
+    border-radius:50%; animation: btn-girar 0.6s linear infinite;
+    vertical-align:middle;
+  }
 </style>
 </head>
 <body>
@@ -1477,11 +1489,31 @@ async function renderGrilla() {
   grillaWrap.innerHTML = html;
 
   grillaWrap.querySelectorAll(".btn-elegir").forEach(btn => {
-    btn.addEventListener("click", () => elegirTurno(Number(btn.dataset.turnoId)));
+    btn.addEventListener("click", () => elegirTurno(Number(btn.dataset.turnoId), btn));
   });
   grillaWrap.querySelectorAll(".btn-rechazar").forEach(btn => {
-    btn.addEventListener("click", () => rechazarTurno(Number(btn.dataset.turnoId)));
+    btn.addEventListener("click", () => rechazarTurno(Number(btn.dataset.turnoId), btn));
   });
+}
+
+// Feedback visual inmediato al tocar Elegir/Rechazar: deshabilita el
+// boton y muestra un spinner en vez del texto, para que quede claro que
+// el toque se registró. Si el flujo termina sin recargar la grilla (por
+// ejemplo, el usuario cancela un aviso de conflicto), se restaura el
+// boton a su estado original con restaurarBoton().
+function marcarCargando(btn) {
+  if (!btn) return null;
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.style.opacity = "0.75";
+  btn.innerHTML = `<span class="btn-spinner"></span>`;
+  return original;
+}
+function restaurarBoton(btn, original) {
+  if (!btn || original == null) return;
+  btn.disabled = false;
+  btn.style.opacity = "";
+  btn.innerHTML = original;
 }
 
 async function confirmarConvocatoria() {
@@ -1501,7 +1533,8 @@ async function confirmarConvocatoria() {
   }
 }
 
-async function rechazarTurno(turnoId) {
+async function rechazarTurno(turnoId, btn = null) {
+  const textoOriginal = marcarCargando(btn);
   try {
     const ok = await sb(`rpc/dejar_turno`, {
       method: "POST",
@@ -1523,13 +1556,16 @@ async function rechazarTurno(turnoId) {
     }
   } catch (e) {
     alert("Error al rechazar el turno: " + e.message);
+    restaurarBoton(btn, textoOriginal);
   }
 }
 
-async function elegirTurno(turnoId) {
+async function elegirTurno(turnoId, btn = null) {
+  const textoOriginal = marcarCargando(btn);
   try {
     if ((window._horasActuales || 0) >= (window._topeHoras || 82)) {
       alert("Ya completaste tus horas para este mes.");
+      restaurarBoton(btn, textoOriginal);
       return;
     }
 
@@ -1544,7 +1580,7 @@ async function elegirTurno(turnoId) {
         `${conflicto.sector} (${conflicto.franja}) del ${conflicto.fecha.slice(8,10)}/${conflicto.fecha.slice(5,7)}. ` +
         `Esas horas quedarán libres para que las elija otro suplente. ¿Confirmás?`
       );
-      if (!confirma) return;
+      if (!confirma) { restaurarBoton(btn, textoOriginal); return; }
     }
 
     const resultado = await sb(`rpc/tomar_turno`, {
@@ -1570,6 +1606,7 @@ async function elegirTurno(turnoId) {
     }
   } catch (e) {
     alert("Error al elegir el turno: " + e.message);
+    restaurarBoton(btn, textoOriginal);
   }
 }
 
