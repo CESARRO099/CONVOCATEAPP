@@ -1,0 +1,59 @@
+diff --git a/index.html b/index.html
+index 5712636..597d0e5 100644
+--- a/index.html
++++ b/index.html
+@@ -115,6 +115,16 @@
+   .banner-turno .dot{
+     width:9px; height:9px; border-radius:50%; background: var(--ok); flex:0 0 auto;
+   }
++  .banner-espera{
++    display:flex; align-items:center; gap:10px;
++    background: var(--primary-soft);
++    border-radius: var(--radius);
++    padding: 12px 14px;
++    margin-bottom: 14px;
++    font-size: 0.85rem;
++    color: var(--primary);
++    font-weight: 500;
++  }
+   .horas-wrap{ margin-bottom: 14px; }
+   .horas-row{
+     display:flex; justify-content:space-between; font-size:0.75rem; color:var(--ink-soft); margin-bottom:5px;
+@@ -770,7 +780,37 @@ async function cargarDatosConvocatoria() {
+         <button class="btn-confirmar" id="btn-confirmar-conv">Confirmar convocatoria</button></div>`;
+       document.getElementById("btn-confirmar-conv").addEventListener("click", confirmarConvocatoria);
+     } else {
++      // NUEVO (11 ago 2026): mientras no es el turno de la persona, si hay
++      // algun proceso ACTIVO/PAUSADO de Española en un grupo donde esta
++      // persona figura en listas_prelacion, se le muestra su posicion en
++      // la fila. Es puramente informativo: solo hace SELECTs de lectura,
++      // no toca avanzar_fila_convocatoria ni ninguna otra funcion.
+       bannerWrap.innerHTML = "";
++      if (personaActual.empresa === "ESPANOLA" && procesosActivos.length) {
++        try {
++          const gruposActivos = [...new Set(procesosActivos.map(p => p.grupo))];
++          const miEntradas = await sb(
++            `listas_prelacion?select=grupo,orden&persona_id=eq.${personaActual.id}` +
++            `&empresa=eq.ESPANOLA&grupo=in.(${gruposActivos.join(",")})`
++          );
++          const miEntrada = (miEntradas || [])[0];
++          if (miEntrada) {
++            const [listaGrupo, exclusiones] = await Promise.all([
++              sb(`listas_prelacion?select=persona_id,orden&grupo=eq.${miEntrada.grupo}` +
++                 `&empresa=eq.ESPANOLA&order=orden.asc`),
++              sb(`exclusiones_mes?select=persona_id&grupo=eq.${miEntrada.grupo}` +
++                 `&mes=eq.${MES_ACTUAL}-01`)
++            ]);
++            const excluidos = new Set((exclusiones || []).map(e => e.persona_id));
++            const elegibles = (listaGrupo || []).filter(p => !excluidos.has(p.persona_id));
++            const miIndex = elegibles.findIndex(p => p.persona_id === personaActual.id);
++            if (miIndex > 0) {
++              bannerWrap.innerHTML = `<div class="banner-espera">
++                Sos el ${miIndex + 1}° de ${elegibles.length} en la fila de ${miEntrada.grupo}</div>`;
++            }
++          }
++        } catch (e) { /* si falla, simplemente no se muestra la posicion */ }
++      }
+     }
+ 
+     // Traer TODOS los turnos del mes, paginando de a 1000 para no perder
