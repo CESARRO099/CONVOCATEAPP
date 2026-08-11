@@ -1667,17 +1667,50 @@ function sonidoConvocatoriaCerrada() {
   const ctx = getAudioCtx();
   if (!ctx) return;
   try {
-    tono(ctx, 523.25, 0, 0.15);    // C5
-    tono(ctx, 659.25, 0.12, 0.22); // E5
+    // Frase alegre con rebote: sube, baja un poco, vuelve a subir...
+    tono(ctx, 523.25,  0.00, 0.12, 0.14); // C5
+    tono(ctx, 659.25,  0.09, 0.12, 0.15); // E5
+    tono(ctx, 783.99,  0.18, 0.12, 0.16); // G5
+    tono(ctx, 1046.50, 0.27, 0.14, 0.17); // C6
+    tono(ctx, 783.99,  0.40, 0.10, 0.13); // G5 (rebote)
+    tono(ctx, 1046.50, 0.48, 0.12, 0.16); // C6
+    tono(ctx, 1318.51, 0.58, 0.16, 0.18); // E6
+    // ...acorde mayor grande, sostenido más tiempo = el "ta-da"
+    tono(ctx, 1046.50, 0.74, 0.65, 0.20); // C6
+    tono(ctx, 1318.51, 0.74, 0.65, 0.17); // E6
+    tono(ctx, 1567.98, 0.74, 0.65, 0.15); // G6
+    tono(ctx, 2093.00, 0.74, 0.65, 0.10); // C7
+    // ...destello final de brillo
+    tono(ctx, 2349.32, 0.85, 0.15, 0.06); // D7
+    tono(ctx, 2637.02, 0.92, 0.16, 0.06); // E7
+    tono(ctx, 3135.96, 1.00, 0.20, 0.05); // G7
   } catch (e) { /* silencioso si falla */ }
 }
-function sonidoTopeAlcanzado() {
+function tonoError(ctx, freq, inicioSeg, duracionSeg, volumen = 0.16) {
+  // Onda cuadrada en vez de seno = sonido más áspero, tipo buzzer de
+  // "denegado" - a propósito distinto de los tonos suaves de los otros
+  // sonidos, para que se distinga como negativo de un vistazo (oído).
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "square";
+  osc.frequency.value = freq;
+  const t0 = ctx.currentTime + inicioSeg;
+  gain.gain.setValueAtTime(0, t0);
+  gain.gain.linearRampToValueAtTime(volumen, t0 + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0 + duracionSeg);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(t0);
+  osc.stop(t0 + duracionSeg + 0.05);
+}
+function sonidoTopeSuperado() {
+  // Suena cuando alguien YA está en el tope e intenta elegir otra hora
+  // igual (intento bloqueado) - no cuando lo alcanza con éxito.
   const ctx = getAudioCtx();
   if (!ctx) return;
   try {
-    tono(ctx, 523.25, 0, 0.12);    // C5
-    tono(ctx, 659.25, 0.10, 0.12); // E5
-    tono(ctx, 783.99, 0.20, 0.28); // G5
+    tonoError(ctx, 180, 0,    0.15);
+    tonoError(ctx, 160, 0.18, 0.20);
   } catch (e) { /* silencioso si falla */ }
 }
 
@@ -1730,6 +1763,7 @@ async function elegirTurno(turnoId, btn = null) {
   const textoOriginal = marcarCargando(btn);
   try {
     if ((window._horasActuales || 0) >= (window._topeHoras || 82)) {
+      sonidoTopeSuperado();
       alert("Ya completaste tus horas para este mes.");
       restaurarBoton(btn, textoOriginal);
       return;
@@ -1754,18 +1788,9 @@ async function elegirTurno(turnoId, btn = null) {
       body: JSON.stringify({ p_turno_id: turnoId, p_persona_id: personaActual.id })
     });
     if (resultado === 'ok' || resultado === 'ok_libero_fija') {
-      // Sonido de "llegaste al tope" solo en la transicion real (no
-      // sonaba antes de esta elección y ahora sí), no en cada click una
-      // vez que ya está en el tope.
-      const horasAntes = window._horasActuales || 0;
-      const topeAntes = window._topeHoras || 82;
       await cargarDatosConvocatoria();
-      const horasDespues = window._horasActuales || 0;
-      const topeDespues = window._topeHoras || 82;
-      if (horasAntes < topeAntes && horasDespues >= topeDespues) {
-        sonidoTopeAlcanzado();
-      }
     } else if (resultado === 'limite_horas') {
+      sonidoTopeSuperado();
       alert("Ya completaste tus horas para este mes.");
       await cargarDatosConvocatoria();
     } else if (resultado === 'superposicion') {
