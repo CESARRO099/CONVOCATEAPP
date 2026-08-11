@@ -1152,7 +1152,7 @@ async function renderGrilla() {
     const ancho = anchoOriginal < 60 ? anchoOriginal : 120;
     html += `<col style="width:${ancho}px">`;
   }
-  if (necesitaEspaciador) html += `<col style="width:16px">`;
+  if (necesitaEspaciador) html += `<col style="width:120px">`;
   html += `</colgroup><tbody>`;
 
   for (let r = 0; r < filas.length; r++) {
