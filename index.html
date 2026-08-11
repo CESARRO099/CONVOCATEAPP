@@ -25,6 +25,16 @@
     --line: #E4DFD5;
     --radius: 18px;
   }
+  [data-theme="dark"]{
+    --bg: #15191B;
+    --surface: #1E2427;
+    --ink: #ECE9E3;
+    --ink-soft: #98A3A7;
+    --primary-soft: #1C333E;
+    --accent-soft: #3A2E17;
+    --ok-soft: #17301F;
+    --line: #313A3D;
+  }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
   body{
@@ -212,9 +222,32 @@
   button.btn-rechazar:active{ opacity:0.8; }
   .status-msg{ font-size:0.8rem; color: var(--ink-soft); text-align:center; padding: 20px 10px; }
   footer.hint{ text-align:center; font-size: 0.72rem; color: var(--ink-soft); padding: 10px 24px 4px; }
+
+  /* Overrides de modo oscuro para textos saturados sobre fondos "soft"
+     (en claro son fondo pastel + texto de color; en oscuro se invierte
+     el contraste para que sigan siendo legibles). La grilla de turnos
+     (table.grilla) queda intencionalmente igual en ambos modos, porque
+     sus colores (amarillo/rojo/gris) replican el Excel y tienen
+     significado para Cesar - no se tocan. */
+  [data-theme="dark"] .empresa-pill{ color:#8FC6DF; }
+  [data-theme="dark"] .banner-espera{ color:#8FC6DF; }
+  [data-theme="dark"] .banner-turno{ color:#8FD6AB; }
+  [data-theme="dark"] .banner-turno .dot{ background:#8FD6AB; }
+  [data-theme="dark"] button.btn-confirmar{ background:var(--surface); color:#8FD6AB; border-color:#8FD6AB; }
+
+  #btn-tema{
+    position:fixed; top:14px; right:14px; z-index:60;
+    width:36px; height:36px; border-radius:50%;
+    border:1px solid var(--line); background:var(--surface);
+    display:flex; align-items:center; justify-content:center;
+    font-size:1rem; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,0.12);
+  }
+  #btn-tema:active{ opacity:0.8; }
 </style>
 </head>
 <body>
+
+<button id="btn-tema" aria-label="Cambiar tema" title="Cambiar tema">🌙</button>
 
 <header class="top" id="header-top" style="display:none;"></header>
 
@@ -295,9 +328,9 @@
       <h3 id="pin-titulo">Creá tu PIN</h3>
       <p id="pin-texto" style="font-size:0.85rem; color:var(--ink-soft);"></p>
       <input type="tel" id="pin-input" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off"
-        style="width:100%; box-sizing:border-box; padding:10px; border:1px solid var(--line); border-radius:8px; font-size:1.15rem; letter-spacing:0.3em; text-align:center; font-family:inherit; background:#fafafa;">
+        style="width:100%; box-sizing:border-box; padding:10px; border:1px solid var(--line); border-radius:8px; font-size:1.15rem; letter-spacing:0.3em; text-align:center; font-family:inherit; background:var(--bg);">
       <input type="tel" id="pin-input-confirmar" inputmode="numeric" maxlength="4" placeholder="Confirmá el PIN" autocomplete="off"
-        style="display:none; width:100%; box-sizing:border-box; padding:10px; border:1px solid var(--line); border-radius:8px; font-size:1.15rem; letter-spacing:0.3em; text-align:center; font-family:inherit; background:#fafafa;">
+        style="display:none; width:100%; box-sizing:border-box; padding:10px; border:1px solid var(--line); border-radius:8px; font-size:1.15rem; letter-spacing:0.3em; text-align:center; font-family:inherit; background:var(--bg);">
       <p id="pin-error" style="font-size:0.8rem; color:#c8102e; min-height:1.1em;"></p>
       <button class="btn-primary" id="btn-pin-confirmar">Confirmar</button>
       <button class="btn-cancel" id="btn-pin-cancelar">Cancelar</button>
@@ -320,6 +353,23 @@ const MES_ACTUAL = "2026-10"; // mes que se muestra (formato YYYY-MM)
 
 const personaSelect = document.getElementById("persona-select");
 const CLAVE_ULTIMA_PERSONA = "convocate_ultima_persona_id";
+
+// Modo oscuro: se recuerda la preferencia en este dispositivo; si nunca
+// se eligió, arranca según la preferencia del sistema operativo.
+const CLAVE_TEMA = "convocate_tema";
+function aplicarTema(tema) {
+  document.documentElement.setAttribute("data-theme", tema);
+  localStorage.setItem(CLAVE_TEMA, tema);
+  const btn = document.getElementById("btn-tema");
+  if (btn) btn.textContent = tema === "dark" ? "☀️" : "🌙";
+}
+const temaGuardado = localStorage.getItem(CLAVE_TEMA) ||
+  (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+aplicarTema(temaGuardado);
+document.getElementById("btn-tema").addEventListener("click", () => {
+  const actual = document.documentElement.getAttribute("data-theme");
+  aplicarTema(actual === "dark" ? "light" : "dark");
+});
 const resultadoDiv = document.getElementById("resultado");
 const pillWrap = document.getElementById("empresa-pill-wrap");
 const convocatoriaWrap = document.getElementById("convocatoria-wrap");
@@ -450,14 +500,14 @@ function renderPersonaOptions(lista) {
   personaOptionsWrap.innerHTML = lista.map((p, i) => {
     const label = etiquetaEmpresaPersona(p);
     return `<div class="persona-opcion" data-idx="${i}" data-id="${p.id}"
-      style="padding:9px 12px; cursor:pointer; font-size:0.9rem; border-bottom:1px solid #eee;">${nombreCompleto(p)}${label}</div>`;
+      style="padding:9px 12px; cursor:pointer; font-size:0.9rem; border-bottom:1px solid var(--line);">${nombreCompleto(p)}${label}</div>`;
   }).join("");
   personaOptionsWrap.style.display = "block";
 }
 
 function resaltarOpcionActiva() {
   personaOptionsWrap.querySelectorAll(".persona-opcion").forEach((el, i) => {
-    el.style.background = i === personaIndiceActivo ? "#eef2f8" : "";
+    el.style.background = i === personaIndiceActivo ? "var(--primary-soft)" : "";
   });
   const activa = personaOptionsWrap.querySelector(`.persona-opcion[data-idx="${personaIndiceActivo}"]`);
   if (activa) activa.scrollIntoView({ block: "nearest" });
