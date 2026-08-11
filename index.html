@@ -1594,6 +1594,13 @@ async function renderGrilla() {
     if (necesitaEspaciador) html += `<td style="border:none;"></td>`;
     html += `</tr>`;
   }
+  // NUEVO (11 ago 2026): fila en blanco al final, del mismo alto que una
+  // fila normal (24px, ya definido en table.grilla td/th), para que la
+  // tabla no termine "cortada" justo en la última fila con contenido.
+  // Un solo <td colspan> nuevo, fuera del rango de columnas/merges
+  // reales, asi que no puede pisar ninguna combinacion de celdas.
+  const colspanEspaciadorFinal = totalCols + (necesitaEspaciador ? 1 : 0);
+  html += `<tr><td colspan="${colspanEspaciadorFinal}" style="border:none;"></td></tr>`;
   html += `</tbody></table>`;
   grillaWrap.innerHTML = html;
 
