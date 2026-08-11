@@ -291,6 +291,11 @@
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
   [data-theme="dark"] .calendario-celda.con-turno .turno-linea{ color:#8FD6AB; }
+
+  #btn-mis-turnos.activo{
+    background:var(--primary); color:#fff; border-color:var(--primary);
+  }
+  #btn-mis-turnos:active{ opacity:0.85; }
 </style>
 </head>
 <body>
@@ -319,7 +324,10 @@
     <select id="persona-select" style="display:none;">
       <option value="">Cargando personas…</option>
     </select>
-    <div id="empresa-pill-wrap"></div>
+    <div id="empresa-pill-row" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+      <div id="empresa-pill-wrap"></div>
+      <button id="btn-mis-turnos" style="display:none; flex:0 0 auto; background:transparent; border:1px solid var(--line); color:var(--ink-soft); font-family:inherit; font-size:0.72rem; font-weight:600; padding:5px 10px; border-radius:999px; cursor:pointer; white-space:nowrap;">📅 Mis turnos</button>
+    </div>
     <button id="btn-notif" style="display:none; margin-top:10px; padding:6px 12px; border:2px solid var(--ink); border-radius:6px; background:transparent; color:var(--ink); font-family:inherit; font-size:0.78rem; font-weight:700; cursor:pointer;">
       🔔 Activar notificaciones de la APP
     </button>
@@ -772,6 +780,16 @@ personaSelect.addEventListener("change", async (e) => {
     const btnCambiar = document.getElementById("btn-cambiar-usuario");
     btnCambiar.style.display = "";
     btnCambiar.onclick = cambiarUsuario;
+    // NUEVO (11 ago 2026): "Mis turnos" se movió de una pestaña de sector
+    // al lado opuesto del pill de ficha/empresa, en la misma fila.
+    const btnMisTurnos = document.getElementById("btn-mis-turnos");
+    btnMisTurnos.style.display = "";
+    btnMisTurnos.onclick = () => {
+      sectorActual = "MIS_TURNOS";
+      tabsWrap.querySelectorAll(".tab.active").forEach(t => t.classList.remove("active"));
+      btnMisTurnos.classList.add("activo");
+      renderGrilla();
+    };
   }
   // Recordar a esta persona en este dispositivo para la próxima vez
   localStorage.setItem(CLAVE_ULTIMA_PERSONA, personaId);
@@ -844,6 +862,9 @@ function cambiarUsuario() {
   convocatoriaWrap.style.display = "none";
   document.getElementById("header-top").style.display = "none";
   document.getElementById("btn-cambiar-usuario").style.display = "none";
+  document.getElementById("btn-mis-turnos").style.display = "none";
+  document.getElementById("btn-mis-turnos").classList.remove("activo");
+  sectorActual = null;
   document.getElementById("bienvenida-wrap").style.display = "block";
 }
 
@@ -1013,17 +1034,13 @@ async function cargarDatosConvocatoria() {
 
 function renderTabs() {
   const nombres = Object.keys(sectoresPorNombre).sort();
-  // NUEVO (11 ago 2026): pestaña "Mis turnos" al principio, con vista de
-  // calendario mensual — usa los mismos turnosDelMes que ya estan
-  // cargados en memoria, no dispara ninguna consulta nueva a Supabase.
-  tabsWrap.innerHTML =
-    `<button class="tab${sectorActual === "MIS_TURNOS" ? " active" : ""}" data-sector="MIS_TURNOS">📅 Mis turnos</button>` +
-    nombres.map(n =>
-      `<button class="tab${n === sectorActual ? " active" : ""}" data-sector="${n}">${n}</button>`
-    ).join("");
+  tabsWrap.innerHTML = nombres.map(n =>
+    `<button class="tab${n === sectorActual ? " active" : ""}" data-sector="${n}">${n}</button>`
+  ).join("");
   tabsWrap.querySelectorAll(".tab").forEach(btn => {
     btn.addEventListener("click", () => {
       sectorActual = btn.dataset.sector;
+      document.getElementById("btn-mis-turnos")?.classList.remove("activo");
       renderTabs();
       renderGrilla();
     });
