@@ -1632,6 +1632,55 @@ function restaurarBoton(btn, original) {
   btn.innerHTML = original;
 }
 
+// Sonidos generados con Web Audio API (sin archivos externos - funciona
+// offline, sin dependencias de red). Se llama siempre dentro de un
+// handler de click, así que no choca con las políticas de autoplay de
+// iOS/Safari. Envuelto en try/catch: si falla por lo que sea, la app
+// sigue funcionando en silencio, nunca corta el flujo real.
+let audioCtx = null;
+function getAudioCtx() {
+  try {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      audioCtx = new AC();
+    }
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  } catch (e) { return null; }
+}
+function tono(ctx, frecuencia, inicioSeg, duracionSeg, volumen = 0.15) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "sine";
+  osc.frequency.value = frecuencia;
+  const t0 = ctx.currentTime + inicioSeg;
+  gain.gain.setValueAtTime(0, t0);
+  gain.gain.linearRampToValueAtTime(volumen, t0 + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0 + duracionSeg);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(t0);
+  osc.stop(t0 + duracionSeg + 0.05);
+}
+function sonidoConvocatoriaCerrada() {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  try {
+    tono(ctx, 523.25, 0, 0.15);    // C5
+    tono(ctx, 659.25, 0.12, 0.22); // E5
+  } catch (e) { /* silencioso si falla */ }
+}
+function sonidoTopeAlcanzado() {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  try {
+    tono(ctx, 523.25, 0, 0.12);    // C5
+    tono(ctx, 659.25, 0.10, 0.12); // E5
+    tono(ctx, 783.99, 0.20, 0.28); // G5
+  } catch (e) { /* silencioso si falla */ }
+}
+
 async function confirmarConvocatoria() {
   if (!confirm("¿Confirmás que terminaste de elegir tus horas?")) return;
   try {
@@ -1640,6 +1689,7 @@ async function confirmarConvocatoria() {
       body: JSON.stringify({ p_persona_id: personaActual.id })
     });
     if (ok === true) {
+      sonidoConvocatoriaCerrada();
       await cargarDatosConvocatoria();
     } else {
       alert("No se pudo confirmar la convocatoria.");
@@ -1703,10 +1753,18 @@ async function elegirTurno(turnoId, btn = null) {
       method: "POST",
       body: JSON.stringify({ p_turno_id: turnoId, p_persona_id: personaActual.id })
     });
-    if (resultado === 'ok') {
+    if (resultado === 'ok' || resultado === 'ok_libero_fija') {
+      // Sonido de "llegaste al tope" solo en la transicion real (no
+      // sonaba antes de esta elección y ahora sí), no en cada click una
+      // vez que ya está en el tope.
+      const horasAntes = window._horasActuales || 0;
+      const topeAntes = window._topeHoras || 82;
       await cargarDatosConvocatoria();
-    } else if (resultado === 'ok_libero_fija') {
-      await cargarDatosConvocatoria();
+      const horasDespues = window._horasActuales || 0;
+      const topeDespues = window._topeHoras || 82;
+      if (horasAntes < topeAntes && horasDespues >= topeDespues) {
+        sonidoTopeAlcanzado();
+      }
     } else if (resultado === 'limite_horas') {
       alert("Ya completaste tus horas para este mes.");
       await cargarDatosConvocatoria();
