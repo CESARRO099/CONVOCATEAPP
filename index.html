@@ -1150,8 +1150,13 @@ function mostrarDetalleTurnoDia(dia) {
   const bloques = turnosDia.map(t => {
     const f = t.franjas_horarias || {};
     const sector = f.sectores?.nombre || "";
-    const horario = (f.hora_inicio && f.hora_fin)
-      ? `${f.hora_inicio.slice(0, 5)} a ${f.hora_fin.slice(0, 5)}`
+    const minutosAHora = (m) => {
+      const h = Math.floor(m / 60);
+      const min = m % 60;
+      return `${h}:${String(min).padStart(2, "0")}`;
+    };
+    const horario = (f.hora_inicio != null && f.hora_fin != null)
+      ? `${minutosAHora(f.hora_inicio)} a ${minutosAHora(f.hora_fin)}`
       : "Horario no cargado";
     const horas = f.horas_reales != null ? `${f.horas_reales}hs` : "";
     const reten = f.es_reten ? " · Retén" : "";
