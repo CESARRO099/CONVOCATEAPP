@@ -1111,7 +1111,11 @@ function renderCalendarioMisTurnos() {
   const offsetInicial = (primerDia.getDay() + 6) % 7; // 0 = lunes
 
   const nombresDia = ["L", "M", "X", "J", "V", "S", "D"];
-  let html = `<div class="calendario-grid">`;
+  let html = `<div style="display:flex; justify-content:flex-start; margin-bottom:8px;">
+    <button onclick="cerrarMisTurnos()" title="Cerrar"
+      style="width:32px; height:32px; border-radius:50%; border:1px solid var(--line); background:var(--surface); color:var(--ink); font-size:1rem; line-height:1; cursor:pointer; font-family:inherit;">✕</button>
+  </div>`;
+  html += `<div class="calendario-grid">`;
   html += nombresDia.map(n => `<div class="calendario-diasemana">${n}</div>`).join("");
   for (let i = 0; i < offsetInicial; i++) html += `<div class="calendario-celda vacia"></div>`;
   for (let dia = 1; dia <= diasEnMes; dia++) {
@@ -1131,6 +1135,16 @@ function renderCalendarioMisTurnos() {
     html += `<div class="status-msg">Todavía no tenés turnos asignados este mes.</div>`;
   }
   grillaWrap.innerHTML = html;
+}
+
+// Cierra el almanaque de "Mis turnos" y vuelve a la vista normal de
+// sectores, mostrando el primer sector disponible (mismo criterio que
+// usa renderTabs cuando no hay sectorActual todavia).
+function cerrarMisTurnos() {
+  document.getElementById("btn-mis-turnos")?.classList.remove("activo");
+  const nombres = Object.keys(sectoresPorNombre).sort();
+  sectorActual = nombres[0] || null;
+  renderTabs();
 }
 
 // Arma el contenido del modal de detalle para un dia especifico de
