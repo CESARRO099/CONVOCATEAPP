@@ -1158,11 +1158,10 @@ function mostrarDetalleTurnoDia(dia) {
     const horario = (f.hora_inicio != null && f.hora_fin != null)
       ? `${minutosAHora(f.hora_inicio)} a ${minutosAHora(f.hora_fin)}`
       : "Horario no cargado";
-    const horas = f.horas_reales != null ? `${f.horas_reales}hs` : "";
     const reten = f.es_reten ? " · Retén" : "";
     return `<div style="padding:10px 0; border-bottom:1px solid var(--line);">
       <div style="font-weight:700;">${sector}</div>
-      <div>${horario}${horas ? " · " + horas : ""}${reten}</div>
+      <div>${horario}${reten}</div>
     </div>`;
   }).join("");
 
