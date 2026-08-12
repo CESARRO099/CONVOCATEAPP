@@ -68,6 +68,9 @@
       <option>POLI</option><option>RESO</option><option>RETEN</option>
       <option>SOLY</option><option>TC</option><option>TRAUMA</option><option>UCAL</option>
     </select>
+    <button id="btn-resumen-vacantes" class="btn-primary" style="margin-top:8px;">
+      📋 Ver vacantes (todos los sectores)
+    </button>
     <div id="coord-grilla-wrap" style="overflow-x:auto;"></div>
   </div>
 
@@ -335,6 +338,67 @@ async function cargarPersonasCoord() {
     `<option value="${p.id}">${sinTildes(p.apellido||"").toUpperCase()}, ${p.nombre||""} (${p.empresa === "SUISAS" ? "SUISAS" : "Española"})</option>`
   ).join("");
 }
+
+// Resumen de vacantes en todos los sectores a la vez (excluye FOTOG,
+// que esta permanentemente fuera de la convocatoria). Usa el mismo
+// criterio ya validado para contar horas vacantes: persona_id IS NULL.
+async function mostrarResumenVacantes() {
+  document.getElementById("coord-sector").value = "";
+  coordSectorActual = null;
+  const wrap = document.getElementById("coord-grilla-wrap");
+  wrap.innerHTML = `<div class="status-msg">Cargando vacantes...</div>`;
+
+  const filas = await sbCoord(
+    `turnos?select=fecha,franjas_horarias(nombre,horas_reales,sectores(nombre))` +
+    `&persona_id=is.null` +
+    `&fecha=gte.${MES_COORD}-01&fecha=lte.${MES_COORD}-31&order=fecha.asc`
+  );
+
+  const nombresDia = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  const porSector = {};
+  for (const t of (filas || [])) {
+    const sector = t.franjas_horarias?.sectores?.nombre;
+    if (!sector || sector === "FOTOG") continue; // FOTOG excluido siempre
+    if (!porSector[sector]) porSector[sector] = [];
+    porSector[sector].push(t);
+  }
+
+  const sectoresConVacantes = Object.keys(porSector).sort();
+
+  let html = `<div style="display:flex; justify-content:flex-start; margin-bottom:10px;">
+    <button onclick="cerrarResumenVacantes()" title="Cerrar"
+      style="width:32px; height:32px; border-radius:50%; border:1px solid var(--line); background:var(--surface); color:var(--ink); font-size:1rem; line-height:1; cursor:pointer; font-family:inherit;">✕</button>
+  </div>`;
+
+  if (!sectoresConVacantes.length) {
+    html += `<div class="status-msg">No quedan turnos vacantes por cubrir en ningún sector.</div>`;
+  }
+
+  for (const sector of sectoresConVacantes) {
+    const lista = porSector[sector].sort((a, b) => a.fecha.localeCompare(b.fecha));
+    const totalHoras = lista.reduce((acc, t) => acc + Number(t.franjas_horarias?.horas_reales || 0), 0);
+    html += `<div style="margin-bottom:18px;">
+      <div style="font-weight:700; font-size:0.9rem; margin-bottom:6px;">${sector} — ${totalHoras}hs vacantes</div>`;
+    for (const t of lista) {
+      const d = new Date(t.fecha + "T12:00:00");
+      const dia = nombresDia[d.getDay()];
+      const fechaCorta = t.fecha.slice(8, 10) + "/" + t.fecha.slice(5, 7);
+      const franja = t.franjas_horarias?.nombre || "";
+      html += `<div style="background:#FFF9C4; color:#7B6000; font-weight:600; padding:6px 10px; border-radius:8px; margin-bottom:4px; font-size:0.8rem;">
+        ${dia} ${fechaCorta} · ${franja}
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  wrap.innerHTML = html;
+}
+
+function cerrarResumenVacantes() {
+  document.getElementById("coord-grilla-wrap").innerHTML = "";
+}
+
+document.getElementById("btn-resumen-vacantes").addEventListener("click", mostrarResumenVacantes);
 
 document.getElementById("coord-sector").addEventListener("change", async (e) => {
   const sector = e.target.value;
