@@ -291,6 +291,9 @@
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
   [data-theme="dark"] .calendario-celda.con-turno .turno-linea{ color:#8FD6AB; }
+  .calendario-celda .turno-linea-empresa{
+    font-weight:800; opacity:0.75; font-size:0.9em;
+  }
 
   #btn-mis-turnos{
     background: #C8102E;
@@ -567,7 +570,7 @@ function nombreAsignado(p) {
 // ---------------------------------------------------------
 async function cargarPersonas() {
   try {
-    const personas = await sb("perfiles?select=id,ficha,ficha_suisas,apellido,nombre,empresa,tope_horas_mensual&order=apellido.asc");
+    const personas = await sb("perfiles?select=id,ficha,ficha_suisas,apellido,nombre,empresa,tope_horas_mensual,email&order=apellido.asc");
     personaSelect.innerHTML = `<option value="">Seleccioná...</option>` +
       personas.map(p => {
         return `<option value="${p.id}">${nombreCompleto(p)}${etiquetaEmpresaPersona(p)}</option>`;
@@ -1094,8 +1097,29 @@ function renderTabs() {
 // la grilla tipo Excel de los sectores.
 let porDiaMisTurnos = {}; // ultimo calendario armado, para poder abrir el detalle al tocar una celda
 
+// NUEVO (12 ago 2026): Para las ~19 personas que trabajan tanto para
+// Española como para SUISAS, cada empresa tiene su propia fila en
+// "perfiles" (id distinto), pero comparten el mismo email. Esta función
+// devuelve el conjunto de ids "vinculados" a la persona logueada (ella
+// misma + su otro perfil, si existe) para poder mostrar en "Mis turnos"
+// la actividad combinada de ambas empresas sin importar con cuál de los
+// dos usuarios haya iniciado sesión.
+function idsVinculadosPersona(persona) {
+  const ids = new Set([persona.id]);
+  const email = (persona.email || "").trim().toLowerCase();
+  if (email) {
+    for (const p of (window.__personas || [])) {
+      if (p.id !== persona.id && (p.email || "").trim().toLowerCase() === email) {
+        ids.add(p.id);
+      }
+    }
+  }
+  return ids;
+}
+
 function renderCalendarioMisTurnos() {
-  const misTurnosMes = turnosDelMes.filter(t => t.persona_id === personaActual.id);
+  const idsMios = idsVinculadosPersona(personaActual);
+  const misTurnosMes = turnosDelMes.filter(t => idsMios.has(t.persona_id));
   const porDia = {};
   for (const t of misTurnosMes) {
     const dia = Number(t.fecha.slice(8, 10));
@@ -1121,9 +1145,13 @@ function renderCalendarioMisTurnos() {
   for (let dia = 1; dia <= diasEnMes; dia++) {
     const turnosDia = porDia[dia] || [];
     const tieneTurno = turnosDia.length > 0;
-    const lineas = turnosDia.map(t =>
-      `<span class="turno-linea">${sinTildes(t.franjas_horarias?.sectores?.nombre || "")}</span>`
-    ).join("");
+    const lineas = turnosDia.map(t => {
+      const esOtroPerfil = t.persona_id !== personaActual.id;
+      const etiquetaEmpresa = esOtroPerfil
+        ? ` <span class="turno-linea-empresa">${t.perfiles?.empresa === "SUISAS" ? "(S)" : "(E)"}</span>`
+        : "";
+      return `<span class="turno-linea">${sinTildes(t.franjas_horarias?.sectores?.nombre || "")}${etiquetaEmpresa}</span>`;
+    }).join("");
     html += `<div class="calendario-celda${tieneTurno ? " con-turno" : ""}"${
       tieneTurno ? ` onclick="mostrarDetalleTurnoDia(${dia})" style="cursor:pointer;"` : ""
     }>
@@ -1173,9 +1201,13 @@ function mostrarDetalleTurnoDia(dia) {
       ? `${minutosAHora(f.hora_inicio)} a ${minutosAHora(f.hora_fin)}`
       : "Horario no cargado";
     const reten = f.es_reten ? " · Retén" : "";
+    const esOtroPerfil = t.persona_id !== personaActual.id;
+    const empresaTexto = esOtroPerfil
+      ? ` · ${t.perfiles?.empresa === "SUISAS" ? "SUISAS" : "Española"}`
+      : "";
     return `<div style="padding:10px 0; border-bottom:1px solid var(--line);">
       <div style="font-weight:700;">${sector}</div>
-      <div>${horario}${reten}</div>
+      <div>${horario}${reten}${empresaTexto}</div>
     </div>`;
   }).join("");
 
