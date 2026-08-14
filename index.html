@@ -153,6 +153,17 @@
   }
   .tab.active{ background: var(--primary); color:#fff; border-color:var(--primary); }
 
+  .mes-selector-wrap{
+    display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; margin-bottom:12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mes-tab{
+    flex:0 0 auto; padding:6px 14px; border-radius:999px; font-size:0.72rem; font-weight:600;
+    background: transparent; color: var(--ink-soft); border:1px solid var(--line);
+    cursor:pointer; white-space:nowrap;
+  }
+  .mes-tab.active{ background: var(--accent); color:#17262B; border-color:var(--accent); }
+
   table.grilla{
     border-collapse:collapse; font-size:0.78rem; table-layout:fixed; width:max-content;
   }
@@ -362,6 +373,9 @@
   </div>
 
   <div id="convocatoria-wrap" style="display:none;">
+    <div id="mes-selector-wrap-outer" style="display:none;">
+      <div class="mes-selector-wrap" id="mes-selector-wrap"></div>
+    </div>
     <div id="banner-turno-wrap"></div>
     <div id="banner-solicitud-wrap"></div>
 
@@ -434,7 +448,7 @@
   <div id="resultado"></div>
 </main>
 
-<footer class="hint">Octubre 2026 · datos en vivo desde Supabase</footer>
+<footer class="hint" id="footer-hint">datos en vivo desde Supabase</footer>
 
 <script>
 // =========================================================
@@ -442,11 +456,95 @@
 // =========================================================
 const SUPABASE_URL = "https://lcnvdgjedxikpqxxyzqr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_HAAHgNldQ3_wJH0EDrq3DA_u04xA7Yd";
-const MES_ACTUAL = "2026-10"; // mes que se muestra (formato YYYY-MM)
+// Mes con la convocatoria en curso (lo que antes era MES_ACTUAL). Cesar
+// lo sigue actualizando a mano al empezar cada ciclo mensual, igual que
+// antes. Es el mes que se ve por default al entrar a la app.
+const MES_CONVOCATORIA = "2026-10"; // formato YYYY-MM
 // =========================================================
 
 const personaSelect = document.getElementById("persona-select");
 const CLAVE_ULTIMA_PERSONA = "convocate_ultima_persona_id";
+
+// Mes que se está viendo actualmente en la app. Arranca siempre en el mes
+// de convocatoria en curso; se puede cambiar con el selector de "meses
+// publicados" (ver mesSelectorWrap más abajo) para ir a ver/gestionar un
+// mes ya cerrado (ej. pedir un cambio en el mes anterior mientras la
+// convocatoria del mes nuevo ya está corriendo). Reemplaza a la vieja
+// constante MES_ACTUAL en todos los usos del archivo.
+let mesActivo = MES_CONVOCATORIA;
+let mesesPublicadosDisponibles = []; // últimos 3 meses en meses_publicados, más recientes primero
+
+function nombreMesEs(mesYYYYMM) {
+  const NOMBRES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  const [anio, mes] = mesYYYYMM.split("-").map(Number);
+  return `${NOMBRES[mes - 1]} ${anio}`;
+}
+function nombreMesEsCapitalizado(mesYYYYMM) {
+  const n = nombreMesEs(mesYYYYMM);
+  return n.charAt(0).toUpperCase() + n.slice(1);
+}
+
+function actualizarFooterMes() {
+  const footer = document.getElementById("footer-hint");
+  if (footer) footer.textContent = `${nombreMesEsCapitalizado(mesActivo)} · datos en vivo desde Supabase`;
+}
+
+// Trae hasta los 3 meses más recientes de meses_publicados y arma el
+// selector debajo del banner de turno. Se llama una sola vez al elegir
+// persona (no cambia turno a turno). Si hay 0 o 1 mes publicado, el
+// selector queda oculto (no hay entre qué elegir todavía) — apenas
+// arranque un segundo mes publicado, aparece solo.
+async function cargarSelectorMeses() {
+  try {
+    const filas = await sb(`meses_publicados?select=mes&order=mes.desc&limit=3`);
+    mesesPublicadosDisponibles = (filas || []).map(f => f.mes.slice(0, 7));
+  } catch (e) {
+    mesesPublicadosDisponibles = [];
+  }
+  renderSelectorMeses();
+}
+
+function renderSelectorMeses() {
+  const outer = document.getElementById("mes-selector-wrap-outer");
+  const wrap = document.getElementById("mes-selector-wrap");
+  // El selector es EXCLUSIVAMENTE para meses publicados (donde se puede
+  // pedir un cambio). La convocatoria en curso (MES_CONVOCATORIA) NO
+  // aparece acá — se ve aparte, es la vista por default de la app. En
+  // régimen normal habrá 2 meses publicados a la vez (el que acaba de
+  // arrancar + el anterior); "maximo de 3" es solo un techo de seguridad.
+  if (!mesesPublicadosDisponibles.length) {
+    outer.style.display = "none";
+    return;
+  }
+  outer.style.display = "block";
+  let html = mesesPublicadosDisponibles.map(m =>
+    `<button class="mes-tab${m === mesActivo ? " active" : ""}" data-mes="${m}">${nombreMesEsCapitalizado(m)}</button>`
+  ).join("");
+  // Si se está mirando un mes publicado (no la convocatoria en curso),
+  // se agrega un botón aparte para volver.
+  if (mesActivo !== MES_CONVOCATORIA) {
+    html += `<button class="mes-tab" id="btn-volver-convocatoria">◀ Convocatoria en curso</button>`;
+  }
+  wrap.innerHTML = html;
+  wrap.querySelectorAll(".mes-tab[data-mes]").forEach(btn => {
+    btn.addEventListener("click", () => cambiarMesActivo(btn.dataset.mes));
+  });
+  const btnVolver = document.getElementById("btn-volver-convocatoria");
+  if (btnVolver) btnVolver.addEventListener("click", () => cambiarMesActivo(MES_CONVOCATORIA));
+}
+
+async function cambiarMesActivo(mes) {
+  if (mes === mesActivo) return;
+  mesActivo = mes;
+  actualizarFooterMes();
+  renderSelectorMeses();
+  // Al cambiar de mes se resetea el sector elegido y se recargan todos
+  // los datos (turnos, procesos activos, horas) para el nuevo mes.
+  sectorActual = null;
+  document.getElementById("btn-mis-turnos")?.classList.remove("activo");
+  grillaWrap.innerHTML = skeletonGrilla();
+  await cargarDatosConvocatoria();
+}
 
 // Skeleton loader para la grilla de turnos: barras que laten en vez del
 // texto "Cargando...". Es puramente visual, no depende de ningun dato.
@@ -523,7 +621,7 @@ let misParticipacionesSuisas = []; // participaciones activas en rondas SUISAS
 let sectorActual = null;
 let sectoresPorNombre = {};    // nombre -> { grupo, franjas: [{id,nombre}] }
 let misSectoresHabilitados = new Set(); // nombres de sector donde esta persona tiene habilitación personal (personal_sectores)
-let turnosDelMes = [];         // todos los turnos de MES_ACTUAL, ya "enriquecidos"
+let turnosDelMes = [];         // todos los turnos de mesActivo, ya "enriquecidos"
 let hojasExcelCache = {};      // nombre de sector -> estructura ya cargada desde hojas_excel
 
 async function sb(path, opts = {}) {
@@ -836,9 +934,14 @@ personaSelect.addEventListener("change", async (e) => {
   // Recordar a esta persona en este dispositivo para la próxima vez
   localStorage.setItem(CLAVE_ULTIMA_PERSONA, personaId);
   actualizarBotonesCambio();
+  // Cada vez que se elige/loguea una persona, el mes visible vuelve a
+  // ser el de convocatoria en curso (no se arrastra el mes que se
+  // hubiera estado mirando con otro usuario en este mismo dispositivo).
+  mesActivo = MES_CONVOCATORIA;
+  actualizarFooterMes();
   convocatoriaWrap.style.display = "block";
   grillaWrap.innerHTML = skeletonGrilla();
-  await cargarDatosConvocatoria();
+  await Promise.all([cargarDatosConvocatoria(), cargarSelectorMeses()]);
   // Estado inicial del chequeo automatico: si ya le tocaba el turno al
   // entrar (banner con boton "Confirmar convocatoria"), arrancar en true
   // para no disparar un refresco de mas en el primer ciclo de 25s.
@@ -919,7 +1022,7 @@ async function cargarDatosConvocatoria() {
       sb("procesos_convocatoria?select=grupo,tipo,estado,persona_actual_id,turno_vence&estado=in.(ACTIVO,PAUSADO)&empresa=eq.ESPANOLA"),
       sb(`rpc/calcular_horas_acumuladas`, {
         method: "POST",
-        body: JSON.stringify({ p_persona_id: personaActual.id, p_mes: `${MES_ACTUAL}-01` })
+        body: JSON.stringify({ p_persona_id: personaActual.id, p_mes: `${mesActivo}-01` })
       }),
       personaActual.empresa === "SUISAS"
         ? sb(`rondas_suisas?select=id,grupo,cupo,vence,persona_actual_id,` +
@@ -950,7 +1053,7 @@ async function cargarDatosConvocatoria() {
       try {
         horasLicencia = await sb(`rpc/horas_licencia_mes`, {
           method: "POST",
-          body: JSON.stringify({ p_persona_id: personaActual.id, p_mes: `${MES_ACTUAL}-01` })
+          body: JSON.stringify({ p_persona_id: personaActual.id, p_mes: `${mesActivo}-01` })
         });
         if (typeof horasLicencia !== "number") horasLicencia = 0;
       } catch (e) { /* si falla, se queda en 0 */ }
@@ -1037,7 +1140,7 @@ async function cargarDatosConvocatoria() {
               sb(`listas_prelacion?select=persona_id,orden&grupo=eq.${miEntrada.grupo}` +
                  `&empresa=eq.ESPANOLA&order=orden.asc`),
               sb(`exclusiones_mes?select=persona_id&grupo=eq.${miEntrada.grupo}` +
-                 `&mes=eq.${MES_ACTUAL}-01`)
+                 `&mes=eq.${mesActivo}-01`)
             ]);
             const excluidos = new Set((exclusiones || []).map(e => e.persona_id));
             const elegibles = (listaGrupo || []).filter(p => !excluidos.has(p.persona_id));
@@ -1059,7 +1162,7 @@ async function cargarDatosConvocatoria() {
       const pagina = await sb(
         `turnos?select=id,fecha,persona_id,nombre_externo,origen_vacante,col_excel,` +
         `franjas_horarias(nombre,sector_id,hora_inicio,hora_fin,horas_reales,es_reten,sectores(nombre)),perfiles(apellido,nombre,empresa,ficha)` +
-        `&fecha=gte.${MES_ACTUAL}-01&fecha=lte.${MES_ACTUAL}-31&order=id.asc`,
+        `&fecha=gte.${mesActivo}-01&fecha=lte.${mesActivo}-31&order=id.asc`,
         { headers: { "Range-Unit": "items", "Range": `${desde}-${desde + 999}` } }
       );
       if (!pagina || !pagina.length) break;
@@ -1132,10 +1235,10 @@ function renderCalendarioMisTurnos() {
   }
   porDiaMisTurnos = porDia;
 
-  const [anioStr, mesStr] = MES_ACTUAL.split("-");
+  const [anioStr, mesStr] = mesActivo.split("-");
   const anio = Number(anioStr), mes = Number(mesStr);
   const diasEnMes = new Date(anio, mes, 0).getDate();
-  const primerDia = new Date(`${MES_ACTUAL}-01T12:00:00`);
+  const primerDia = new Date(`${mesActivo}-01T12:00:00`);
   const offsetInicial = (primerDia.getDay() + 6) % 7; // 0 = lunes
 
   const nombresDia = ["L", "M", "X", "J", "V", "S", "D"];
@@ -1184,8 +1287,7 @@ function mostrarDetalleTurnoDia(dia) {
   const turnosDia = porDiaMisTurnos[dia] || [];
   if (!turnosDia.length) return;
 
-  const [anioStr, mesStr] = MES_ACTUAL.split("-");
-  const fechaTitulo = new Date(`${MES_ACTUAL}-${String(dia).padStart(2, "0")}T12:00:00`)
+  const fechaTitulo = new Date(`${mesActivo}-${String(dia).padStart(2, "0")}T12:00:00`)
     .toLocaleDateString("es-UY", { weekday: "long", day: "numeric", month: "long" });
 
   document.getElementById("detalle-turno-titulo").textContent =
@@ -1466,7 +1568,7 @@ async function renderGrilla() {
     let grisFila = false;
     if (esFilaDeDia) {
       dia = filas[r][dia_col].v;
-      const fechaStr = `${MES_ACTUAL}-${String(dia).padStart(2, "0")}`;
+      const fechaStr = `${mesActivo}-${String(dia).padStart(2, "0")}`;
       const d = new Date(fechaStr + "T12:00:00");
       const diaSemana = ((d.getDay() + 6) % 7) + 1; // 1=Lunes...7=Domingo
       const esFinde = diaSemana === 6 || diaSemana === 7;
@@ -1499,7 +1601,7 @@ async function renderGrilla() {
         const diaG = filas[r][14]?.v;
         const horarioG = (filas[r][15]?.v || "").toString().trim();
         if (typeof diaG === "number" && horarioG) {
-          const fechaG = `${MES_ACTUAL}-${String(diaG).padStart(2, "0")}`;
+          const fechaG = `${mesActivo}-${String(diaG).padStart(2, "0")}`;
           const tG = turnosDelMes.find(t =>
             t.franjas_horarias?.sectores?.nombre === "TC" &&
             t.fecha === fechaG &&
@@ -1975,7 +2077,7 @@ async function responderSolicitud(id, aceptar) {
 }
 
 document.getElementById("btn-abrir-cambio").addEventListener("click", async () => {
-  const publicado = await sb(`meses_publicados?select=mes&mes=eq.${MES_ACTUAL}-01`);
+  const publicado = await sb(`meses_publicados?select=mes&mes=eq.${mesActivo}-01`);
   if (!publicado || !publicado.length) {
     alert("No es posible modificar la convocatoria de este mes.");
     return;
@@ -1984,7 +2086,7 @@ document.getElementById("btn-abrir-cambio").addEventListener("click", async () =
   const misTurnos = await sb(
     `turnos?select=id,fecha,franjas_horarias(nombre,sectores(nombre))` +
     `&persona_id=eq.${personaActual.id}` +
-    `&fecha=gte.${MES_ACTUAL}-01&fecha=lte.${MES_ACTUAL}-31&order=fecha.asc`
+    `&fecha=gte.${mesActivo}-01&fecha=lte.${mesActivo}-31&order=fecha.asc`
   );
   selTurno.innerHTML = misTurnos.map(t =>
     `<option value="${t.id}">${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ` +
