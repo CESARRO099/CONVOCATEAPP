@@ -460,6 +460,11 @@ const SUPABASE_ANON_KEY = "sb_publishable_HAAHgNldQ3_wJH0EDrq3DA_u04xA7Yd";
 // lo sigue actualizando a mano al empezar cada ciclo mensual, igual que
 // antes. Es el mes que se ve por default al entrar a la app.
 const MES_CONVOCATORIA = "2026-10"; // formato YYYY-MM
+// Meses publicados anteriores a este no tienen datos cargados en Supabase
+// (agosto/septiembre están publicados en meses_publicados solo para Drive,
+// nunca se armaron en la app). Sus pestañas se muestran pero no llevan a
+// ningún lado hasta que Cesar confirme que hay datos reales para navegar.
+const PRIMER_MES_CON_DATOS = "2026-10";
 // =========================================================
 
 const personaSelect = document.getElementById("persona-select");
@@ -517,15 +522,19 @@ function renderSelectorMeses() {
     return;
   }
   outer.style.display = "block";
-  let html = mesesPublicadosDisponibles.map(m =>
-    `<button class="mes-tab${m === mesActivo ? " active" : ""}" data-mes="${m}">${nombreMesEsCapitalizado(m)}</button>`
-  ).join("");
+  let html = mesesPublicadosDisponibles.map(m => {
+    const sinDatos = m < PRIMER_MES_CON_DATOS;
+    const estiloInerte = sinDatos ? ` style="opacity:0.45; cursor:default;"` : "";
+    return `<button class="mes-tab${m === mesActivo ? " active" : ""}"${sinDatos ? "" : ` data-mes="${m}"`}${estiloInerte}>${nombreMesEsCapitalizado(m)}</button>`;
+  }).join("");
   // Si se está mirando un mes publicado (no la convocatoria en curso),
   // se agrega un botón aparte para volver.
   if (mesActivo !== MES_CONVOCATORIA) {
     html += `<button class="mes-tab" id="btn-volver-convocatoria">◀ Convocatoria en curso</button>`;
   }
   wrap.innerHTML = html;
+  // Solo las pestañas con data-mes (las que sí tienen datos) quedan
+  // clickeables; las inertes (agosto/septiembre) se muestran sin handler.
   wrap.querySelectorAll(".mes-tab[data-mes]").forEach(btn => {
     btn.addEventListener("click", () => cambiarMesActivo(btn.dataset.mes));
   });
