@@ -1489,15 +1489,16 @@ async function renderGrilla() {
   }
   grillaWrap.innerHTML = skeletonGrilla();
 
-  let estructura = hojasExcelCache[sectorActual];
+  const claveCacheHoja = `${sectorActual}|${mesActivo}`;
+  let estructura = hojasExcelCache[claveCacheHoja];
   if (!estructura) {
-    const filas2 = await sb(`hojas_excel?select=estructura&sector=eq.${sectorActual}`);
+    const filas2 = await sb(`hojas_excel?select=estructura&sector=eq.${sectorActual}&mes=eq.${mesActivo}-01`);
     if (!filas2 || !filas2.length) {
-      grillaWrap.innerHTML = `<div class="status-msg">No hay estructura cargada para ${sectorActual}.</div>`;
+      grillaWrap.innerHTML = `<div class="status-msg">No hay estructura cargada para ${sectorActual} en ${mesActivo}.</div>`;
       return;
     }
     estructura = filas2[0].estructura;
-    hojasExcelCache[sectorActual] = estructura;
+    hojasExcelCache[claveCacheHoja] = estructura;
   }
 
   const info = sectoresPorNombre[sectorActual];
