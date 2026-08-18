@@ -43,6 +43,9 @@
   .status-msg{ font-size:0.8rem; color:var(--ink-soft); text-align:center; padding:14px; }
   .msg-ok{ color:var(--ok); font-size:0.82rem; margin-top:8px; }
   .msg-error{ color:var(--warn); font-size:0.82rem; margin-top:8px; }
+  #login-gate{ position:fixed; inset:0; background:var(--bg); z-index:999; display:flex; align-items:center; justify-content:center; padding:16px; }
+  #login-gate .card{ width:min(360px,92vw); }
+  #login-gate input{ margin-bottom:10px; }
 </style>
 </head>
 <body>
@@ -56,7 +59,18 @@
   <div id="notif-coord-status" style="margin-top:6px; text-align:center; font-size:0.8rem; color:var(--ink-soft);"></div>
 </header>
 
-<main>
+<div id="login-gate">
+  <div class="card">
+    <h2 id="login-titulo">Ingresá la contraseña de coordinador</h2>
+    <p id="login-texto" style="font-size:0.82rem; color:var(--ink-soft); margin-top:-6px;"></p>
+    <input type="password" id="login-input" placeholder="Contraseña" autocomplete="current-password" />
+    <input type="password" id="login-input-confirmar" placeholder="Repetí la contraseña" autocomplete="new-password" style="display:none;" />
+    <button class="btn-primary" id="login-btn" style="width:100%;">Entrar</button>
+    <div id="login-error" class="msg-error"></div>
+  </div>
+</div>
+
+<main style="display:none;">
   <div class="card">
     <h2>Gestión de planilla</h2>
     <label>Sector</label>
@@ -156,6 +170,67 @@ async function sb(path, opts = {}) {
 }
 
 let personas = [];
+let coordPassword = null; // contraseña del coordinador, solo en memoria de esta pestaña
+
+// ---------------------------------------------------------
+// Login del coordinador: la contraseña se pide al abrir esta
+// página y se manda junto con cada acción sensible (activar
+// celda, habilitar, editar planilla, resolver cambios) para
+// que el servidor la vuelva a verificar cada vez. Nunca se
+// guarda en el dispositivo.
+// ---------------------------------------------------------
+const loginGate = document.getElementById("login-gate");
+const loginTitulo = document.getElementById("login-titulo");
+const loginTexto = document.getElementById("login-texto");
+const loginInput = document.getElementById("login-input");
+const loginInputConfirmar = document.getElementById("login-input-confirmar");
+const loginBtn = document.getElementById("login-btn");
+const loginError = document.getElementById("login-error");
+
+async function iniciarLoginCoordinador() {
+  const tiene = await sb(`rpc/tiene_password_coordinador`, { method: "POST", body: JSON.stringify({}) });
+  const modoRegistro = tiene !== true;
+  loginTitulo.textContent = modoRegistro ? "Creá la contraseña de coordinador" : "Ingresá la contraseña de coordinador";
+  loginTexto.textContent = modoRegistro
+    ? "Todavía no hay contraseña creada. Elegí una de al menos 6 caracteres — la va a necesitar cualquiera que quiera usar este panel."
+    : "";
+  loginInputConfirmar.style.display = modoRegistro ? "block" : "none";
+
+  loginBtn.onclick = async () => {
+    const pass = loginInput.value;
+    loginError.textContent = "";
+    if (modoRegistro) {
+      if (pass.length < 6) { loginError.textContent = "Tiene que tener al menos 6 caracteres."; return; }
+      if (pass !== loginInputConfirmar.value) { loginError.textContent = "Las dos contraseñas no coinciden."; return; }
+      const ok = await sb(`rpc/registrar_password_coordinador`, {
+        method: "POST",
+        body: JSON.stringify({ p_password: pass })
+      });
+      if (ok === true) {
+        coordPassword = pass;
+        loginGate.style.display = "none";
+        document.querySelector("main").style.display = "";
+        iniciarApp();
+      } else {
+        loginError.textContent = "No se pudo crear la contraseña. Puede que ya exista una — recargá la página.";
+      }
+    } else {
+      const ok = await sb(`rpc/verificar_password_coordinador`, {
+        method: "POST",
+        body: JSON.stringify({ p_password: pass })
+      });
+      if (ok === true) {
+        coordPassword = pass;
+        loginGate.style.display = "none";
+        document.querySelector("main").style.display = "";
+        iniciarApp();
+      } else {
+        loginError.textContent = "Contraseña incorrecta.";
+      }
+    }
+  };
+}
+iniciarLoginCoordinador();
 
 function sinTildes(s) {
   return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -266,7 +341,7 @@ document.getElementById("btn-habilitar").addEventListener("click", async () => {
   try {
     await sb(`rpc/coordinador_habilitar`, {
       method: "POST",
-      body: JSON.stringify({ p_mes: MES, p_grupo: grupo, p_tipo: tipo, p_persona_id: personaId })
+      body: JSON.stringify({ p_mes: MES, p_grupo: grupo, p_tipo: tipo, p_persona_id: personaId, p_password_coordinador: coordPassword })
     });
     msg.innerHTML = `<div class="msg-ok">✓ Habilitada, se le mandó la notificación.</div>`;
     cargarProcesos();
@@ -283,7 +358,7 @@ document.getElementById("btn-excluir").addEventListener("click", async () => {
   try {
     await sb(`rpc/marcar_no_participa`, {
       method: "POST",
-      body: JSON.stringify({ p_persona_id: personaId, p_mes: MES, p_grupo: grupo, p_registrado_por: "COORDINADOR" })
+      body: JSON.stringify({ p_persona_id: personaId, p_mes: MES, p_grupo: grupo, p_registrado_por: "COORDINADOR", p_password_coordinador: coordPassword })
     });
     msg.innerHTML = `<div class="msg-ok">✓ Anotado. Si estaba habilitada ahora, ya se la salteó.</div>`;
     cargarProcesos();
@@ -292,7 +367,7 @@ document.getElementById("btn-excluir").addEventListener("click", async () => {
   }
 });
 
-(async () => {
+async function iniciarApp() {
   await cargarPersonas();
   await cargarProcesos();
   await cargarProcesosSuisas();
@@ -301,7 +376,7 @@ document.getElementById("btn-excluir").addEventListener("click", async () => {
   setInterval(cargarProcesos, 15000);
   setInterval(cargarProcesosSuisas, 15000);
   setInterval(cargarSolicitudes, 15000);
-})();
+}
 
 // ---------------------------------------------------------
 // Gestión de planilla del coordinador
@@ -616,7 +691,8 @@ function renderGrillaCoord() {
           p_sector: coordSectorActual,
           p_fila: fila,
           p_col: col,
-          p_nuevo_texto: nuevo === "" ? null : nuevo
+          p_nuevo_texto: nuevo === "" ? null : nuevo,
+          p_password_coordinador: coordPassword
         })
       });
       if (ok !== false) {
@@ -708,7 +784,8 @@ document.getElementById("coord-btn-vacante").addEventListener("click", async () 
         p_dia: celdaSeleccionada.dia,
         p_col_excel: celdaSeleccionada.col,
         p_mes: MES_COORD + "-01",
-        p_origen: "coordinador"
+        p_origen: "coordinador",
+        p_password_coordinador: coordPassword
       })
     });
   }
@@ -729,7 +806,8 @@ document.getElementById("coord-btn-activar").addEventListener("click", async () 
       p_sector: coordSectorActual,
       p_dia: celdaSeleccionada.dia,
       p_col_excel: celdaSeleccionada.col,
-      p_mes: MES_COORD + "-01"
+      p_mes: MES_COORD + "-01",
+      p_password_coordinador: coordPassword
     })
   });
   document.getElementById("coord-modal").style.display = "none";
@@ -755,7 +833,8 @@ document.getElementById("coord-btn-asignar").addEventListener("click", async () 
         p_dia: celdaSeleccionada.dia,
         p_col_excel: celdaSeleccionada.col,
         p_mes: MES_COORD + "-01",
-        p_persona_id: personaId
+        p_persona_id: personaId,
+        p_password_coordinador: coordPassword
       })
     });
   }
@@ -779,7 +858,8 @@ document.getElementById("coord-btn-desactivar").addEventListener("click", async 
         p_dia: celdaSeleccionada.dia,
         p_col_excel: celdaSeleccionada.col,
         p_mes: MES_COORD + "-01",
-        p_persona_id: null
+        p_persona_id: null,
+        p_password_coordinador: coordPassword
       })
     });
   }
@@ -844,7 +924,7 @@ async function cargarSolicitudes() {
 async function resolverSolicitud(id, aprobar) {
   const ok = await sb(`rpc/resolver_solicitud_cambio`, {
     method: "POST",
-    body: JSON.stringify({ p_solicitud_id: id, p_aprobar: aprobar })
+    body: JSON.stringify({ p_solicitud_id: id, p_aprobar: aprobar, p_password_coordinador: coordPassword })
   });
   if (ok === true) {
     await cargarSolicitudes();
