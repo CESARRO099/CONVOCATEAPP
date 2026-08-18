@@ -558,8 +558,8 @@ document.getElementById("coord-sector").addEventListener("change", async (e) => 
   coordSectorActual = sector;
   document.getElementById("coord-grilla-wrap").innerHTML = `<div class="status-msg">Cargando...</div>`;
 
-  // Cargar estructura de hojas_excel
-  const hojas = await sbCoord(`hojas_excel?select=estructura&sector=eq.${sector}`);
+  // Cargar estructura de hojas_excel (filtrada por mes activo del coordinador)
+  const hojas = await sbCoord(`hojas_excel?select=estructura&sector=eq.${sector}&mes=eq.${MES_COORD}-01`);
   if (!hojas || !hojas.length) {
     document.getElementById("coord-grilla-wrap").innerHTML = `<div class="status-msg">Sin estructura cargada.</div>`;
     return;
@@ -769,11 +769,12 @@ function renderGrillaCoord() {
           p_fila: fila,
           p_col: col,
           p_nuevo_texto: nuevo === "" ? null : nuevo,
-          p_password_coordinador: coordPassword
+          p_password_coordinador: coordPassword,
+          p_mes: `${MES_COORD}-01`
         })
       });
       if (ok !== false) {
-        const hojas = await sbCoord(`hojas_excel?select=estructura&sector=eq.${coordSectorActual}`);
+        const hojas = await sbCoord(`hojas_excel?select=estructura&sector=eq.${coordSectorActual}&mes=eq.${MES_COORD}-01`);
         if (hojas && hojas.length) coordEstructura = hojas[0].estructura;
         renderGrillaCoord();
       } else {
