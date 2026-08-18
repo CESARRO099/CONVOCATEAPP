@@ -648,6 +648,7 @@ let sectoresPorNombre = {};    // nombre -> { grupo, franjas: [{id,nombre}] }
 let misSectoresHabilitados = new Set(); // nombres de sector donde esta persona tiene habilitación personal (personal_sectores)
 let turnosDelMes = [];         // todos los turnos de mesActivo, ya "enriquecidos"
 let hojasExcelCache = {};      // nombre de sector -> estructura ya cargada desde hojas_excel
+let feriadosSet = new Set();   // fechas "YYYY-MM-DD" de la tabla feriados, cargadas desde Supabase
 
 async function sb(path, opts = {}) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -1047,7 +1048,7 @@ function cambiarUsuario() {
 
 async function cargarDatosConvocatoria() {
   try {
-    const [sectores, franjas, procesos, horas, misRondasSuisas, misHabilitaciones] = await Promise.all([
+    const [sectores, franjas, procesos, horas, misRondasSuisas, misHabilitaciones, feriados] = await Promise.all([
       sb("sectores?select=id,nombre,grupo"),
       sb("franjas_horarias?select=id,nombre,sector_id,es_reten&order=id.asc"),
       sb("procesos_convocatoria?select=grupo,tipo,estado,persona_actual_id,turno_vence&estado=in.(ACTIVO,PAUSADO)&empresa=eq.ESPANOLA"),
@@ -1061,9 +1062,11 @@ async function cargarDatosConvocatoria() {
              `&estado=eq.ACTIVA&persona_actual_id=eq.${personaActual.id}` +
              `&participaciones_ronda_suisas.persona_id=eq.${personaActual.id}`)
         : Promise.resolve([]),
-      sb(`personal_sectores?select=sectores(nombre)&persona_id=eq.${personaActual.id}`)
+      sb(`personal_sectores?select=sectores(nombre)&persona_id=eq.${personaActual.id}`),
+      sb("feriados?select=fecha")
     ]);
 
+    feriadosSet = new Set((feriados || []).map(f => f.fecha));
     misParticipacionesSuisas = misRondasSuisas || [];
     misSectoresHabilitados = new Set((misHabilitaciones || []).map(h => h.sectores?.nombre).filter(Boolean));
     sectoresPorNombre = {};
@@ -1604,7 +1607,7 @@ async function renderGrilla() {
       const d = new Date(fechaStr + "T12:00:00");
       const diaSemana = ((d.getDay() + 6) % 7) + 1; // 1=Lunes...7=Domingo
       const esFinde = diaSemana === 6 || diaSemana === 7;
-      const esFeriado = dia === 12 && sectorActual !== 'BSE';
+      const esFeriado = feriadosSet.has(fechaStr) && sectorActual !== 'BSE';
       grisFila = esFinde || esFeriado;
     }
 
