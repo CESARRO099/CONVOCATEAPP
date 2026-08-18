@@ -458,13 +458,11 @@ const SUPABASE_URL = "https://lcnvdgjedxikpqxxyzqr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_HAAHgNldQ3_wJH0EDrq3DA_u04xA7Yd";
 // Mes con la convocatoria en curso (lo que antes era MES_ACTUAL). Cesar
 // lo sigue actualizando a mano al empezar cada ciclo mensual, igual que
-// antes. Es el mes que se ve por default al entrar a la app.
-const MES_CONVOCATORIA = "2026-10"; // formato YYYY-MM
-// Meses publicados anteriores a este no tienen datos cargados en Supabase
-// (agosto/septiembre están publicados en meses_publicados solo para Drive,
-// nunca se armaron en la app). Sus pestañas se muestran pero no llevan a
-// ningún lado hasta que Cesar confirme que hay datos reales para navegar.
-const PRIMER_MES_CON_DATOS = "2026-10";
+// antes. Es el mes que se ve por default al entrar a la app — SIEMPRE,
+// esté o no publicado ni tenga o no procesos activos en
+// procesos_convocatoria. "Publicado" (ver mas_publicados abajo) no
+// controla esto, solo controla el boton de pedir cambios.
+const MES_CONVOCATORIA = "2026-11"; // formato YYYY-MM
 // =========================================================
 
 const personaSelect = document.getElementById("persona-select");
@@ -494,15 +492,28 @@ function actualizarFooterMes() {
   if (footer) footer.textContent = `${nombreMesEsCapitalizado(mesActivo)} · datos en vivo desde Supabase`;
 }
 
-// Trae hasta los 3 meses más recientes de meses_publicados y arma el
-// selector debajo del banner de turno. Se llama una sola vez al elegir
-// persona (no cambia turno a turno). Si hay 0 o 1 mes publicado, el
-// selector queda oculto (no hay entre qué elegir todavía) — apenas
-// arranque un segundo mes publicado, aparece solo.
+// NUEVO (18 ago 2026): la visibilidad de un mes NO depende de si está
+// publicado en meses_publicados — eso solo controla el botón de pedir
+// cambios (ver btn-abrir-cambio más abajo, que sigue consultando esa
+// tabla aparte). Acá arma la lista de pestañas mirando directamente qué
+// meses tienen turnos cargados en la base (excluyendo el mes de
+// convocatoria en curso, que ya se ve aparte por defecto), así un mes
+// recién cargado se ve enseguida aunque todavía no se haya publicado ni
+// arrancado su convocatoria.
 async function cargarSelectorMeses() {
   try {
-    const filas = await sb(`meses_publicados?select=mes&order=mes.desc&limit=3`);
-    mesesPublicadosDisponibles = (filas || []).map(f => f.mes.slice(0, 7));
+    const [primero] = await sb(`turnos?select=fecha&order=fecha.asc&limit=1`);
+    const [ultimo] = await sb(`turnos?select=fecha&order=fecha.desc&limit=1`);
+    if (!primero || !ultimo) { mesesPublicadosDisponibles = []; renderSelectorMeses(); return; }
+    const meses = [];
+    let [anio, mes] = primero.fecha.slice(0, 7).split("-").map(Number);
+    const [anioFin, mesFin] = ultimo.fecha.slice(0, 7).split("-").map(Number);
+    while (anio < anioFin || (anio === anioFin && mes <= mesFin)) {
+      const mesStr = `${anio}-${String(mes).padStart(2, "0")}`;
+      if (mesStr !== MES_CONVOCATORIA) meses.push(mesStr);
+      mes++; if (mes > 12) { mes = 1; anio++; }
+    }
+    mesesPublicadosDisponibles = meses.slice(-3); // tope de seguridad, últimos 3
   } catch (e) {
     mesesPublicadosDisponibles = [];
   }
@@ -512,29 +523,25 @@ async function cargarSelectorMeses() {
 function renderSelectorMeses() {
   const outer = document.getElementById("mes-selector-wrap-outer");
   const wrap = document.getElementById("mes-selector-wrap");
-  // El selector es EXCLUSIVAMENTE para meses publicados (donde se puede
-  // pedir un cambio). La convocatoria en curso (MES_CONVOCATORIA) NO
-  // aparece acá — se ve aparte, es la vista por default de la app. En
-  // régimen normal habrá 2 meses publicados a la vez (el que acaba de
-  // arrancar + el anterior); "maximo de 3" es solo un techo de seguridad.
+  // Estas pestañas son de CONSULTA de otros meses con datos reales (no
+  // dependen de si están publicados — eso solo habilita el botón de
+  // pedir cambios, ver btn-abrir-cambio). La convocatoria en curso
+  // (MES_CONVOCATORIA) NO aparece acá — se ve aparte, es la vista por
+  // default de la app.
   if (!mesesPublicadosDisponibles.length) {
     outer.style.display = "none";
     return;
   }
   outer.style.display = "block";
   let html = mesesPublicadosDisponibles.map(m => {
-    const sinDatos = m < PRIMER_MES_CON_DATOS;
-    const estiloInerte = sinDatos ? ` style="opacity:0.45; cursor:default;"` : "";
-    return `<button class="mes-tab${m === mesActivo ? " active" : ""}"${sinDatos ? "" : ` data-mes="${m}"`}${estiloInerte}>${nombreMesEsCapitalizado(m)}</button>`;
+    return `<button class="mes-tab${m === mesActivo ? " active" : ""}" data-mes="${m}">${nombreMesEsCapitalizado(m)}</button>`;
   }).join("");
-  // Si se está mirando un mes publicado (no la convocatoria en curso),
-  // se agrega un botón aparte para volver.
+  // Si se está mirando otro mes (no la convocatoria en curso), se agrega
+  // un botón aparte para volver.
   if (mesActivo !== MES_CONVOCATORIA) {
     html += `<button class="mes-tab" id="btn-volver-convocatoria">◀ Convocatoria en curso</button>`;
   }
   wrap.innerHTML = html;
-  // Solo las pestañas con data-mes (las que sí tienen datos) quedan
-  // clickeables; las inertes (agosto/septiembre) se muestran sin handler.
   wrap.querySelectorAll(".mes-tab[data-mes]").forEach(btn => {
     btn.addEventListener("click", () => cambiarMesActivo(btn.dataset.mes));
   });
