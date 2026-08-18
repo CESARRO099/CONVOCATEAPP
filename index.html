@@ -785,13 +785,17 @@ document.addEventListener("click", (e) => {
 });
 
 // ---------------------------------------------------------
-// Sistema de PIN: la primera vez que alguien elige su nombre
-// en un dispositivo, crea un PIN de 4 dígitos. Si después se
-// elige ese mismo nombre desde otro dispositivo (o se borró el
-// dato local), hay que ingresar el PIN para poder seguir. Una
-// vez validado, ese dispositivo queda "recordado" y no vuelve
-// a preguntar.
+// Sistema de PIN: la primera vez que alguien elige su nombre,
+// crea un PIN de 4 dígitos. Cada vez que se abre la app se
+// vuelve a pedir (no se guarda de forma permanente) porque el
+// PIN viaja junto con cada acción que se manda al servidor
+// (tomar turno, dejar turno, pedir cambio) para que el servidor
+// la vuelva a verificar y nadie pueda actuar en nombre de otra
+// persona sin saber su PIN real.
 // ---------------------------------------------------------
+let personaPin = null;        // PIN en memoria de la sesión actual (no se persiste)
+let personaIdConPin = null;   // a qué persona corresponde ese PIN
+
 const modalPin = document.getElementById("modal-pin");
 const pinTitulo = document.getElementById("pin-titulo");
 const pinTexto = document.getElementById("pin-texto");
@@ -844,7 +848,8 @@ function pedirPin(personaId, modoRegistro) {
           body: JSON.stringify({ p_persona_id: personaId, p_pin: pin })
         });
         if (ok === true) {
-          localStorage.setItem(claveLocalPin(personaId), "1");
+          personaPin = pin;
+          personaIdConPin = personaId;
           limpiar();
           resolve(true);
         } else {
@@ -856,7 +861,8 @@ function pedirPin(personaId, modoRegistro) {
           body: JSON.stringify({ p_persona_id: personaId, p_pin: pin })
         });
         if (ok === true) {
-          localStorage.setItem(claveLocalPin(personaId), "1");
+          personaPin = pin;
+          personaIdConPin = personaId;
           limpiar();
           resolve(true);
         } else {
@@ -878,7 +884,7 @@ function pedirPin(personaId, modoRegistro) {
 // Verifica (o pide crear) el PIN de una persona. Devuelve true si
 // quedó habilitado para continuar, false si canceló o falló.
 async function asegurarPin(personaId) {
-  if (localStorage.getItem(claveLocalPin(personaId))) return true;
+  if (personaIdConPin === personaId && personaPin) return true;
   const tiene = await sb(`rpc/tiene_pin`, {
     method: "POST",
     body: JSON.stringify({ p_persona_id: personaId })
@@ -1932,7 +1938,7 @@ async function confirmarConvocatoria() {
   try {
     const ok = await sb(`rpc/confirmar_convocatoria`, {
       method: "POST",
-      body: JSON.stringify({ p_persona_id: personaActual.id })
+      body: JSON.stringify({ p_persona_id: personaActual.id, p_pin: personaPin })
     });
     if (ok === true) {
       sonidoConvocatoriaCerrada();
@@ -1950,7 +1956,7 @@ async function rechazarTurno(turnoId, btn = null) {
   try {
     const ok = await sb(`rpc/dejar_turno`, {
       method: "POST",
-      body: JSON.stringify({ p_turno_id: turnoId, p_persona_id: personaActual.id })
+      body: JSON.stringify({ p_turno_id: turnoId, p_persona_id: personaActual.id, p_pin: personaPin })
     });
     if (ok === true) {
       // Actualizar localmente el turno en turnosDelMes para que el re-render
@@ -1998,7 +2004,7 @@ async function elegirTurno(turnoId, btn = null) {
 
     const resultado = await sb(`rpc/tomar_turno`, {
       method: "POST",
-      body: JSON.stringify({ p_turno_id: turnoId, p_persona_id: personaActual.id })
+      body: JSON.stringify({ p_turno_id: turnoId, p_persona_id: personaActual.id, p_pin: personaPin })
     });
     if (resultado === 'ok' || resultado === 'ok_libero_fija') {
       await cargarDatosConvocatoria();
@@ -2012,6 +2018,10 @@ async function elegirTurno(turnoId, btn = null) {
     } else if (resultado === 'ya_tomado') {
       alert("Este turno ya fue tomado por otro.");
       await cargarDatosConvocatoria();
+    } else if (resultado === 'pin_incorrecto') {
+      alert("PIN incorrecto. Volvé a seleccionar tu nombre para ingresarlo de nuevo.");
+      personaPin = null;
+      personaIdConPin = null;
     } else {
       alert("No es tu turno para elegir.");
       await cargarDatosConvocatoria();
@@ -2070,7 +2080,8 @@ async function responderSolicitud(id, aceptar) {
     body: JSON.stringify({
       p_solicitud_id: id,
       p_cobertura_id: personaActual.id,
-      p_aceptar: aceptar
+      p_aceptar: aceptar,
+      p_pin: personaPin
     })
   });
   if (ok === true) {
@@ -2124,7 +2135,8 @@ document.getElementById("btn-enviar-cambio").addEventListener("click", async () 
     body: JSON.stringify({
       p_turno_id: turnoId,
       p_solicitante_id: personaActual.id,
-      p_cobertura_id: coberturaId
+      p_cobertura_id: coberturaId,
+      p_pin: personaPin
     })
   });
 
