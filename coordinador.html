@@ -163,6 +163,15 @@ const SUPABASE_ANON_KEY = "sb_publishable_HAAHgNldQ3_wJH0EDrq3DA_u04xA7Yd";
 let MES = "2026-10-01";
 let MES_COORD = "2026-10"; // en formato YYYY-MM, se mantiene sincronizado con MES
 
+// NUEVO (18 ago 2026): mismo arreglo que en index.html — antes se usaba
+// "-31" fijo como último día del mes, lo que rompía en meses con menos
+// de 31 días (abril, junio, septiembre, noviembre, febrero).
+function ultimoDiaMesStrCoord(mesYYYYMM) {
+  const [anio, mes] = mesYYYYMM.split("-").map(Number);
+  const ultimoDia = new Date(anio, mes, 0).getDate();
+  return `${mesYYYYMM}-${String(ultimoDia).padStart(2, "0")}`;
+}
+
 async function sb(path, opts = {}) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     ...opts,
@@ -494,7 +503,7 @@ async function mostrarResumenVacantes() {
   const filas = await sbCoord(
     `turnos?select=fecha,franjas_horarias(nombre,horas_reales,sectores(nombre))` +
     `&persona_id=is.null` +
-    `&fecha=gte.${MES_COORD}-01&fecha=lte.${MES_COORD}-31&order=fecha.asc`
+    `&fecha=gte.${MES_COORD}-01&fecha=lte.${ultimoDiaMesStrCoord(MES_COORD)}&order=fecha.asc`
   );
 
   const nombresDia = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
@@ -948,7 +957,7 @@ async function recargarTurnos() {
       `turnos?select=id,fecha,col_excel,persona_id,origen_vacante,` +
       `franjas_horarias!inner(nombre,sector_id,sectores!inner(nombre)),perfiles(apellido,nombre,empresa,ficha)` +
       `&franjas_horarias.sector_id=eq.${sectorId}` +
-      `&fecha=gte.${MES_COORD}-01&fecha=lte.${MES_COORD}-31&order=id.asc`,
+      `&fecha=gte.${MES_COORD}-01&fecha=lte.${ultimoDiaMesStrCoord(MES_COORD)}&order=id.asc`,
       { headers: { "Range-Unit": "items", Range: `${desde}-${desde+999}` } }
     );
     if (!pag || !pag.length) break;
