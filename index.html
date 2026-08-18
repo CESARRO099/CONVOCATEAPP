@@ -486,6 +486,15 @@ function nombreMesEsCapitalizado(mesYYYYMM) {
   const n = nombreMesEs(mesYYYYMM);
   return n.charAt(0).toUpperCase() + n.slice(1);
 }
+// NUEVO (18 ago 2026): antes las consultas de turnos usaban "-31" fijo
+// como último día del mes, lo que rompía en cualquier mes con menos de
+// 31 días (abril, junio, septiembre, noviembre, febrero). Esto calcula
+// el último día real de cada mes.
+function ultimoDiaMesStr(mesYYYYMM) {
+  const [anio, mes] = mesYYYYMM.split("-").map(Number);
+  const ultimoDia = new Date(anio, mes, 0).getDate(); // día 0 del mes siguiente = último día de este mes
+  return `${mesYYYYMM}-${String(ultimoDia).padStart(2, "0")}`;
+}
 
 function actualizarFooterMes() {
   const footer = document.getElementById("footer-hint");
@@ -1184,7 +1193,7 @@ async function cargarDatosConvocatoria() {
       const pagina = await sb(
         `turnos?select=id,fecha,persona_id,nombre_externo,origen_vacante,col_excel,` +
         `franjas_horarias(nombre,sector_id,hora_inicio,hora_fin,horas_reales,es_reten,sectores(nombre)),perfiles(apellido,nombre,empresa,ficha)` +
-        `&fecha=gte.${mesActivo}-01&fecha=lte.${mesActivo}-31&order=id.asc`,
+        `&fecha=gte.${mesActivo}-01&fecha=lte.${ultimoDiaMesStr(mesActivo)}&order=id.asc`,
         { headers: { "Range-Unit": "items", "Range": `${desde}-${desde + 999}` } }
       );
       if (!pagina || !pagina.length) break;
@@ -2113,7 +2122,7 @@ document.getElementById("btn-abrir-cambio").addEventListener("click", async () =
   const misTurnos = await sb(
     `turnos?select=id,fecha,franjas_horarias(nombre,sectores(nombre))` +
     `&persona_id=eq.${personaActual.id}` +
-    `&fecha=gte.${mesActivo}-01&fecha=lte.${mesActivo}-31&order=fecha.asc`
+    `&fecha=gte.${mesActivo}-01&fecha=lte.${ultimoDiaMesStr(mesActivo)}&order=fecha.asc`
   );
   selTurno.innerHTML = misTurnos.map(t =>
     `<option value="${t.id}">${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ` +
