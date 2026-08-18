@@ -52,7 +52,7 @@
 
 <header>
   <img class="logo" src="./logo-completo.png" alt="ConvocaTE - Asociación Española" />
-  <p>Panel del coordinador · Octubre 2026</p>
+  <p id="header-mes-coord">Panel del coordinador · Octubre 2026</p>
   <button id="btn-notif-coord" style="display:none; margin-top:8px; padding:6px 12px; border:2px solid var(--ink); border-radius:6px; background:transparent; color:var(--ink); font-family:inherit; font-size:0.78rem; font-weight:700; cursor:pointer;">
     🔔 Activar avisos de coordinador
   </button>
@@ -73,6 +73,8 @@
 <main style="display:none;">
   <div class="card">
     <h2>Gestión de planilla</h2>
+    <label>Mes</label>
+    <div id="coord-mes-selector" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;"></div>
     <label>Sector</label>
     <select id="coord-sector">
       <option value="">— elegí un sector —</option>
@@ -152,7 +154,14 @@
 <script>
 const SUPABASE_URL = "https://lcnvdgjedxikpqxxyzqr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_HAAHgNldQ3_wJH0EDrq3DA_u04xA7Yd";
-const MES = "2026-10-01";
+// NUEVO (18 ago 2026): antes esto era un mes fijo ("2026-10-01") que
+// solo Cesar podia cambiar editando el codigo. Ahora es el mes que el
+// coordinador esta mirando en este momento en el panel — se cambia con
+// los botones de "Mes" arriba de "Gestion de planilla", sin tocar
+// codigo ni afectar lo que ven los funcionarios (esto es 100% de
+// lectura/gestion interna, no publica ni arranca nada solo).
+let MES = "2026-10-01";
+let MES_COORD = "2026-10"; // en formato YYYY-MM, se mantiene sincronizado con MES
 
 async function sb(path, opts = {}) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -368,6 +377,8 @@ document.getElementById("btn-excluir").addEventListener("click", async () => {
 });
 
 async function iniciarApp() {
+  await cargarMesesDisponiblesCoord();
+  renderSelectorMesCoord();
   await cargarPersonas();
   await cargarProcesos();
   await cargarProcesosSuisas();
@@ -379,9 +390,66 @@ async function iniciarApp() {
 }
 
 // ---------------------------------------------------------
-// Gestión de planilla del coordinador
+// Selector de mes del panel: arma la lista de botones (Octubre,
+// Noviembre, etc.) mirando directamente qué meses tienen turnos
+// cargados en la base (del primero al último), así no hace falta
+// tocar código cuando se cargue diciembre. Cambiar de mes acá NO
+// publica nada ni arranca ninguna convocatoria — es solo para que
+// Cesar pueda revisar/gestionar cualquier mes ya cargado.
 // ---------------------------------------------------------
-const MES_COORD = "2026-10";
+let MESES_DISPONIBLES_COORD = ["2026-10"];
+
+async function cargarMesesDisponiblesCoord() {
+  try {
+    const [primero] = await sbCoord(`turnos?select=fecha&order=fecha.asc&limit=1`);
+    const [ultimo] = await sbCoord(`turnos?select=fecha&order=fecha.desc&limit=1`);
+    if (!primero || !ultimo) return;
+    const meses = [];
+    let [a, m] = primero.fecha.slice(0, 7).split("-").map(Number);
+    const [aFin, mFin] = ultimo.fecha.slice(0, 7).split("-").map(Number);
+    while (a < aFin || (a === aFin && m <= mFin)) {
+      meses.push(`${a}-${String(m).padStart(2, "0")}`);
+      m++; if (m > 12) { m = 1; a++; }
+    }
+    if (meses.length) MESES_DISPONIBLES_COORD = meses;
+  } catch (e) { /* si falla, se queda con el default */ }
+}
+
+function nombreMesEsCoord(mesYYYYMM) {
+  const NOMBRES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  const [anio, mes] = mesYYYYMM.split("-").map(Number);
+  const n = NOMBRES[mes - 1];
+  return `${n.charAt(0).toUpperCase()}${n.slice(1)} ${anio}`;
+}
+
+function renderSelectorMesCoord() {
+  const wrap = document.getElementById("coord-mes-selector");
+  wrap.innerHTML = MESES_DISPONIBLES_COORD.map(m => {
+    const activo = m === MES_COORD;
+    const estilo = activo
+      ? "background:var(--primary);color:#fff;"
+      : "background:var(--primary-soft);color:var(--primary);";
+    return `<button data-mes="${m}" style="${estilo}">${nombreMesEsCoord(m)}</button>`;
+  }).join("");
+  wrap.querySelectorAll("button[data-mes]").forEach(btn => {
+    btn.addEventListener("click", () => cambiarMesCoord(btn.dataset.mes));
+  });
+  const header = document.getElementById("header-mes-coord");
+  if (header) header.textContent = `Panel del coordinador · ${nombreMesEsCoord(MES_COORD)}`;
+}
+
+async function cambiarMesCoord(mes) {
+  if (mes === MES_COORD) return;
+  MES_COORD = mes;
+  MES = mes + "-01";
+  renderSelectorMesCoord();
+  // Al cambiar de mes se resetea el sector elegido (la grilla es
+  // distinta) y se recargan procesos/rondas para el nuevo mes.
+  document.getElementById("coord-sector").value = "";
+  coordSectorActual = null;
+  document.getElementById("coord-grilla-wrap").innerHTML = "";
+  await Promise.all([cargarProcesos(), cargarProcesosSuisas()]);
+}
 
 async function sbCoord(path, opts = {}) {
   const { headers: extraHeaders, ...restOpts } = opts;
