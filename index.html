@@ -1683,20 +1683,17 @@ async function renderGrilla() {
           } else {
             contenido = tG.perfiles ? nombreAsignado(tG.perfiles) : sinTildes(tG.nombre_externo).toUpperCase();
           }
-        } else if (tG && tG.origen_vacante === 'coordinador') {
-          // El coordinador liberó esta celda a propósito (ej. por
-          // licencia): ofrecerla a convocatoria igual que una amarilla.
+        } else if (tG) {
+          // El turno existe en Supabase y está vacante (por ejemplo, se
+          // liberó por licencia, o es un CUBRIR de fin de semana/feriado
+          // cargado con origen_vacante='planilla'): hay que ofrecerlo
+          // igual que una celda amarilla, no dejarlo en blanco.
           if (puedoElegirAca) {
             contenido = `<button class="btn-elegir" data-turno-id="${tG.id}">Elegir</button>`;
           } else {
             contenido = "LIBRE";
             clases += " libre-texto";
           }
-        } else if (tG) {
-          // Existe un turno en Supabase y está vacante (por ejemplo,
-          // se liberó por licencia): no mostrar el texto viejo del Excel.
-          contenido = "";
-          clases += " gris";
         } else if (celda.v) {
           // No hay ningún turno cargado para esta celda (ej. SUISAS sin
           // gestión todavía): mostrar el texto del Excel de solo lectura
