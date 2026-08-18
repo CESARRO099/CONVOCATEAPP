@@ -386,6 +386,7 @@ document.getElementById("btn-excluir").addEventListener("click", async () => {
 });
 
 async function iniciarApp() {
+  await cargarFeriadosCoord();
   await cargarMesesDisponiblesCoord();
   renderSelectorMesCoord();
   await cargarPersonas();
@@ -407,6 +408,15 @@ async function iniciarApp() {
 // Cesar pueda revisar/gestionar cualquier mes ya cargado.
 // ---------------------------------------------------------
 let MESES_DISPONIBLES_COORD = ["2026-10"];
+
+async function cargarFeriadosCoord() {
+  try {
+    const feriados = await sbCoord(`feriados?select=fecha`);
+    feriadosSet = new Set((feriados || []).map(f => f.fecha));
+  } catch (e) {
+    feriadosSet = new Set();
+  }
+}
 
 async function cargarMesesDisponiblesCoord() {
   try {
@@ -480,6 +490,7 @@ let coordPersonas = [];
 let coordTurnos = [];
 let coordSectorActual = null;
 let coordEstructura = null;
+let feriadosSet = new Set();   // fechas "YYYY-MM-DD" de la tabla feriados, cargadas desde Supabase
 let celdaSeleccionada = null;
 
 // Cargar todas las personas
@@ -629,7 +640,7 @@ function renderGrillaCoord() {
         const d = new Date(fechaStr + "T12:00:00");
         const diaSemana = ((d.getDay() + 6) % 7) + 1; // 1=Lunes...7=Domingo
         const esFinde = diaSemana === 6 || diaSemana === 7;
-        const esFeriado = dia === 12 && coordSectorActual !== "BSE";
+        const esFeriado = feriadosSet.has(fechaStr) && coordSectorActual !== "BSE";
         esGrisFinde = esFinde || esFeriado;
       }
 
