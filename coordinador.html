@@ -482,7 +482,17 @@ async function sbCoord(path, opts = {}) {
     ...restOpts
   });
   if (r.status === 204) return true;
-  const data = await r.json();
+  const text = await r.text();
+  const data = text ? JSON.parse(text) : null;
+  // NUEVO: antes esta función devolvía "data" sin chequear r.ok, así que
+  // un pedido fallido (permiso, conflicto, lo que sea) se leía como si
+  // hubiera funcionado — el botón cerraba el modal sin avisar nada. Ahora
+  // un fallo tira una excepción real para que quien llama pueda mostrar
+  // el error en vez de fallar en silencio.
+  if (!r.ok) {
+    const msg = (data && (data.message || data.error_description || data.hint)) || `Error ${r.status}`;
+    throw new Error(msg);
+  }
   return data;
 }
 
@@ -857,29 +867,33 @@ function abrirModalCelda(td) {
 }
 
 document.getElementById("coord-btn-vacante").addEventListener("click", async () => {
-  if (celdaSeleccionada.turnoId) {
-    // Turno existente — limpiar persona_id para dejarlo vacante
-    await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, {
-      method: "PATCH",
-      body: JSON.stringify({ persona_id: null, asignado_en: null, origen_vacante: "coordinador" })
-    });
-  } else {
-    // Sin turno en Supabase (nombre viene del Excel) — crear turno vacante
-    // con origen_vacante='coordinador' para que se muestre como LIBRE
-    await sbCoord(`rpc/coordinador_activar_celda`, {
-      method: "POST",
-      body: JSON.stringify({
-        p_sector: coordSectorActual,
-        p_dia: celdaSeleccionada.dia,
-        p_col_excel: celdaSeleccionada.col,
-        p_mes: MES_COORD + "-01",
-        p_origen: "coordinador",
-        p_password_coordinador: coordPassword
-      })
-    });
+  try {
+    if (celdaSeleccionada.turnoId) {
+      // Turno existente — limpiar persona_id para dejarlo vacante
+      await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ persona_id: null, asignado_en: null, origen_vacante: "coordinador" })
+      });
+    } else {
+      // Sin turno en Supabase (nombre viene del Excel) — crear turno vacante
+      // con origen_vacante='coordinador' para que se muestre como LIBRE
+      await sbCoord(`rpc/coordinador_activar_celda`, {
+        method: "POST",
+        body: JSON.stringify({
+          p_sector: coordSectorActual,
+          p_dia: celdaSeleccionada.dia,
+          p_col_excel: celdaSeleccionada.col,
+          p_mes: MES_COORD + "-01",
+          p_origen: "coordinador",
+          p_password_coordinador: coordPassword
+        })
+      });
+    }
+    document.getElementById("coord-modal").style.display = "none";
+    await recargarTurnos();
+  } catch (e) {
+    alert("No se pudo dejar la celda vacante: " + e.message);
   }
-  document.getElementById("coord-modal").style.display = "none";
-  await recargarTurnos();
 });
 
 document.getElementById("coord-btn-cerrar").addEventListener("click", () => {
@@ -887,73 +901,85 @@ document.getElementById("coord-btn-cerrar").addEventListener("click", () => {
 });
 
 document.getElementById("coord-btn-activar").addEventListener("click", async () => {
-  // Insertar turno vacante — necesitamos franja_id por col_excel
-  // Buscamos en coordTurnos o hacemos un insert por col_excel
-  const ok = await sbCoord(`rpc/coordinador_activar_celda`, {
-    method: "POST",
-    body: JSON.stringify({
-      p_sector: coordSectorActual,
-      p_dia: celdaSeleccionada.dia,
-      p_col_excel: celdaSeleccionada.col,
-      p_mes: MES_COORD + "-01",
-      p_password_coordinador: coordPassword
-    })
-  });
-  document.getElementById("coord-modal").style.display = "none";
-  await recargarTurnos();
+  try {
+    // Insertar turno vacante — necesitamos franja_id por col_excel
+    // Buscamos en coordTurnos o hacemos un insert por col_excel
+    await sbCoord(`rpc/coordinador_activar_celda`, {
+      method: "POST",
+      body: JSON.stringify({
+        p_sector: coordSectorActual,
+        p_dia: celdaSeleccionada.dia,
+        p_col_excel: celdaSeleccionada.col,
+        p_mes: MES_COORD + "-01",
+        p_password_coordinador: coordPassword
+      })
+    });
+    document.getElementById("coord-modal").style.display = "none";
+    await recargarTurnos();
+  } catch (e) {
+    alert("No se pudo activar la celda: " + e.message);
+  }
 });
 
 document.getElementById("coord-btn-asignar").addEventListener("click", async () => {
   const personaId = document.getElementById("coord-sel-persona").value;
   if (!personaId) return;
 
-  if (celdaSeleccionada.turnoId) {
-    // Actualizar turno existente
-    await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, {
-      method: "PATCH",
-      body: JSON.stringify({ persona_id: personaId, asignado_en: new Date().toISOString() })
-    });
-  } else {
-    // Activar y asignar
-    await sbCoord(`rpc/coordinador_activar_celda`, {
-      method: "POST",
-      body: JSON.stringify({
-        p_sector: coordSectorActual,
-        p_dia: celdaSeleccionada.dia,
-        p_col_excel: celdaSeleccionada.col,
-        p_mes: MES_COORD + "-01",
-        p_persona_id: personaId,
-        p_password_coordinador: coordPassword
-      })
-    });
+  try {
+    if (celdaSeleccionada.turnoId) {
+      // Actualizar turno existente
+      await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ persona_id: personaId, asignado_en: new Date().toISOString() })
+      });
+    } else {
+      // Activar y asignar
+      await sbCoord(`rpc/coordinador_activar_celda`, {
+        method: "POST",
+        body: JSON.stringify({
+          p_sector: coordSectorActual,
+          p_dia: celdaSeleccionada.dia,
+          p_col_excel: celdaSeleccionada.col,
+          p_mes: MES_COORD + "-01",
+          p_persona_id: personaId,
+          p_password_coordinador: coordPassword
+        })
+      });
+    }
+    document.getElementById("coord-modal").style.display = "none";
+    await recargarTurnos();
+  } catch (e) {
+    alert("No se pudo asignar la persona: " + e.message);
   }
-  document.getElementById("coord-modal").style.display = "none";
-  await recargarTurnos();
 });
 
 document.getElementById("coord-btn-desactivar").addEventListener("click", async () => {
   if (!confirm("¿Seguro que querés quitar esta celda de la convocatoria?")) return;
 
-  if (celdaSeleccionada.turnoId) {
-    // Turno existente — borrar
-    await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, { method: "DELETE" });
-  } else {
-    // Sin turno — insertar con persona_id = null y origen = 'sin_convocatoria'
-    // para que pise el valor del Excel y no aparezca como disponible
-    await sbCoord(`rpc/coordinador_activar_celda`, {
-      method: "POST",
-      body: JSON.stringify({
-        p_sector: coordSectorActual,
-        p_dia: celdaSeleccionada.dia,
-        p_col_excel: celdaSeleccionada.col,
-        p_mes: MES_COORD + "-01",
-        p_persona_id: null,
-        p_password_coordinador: coordPassword
-      })
-    });
+  try {
+    if (celdaSeleccionada.turnoId) {
+      // Turno existente — borrar
+      await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, { method: "DELETE" });
+    } else {
+      // Sin turno — insertar con persona_id = null y origen = 'sin_convocatoria'
+      // para que pise el valor del Excel y no aparezca como disponible
+      await sbCoord(`rpc/coordinador_activar_celda`, {
+        method: "POST",
+        body: JSON.stringify({
+          p_sector: coordSectorActual,
+          p_dia: celdaSeleccionada.dia,
+          p_col_excel: celdaSeleccionada.col,
+          p_mes: MES_COORD + "-01",
+          p_persona_id: null,
+          p_password_coordinador: coordPassword
+        })
+      });
+    }
+    document.getElementById("coord-modal").style.display = "none";
+    await recargarTurnos();
+  } catch (e) {
+    alert("No se pudo quitar la celda de la convocatoria: " + e.message);
   }
-  document.getElementById("coord-modal").style.display = "none";
-  await recargarTurnos();
 });
 
 async function recargarTurnos() {
