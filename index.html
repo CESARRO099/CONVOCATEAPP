@@ -1758,6 +1758,11 @@ async function renderGrilla() {
       }
 
       if (grisFila && (setColumnasGrises ? setColumnasGrises.has(c) : true)) clases += " gris";
+      // Pintura pura: si la celda del Excel viene marcada gris (ej. días sin
+      // actividad que Cesar pinta a mano en CCA), se pinta gris acá también.
+      // Esto es solo estética — no participa en ninguna decisión de arriba
+      // sobre qué contenido mostrar.
+      if (celda.g) clases += " gris";
 
       // Columna de días: sticky para no perderse al hacer scroll horizontal
       const esColDia = esFilaDeDia && c === dia_col;
