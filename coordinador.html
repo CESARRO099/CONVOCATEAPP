@@ -370,7 +370,7 @@ document.getElementById("btn-habilitar").addEventListener("click", async () => {
       method: "POST",
       body: JSON.stringify({ p_mes: MES, p_grupo: grupo, p_tipo: tipo, p_persona_id: personaId, p_password_coordinador: coordPassword })
     });
-    msg.innerHTML = `<div class="msg-ok">✓ Habilitada, se le mandó la notificación.</div>`;
+    msg.innerHTML = `<div class="msg-ok">✓ Habilitada en ${nombreMesEsCoord(MES_COORD)}, se le mandó la notificación.</div>`;
     cargarProcesos();
   } catch (e) {
     msg.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
@@ -386,7 +386,7 @@ document.getElementById("btn-excluir-todas").addEventListener("click", async () 
       method: "POST",
       body: JSON.stringify({ p_persona_id: personaId, p_mes: MES, p_registrado_por: "COORDINADOR", p_password_coordinador: coordPassword })
     });
-    msg.innerHTML = `<div class="msg-ok">✓ Excluida de: ${listas.join(", ")}. Si le tocaba el turno ahora en alguna, ya se la salteó.</div>`;
+    msg.innerHTML = `<div class="msg-ok">✓ Excluida de ${nombreMesEsCoord(MES_COORD)} en: ${listas.join(", ")}. Si le tocaba el turno ahora en alguna, ya se la salteó.</div>`;
     cargarProcesos();
   } catch (e) {
     msg.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
@@ -403,7 +403,7 @@ document.getElementById("btn-excluir").addEventListener("click", async () => {
       method: "POST",
       body: JSON.stringify({ p_persona_id: personaId, p_mes: MES, p_grupo: grupo, p_registrado_por: "COORDINADOR", p_password_coordinador: coordPassword })
     });
-    msg.innerHTML = `<div class="msg-ok">✓ Anotado en esa lista puntual. Si estaba habilitada ahora, ya se la salteó.</div>`;
+    msg.innerHTML = `<div class="msg-ok">✓ Excluida de ${nombreMesEsCoord(MES_COORD)} en la lista ${grupo}. Si estaba habilitada ahora, ya se la salteó.</div>`;
     cargarProcesos();
   } catch (e) {
     msg.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
@@ -492,6 +492,13 @@ async function cambiarMesCoord(mes) {
   document.getElementById("coord-sector").value = "";
   coordSectorActual = null;
   document.getElementById("coord-grilla-wrap").innerHTML = "";
+  // Los mensajes de resultado (habilitar / excluir) quedan asociados al
+  // mes en el que se hizo la acción; al cambiar de pestaña de mes hay
+  // que limpiarlos para que no parezca que aplican al mes nuevo.
+  const habMsg = document.getElementById("hab-msg");
+  if (habMsg) habMsg.innerHTML = "";
+  const excMsg = document.getElementById("exc-msg");
+  if (excMsg) excMsg.innerHTML = "";
   await Promise.all([cargarProcesos(), cargarProcesosSuisas()]);
 }
 
