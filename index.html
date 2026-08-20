@@ -1684,145 +1684,51 @@ async function renderGrilla() {
             contenido = "";
           }
         }
-      } else if (esFilaDeDia && celda.g && c !== dia_col) {
-        // Celda gris en el Excel = no se trabaja ese día en esa franja
-        // PERO si hay un turno asignado en Supabase, mostrar el nombre igual
-        const franjaKeyG = `${dia}-col:${c}`;
-        const tG = porCeldaReal[franjaKeyG];
-        if (tG && (tG.persona_id || tG.nombre_externo)) {
-          const esPropio = tG.persona_id === personaActual?.id;
-          if (esPropio && puedoElegirAca) {
-            contenido = `<button class="btn-rechazar" data-turno-id="${tG.id}">Rechazar</button>`;
-          } else {
-            contenido = tG.perfiles ? nombreAsignado(tG.perfiles) : sinTildes(tG.nombre_externo).toUpperCase();
-          }
-        } else if (tG) {
-          // Existe un turno real en Supabase y está vacante (ya sea porque
-          // el coordinador lo liberó a propósito, o porque la franja
-          // realmente trabaja ese día de la semana según dias_semana aunque
-          // la celda base del Excel esté pintada gris): ofrecerlo igual que
-          // cualquier otro turno vacante, en vez de esconderlo en blanco.
-          if (puedoElegirAca) {
-            contenido = `<button class="btn-elegir" data-turno-id="${tG.id}">Elegir</button>`;
-          } else {
-            contenido = "LIBRE";
-            clases += " libre-texto";
-          }
-        } else if (celda.v) {
-          // No hay ningún turno cargado para esta celda (ej. SUISAS sin
-          // gestión todavía): mostrar el texto del Excel de solo lectura
-          contenido = sinTildes(String(celda.v)).toUpperCase();
-          clases += " gris";
-        } else {
-          contenido = "";
-          clases += " gris";
-        }
       } else if ((esFilaDeDia || r > last_day_row) && typeof celda.v === 'number' && celda.v >= 1 && celda.v <= 31) {
         // Celda con un número de 1 a 31. Si pertenece al calendario
         // principal (columnas_grises lo marca), pintar según fin de
-        // semana/feriado. Si es de una tabla aparte con su propio número
-        // de día (ej. "cobertura por SUISAS" en TC), dejarla sin colorear
-        // especial — pero igual "consumir" la celda acá para que no caiga
-        // después en la rama de rojo/SUISAS y tape el número con "LIBRE".
+        // semana/feriado — es solo pintura, no cambia qué se muestra. Si es
+        // de una tabla aparte con su propio número de día (ej. "cobertura
+        // por SUISAS" en TC), se deja sin colorear especial, pero igual se
+        // "consume" la celda acá para que no caiga después en la rama
+        // general y tape el número con "LIBRE".
         if (!setColumnasGrises || setColumnasGrises.has(c)) {
           clases += grisFila ? " gris" : " dia-semana";
         }
       } else if ((esFilaDeDia || r > last_day_row) && typeof celda.v === 'string' && /^\d{1,2}\s*A\s*\d{1,2}$/i.test(celda.v.trim())) {
         // Texto con forma de horario (ej. "8 A 20", "0 A 8"): es información
-        // fija de referencia, no "quién está asignado" — se muestra tal cual,
-        // no se tapa con LIBRE aunque la celda esté marcada en rojo (SUISAS).
+        // fija de referencia, no "quién está asignado" — se muestra tal cual.
         contenido = celda.v;
-      } else if ((esFilaDeDia || r > last_day_row) && celda.r) {
-        // Celda roja en el Excel = turno de SUISAS. Antes era texto fijo
-        // ("LIBRE" sin acción); ahora se comporta igual que la amarilla:
-        // si hay alguien asignado lo muestra, si le toca elegir a quien
-        // mira ofrece el botón, si no simplemente dice LIBRE.
-        // El día real de esta celda puede no ser el del calendario
-        // principal (ej. tablas aparte como "cobertura por SUISAS" en TC,
-        // que tienen su propio número de día en la columna anterior).
-        let diaLocal = dia;
-        const posibleDia = filas[r][c - 1]?.v;
-        if (typeof posibleDia === 'number' && posibleDia >= 1 && posibleDia <= 31) {
-          diaLocal = posibleDia;
-        }
-        const franjaKeyR = `${diaLocal}-col:${100 + r}`;
-        let tR = porCeldaReal[franjaKeyR];
-        if (!tR) {
-          // Respaldo: columna roja "normal" (no es una sub-tabla aparte con
-          // su propio número de día), buscar con el mismo esquema que usa
-          // la rama amarilla, por el col_excel real de la celda.
-          tR = porCeldaReal[`${diaLocal}-col:${c}`];
-        }
-        // Cobertura fija reservada para SUISAS (nombre_externo="SUISAS", sin
-        // persona_id todavía): es un turno real que hay que cubrir, no un
-        // texto informativo fijo. Se ofrece "Elegir" solo a la persona de
-        // SUISAS a la que le toca su turno de ronda ahora mismo.
-        const suisasPuedeElegirR = tR && !tR.persona_id && tR.nombre_externo === "SUISAS"
-          && personaActual?.empresa === "SUISAS" && puedoElegirAca;
-        if (suisasPuedeElegirR) {
-          contenido = `<button class="btn-elegir" data-turno-id="${tR.id}">Elegir</button>`;
-        } else if (tR && (tR.persona_id || tR.nombre_externo)) {
-          const esPropio = tR.persona_id === personaActual?.id;
-          if (esPropio && puedoElegirAca) {
-            contenido = `<button class="btn-rechazar" data-turno-id="${tR.id}">Rechazar</button>`;
-          } else {
-            contenido = tR.perfiles ? nombreAsignado(tR.perfiles) : sinTildes(tR.nombre_externo).toUpperCase();
-          }
-        } else if (puedoElegirAca && tR) {
-          contenido = `<button class="btn-elegir" data-turno-id="${tR.id}">Elegir</button>`;
-        } else {
-          contenido = "LIBRE";
-          clases += " libre-suisas";
-        }
-      } else if (esFilaDeDia && celda.y) {
-        // Celda amarilla = disponible para Española, hay que ofrecerla
-        const franjaKey = `${dia}-col:${c}`;
-        const t = porCeldaReal[franjaKey] || porCeldaReal[`${dia}-${textoEncabezado(estructura, c, sectorActual)}`];
-        if (t && (t.persona_id || t.nombre_externo)) {
-          const esPropio = t.persona_id === personaActual?.id;
-          if (esPropio && puedoElegirAca) {
-            contenido = `<button class="btn-rechazar" data-turno-id="${t.id}">Rechazar</button>`;
-          } else {
-            contenido = t.perfiles ? nombreAsignado(t.perfiles) : sinTildes(t.nombre_externo).toUpperCase();
-          }
-        } else if (puedoElegirAca && t) {
-          contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
-        } else {
-          contenido = "LIBRE";
-          clases += " libre-texto";
-        }
       } else if (esFilaDeDia) {
-        // Celda con texto o vacía — verificar si hay turno en Supabase que tenga prioridad
-        const franjaKey = `${dia}-col:${c}`;
-        const t = porCeldaReal[franjaKey];
+        // Regla única para toda celda de datos, sin mirar el color de la
+        // celda (gris/amarillo/rojo) para nada: el color es solo pintura de
+        // fondo (fin de semana/feriado), nunca decide qué se muestra acá.
+        // 1) Si hay un turno real cargado en la base para este día+columna,
+        //    manda su estado real (asignado / vacante).
+        // 2) Si no hay ningún turno cargado, manda el texto de la celda tal
+        //    cual viene del Excel (puede ser un apellido, "CUBRIR", "SUISAS", etc.).
+        let diaLocal = dia;
+        if (sectorActual === "TC") {
+          // Sub-tablas de TC con su propio número de día en la columna
+          // anterior (ej. la fila "16 A 20 (H)" de cobertura SUISAS).
+          const posibleDia = filas[r][c - 1]?.v;
+          if (typeof posibleDia === 'number' && posibleDia >= 1 && posibleDia <= 31) {
+            diaLocal = posibleDia;
+          }
+        }
+        const t = porCeldaReal[`${diaLocal}-col:${100 + r}`]
+          || porCeldaReal[`${diaLocal}-col:${c}`]
+          || porCeldaReal[`${dia}-${textoEncabezado(estructura, c, sectorActual)}`];
+
         // Cobertura fija reservada para SUISAS (nombre_externo="SUISAS", sin
         // persona_id todavía): es un turno real que hay que cubrir, no un
         // texto informativo fijo. Se ofrece "Elegir" solo a la persona de
         // SUISAS a la que le toca su turno de ronda ahora mismo.
         const suisasPuedeElegir = t && !t.persona_id && t.nombre_externo === "SUISAS"
           && personaActual?.empresa === "SUISAS" && puedoElegirAca;
+
         if (suisasPuedeElegir) {
           contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
-        } else if (t && t.origen_vacante === 'coordinador') {
-          // Turno modificado por el coordinador — tiene prioridad sobre el Excel
-          if (t.persona_id || t.nombre_externo) {
-            const esPropio = t.persona_id === personaActual?.id;
-            if (esPropio && puedoElegirAca) {
-              contenido = `<button class="btn-rechazar" data-turno-id="${t.id}">Rechazar</button>`;
-            } else {
-              contenido = t.perfiles ? nombreAsignado(t.perfiles) : sinTildes(t.nombre_externo).toUpperCase();
-            }
-          } else {
-            // Vacante creada por coordinador
-            if (puedoElegirAca) {
-              contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
-            } else if (sectorActual === "FOTOG") {
-              contenido = "";
-            } else {
-              contenido = "LIBRE";
-              clases += " libre-texto";
-            }
-          }
         } else if (t && (t.persona_id || t.nombre_externo)) {
           const esPropio = t.persona_id === personaActual?.id;
           if (esPropio && puedoElegirAca) {
@@ -1830,22 +1736,24 @@ async function renderGrilla() {
           } else {
             contenido = t.perfiles ? nombreAsignado(t.perfiles) : sinTildes(t.nombre_externo).toUpperCase();
           }
-        } else if (puedoElegirAca && t && !t.persona_id && !t.nombre_externo) {
-          contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
-        } else if (t && !t.persona_id && !t.nombre_externo) {
-          // El turno existe en la base y está vacante (por ejemplo, se
-          // liberó por licencia), pero no es el turno de elegir de
-          // quien mira: mostrar LIBRE en vez del texto fijo del Excel.
-          // FOTOG queda excluido a propósito: ese sector nunca se cubre
-          // por convocatoria, así que se vacía en vez de mostrar el
-          // texto crudo del Excel (que quedaría mostrando el nombre
-          // del titular real de licencia, como si estuviera disponible).
-          if (sectorActual === "FOTOG") {
+        } else if (t) {
+          // Turno real vacante (nadie asignado todavía, por la razón que sea).
+          if (puedoElegirAca) {
+            contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
+          } else if (sectorActual === "FOTOG") {
+            // FOTOG nunca se cubre por convocatoria: se vacía en vez de
+            // mostrar el texto crudo del Excel.
             contenido = "";
           } else {
             contenido = "LIBRE";
             clases += " libre-texto";
           }
+        } else if (celda.v) {
+          // No hay ningún turno cargado en la base para esta celda: se
+          // muestra el texto del Excel tal cual (de solo lectura).
+          contenido = sinTildes(String(celda.v)).toUpperCase();
+        } else {
+          contenido = "";
         }
       }
 
