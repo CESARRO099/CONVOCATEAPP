@@ -87,6 +87,13 @@
     <button id="btn-resumen-vacantes" class="btn-primary" style="margin-top:8px;">
       📋 Ver vacantes (todos los sectores)
     </button>
+    <div style="display:flex; justify-content:flex-end; margin:8px 0;">
+      <div style="display:flex; align-items:center; background:#f4f4f4; border-radius:20px; padding:2px;">
+        <button id="btn-zoom-out-coord" style="width:28px; height:28px; border:none; border-radius:50%; background:transparent; color:var(--ink-soft); font-size:0.95rem; cursor:pointer; line-height:1;">－</button>
+        <button id="btn-zoom-reset-coord" style="height:28px; padding:0 8px; border:none; background:transparent; color:var(--ink-soft); font-size:0.7rem; cursor:pointer;">100%</button>
+        <button id="btn-zoom-in-coord" style="width:28px; height:28px; border:none; border-radius:50%; background:transparent; color:var(--ink-soft); font-size:0.95rem; cursor:pointer; line-height:1;">＋</button>
+      </div>
+    </div>
     <div id="coord-grilla-wrap" style="overflow-x:auto;"></div>
   </div>
 
@@ -409,6 +416,33 @@ document.getElementById("btn-excluir").addEventListener("click", async () => {
     msg.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
   }
 });
+
+// Zoom manual de la planilla del panel de coordinador (mismo mecanismo
+// que ya existe en el panel público index.html, clave de localStorage
+// separada para no interferir entre las dos vistas).
+const ZOOM_MIN_COORD = 0.3, ZOOM_MAX_COORD = 1.4, ZOOM_PASO_COORD = 0.1;
+let coordZoom = Number(localStorage.getItem("convocate_zoom_coord")) || 0.6;
+
+function aplicarZoomCoord() {
+  const wrap = document.getElementById("coord-grilla-wrap");
+  if (wrap) wrap.style.zoom = coordZoom;
+  const btn = document.getElementById("btn-zoom-reset-coord");
+  if (btn) btn.textContent = `${Math.round(coordZoom * 100)}%`;
+  localStorage.setItem("convocate_zoom_coord", coordZoom);
+}
+document.getElementById("btn-zoom-in-coord").addEventListener("click", () => {
+  coordZoom = Math.min(ZOOM_MAX_COORD, Math.round((coordZoom + ZOOM_PASO_COORD) * 100) / 100);
+  aplicarZoomCoord();
+});
+document.getElementById("btn-zoom-out-coord").addEventListener("click", () => {
+  coordZoom = Math.max(ZOOM_MIN_COORD, Math.round((coordZoom - ZOOM_PASO_COORD) * 100) / 100);
+  aplicarZoomCoord();
+});
+document.getElementById("btn-zoom-reset-coord").addEventListener("click", () => {
+  coordZoom = 0.6;
+  aplicarZoomCoord();
+});
+aplicarZoomCoord();
 
 async function iniciarApp() {
   await cargarFeriadosCoord();
