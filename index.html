@@ -1752,11 +1752,13 @@ async function renderGrilla() {
           // No hay ningún turno cargado en la base para esta celda: se
           // muestra el texto del Excel tal cual (de solo lectura).
           contenido = sinTildes(String(celda.v)).toUpperCase();
-        } else if (!grisFila) {
+        } else if (!grisFila && c !== dia_col && (!setColumnasGrises || setColumnasGrises.has(c))) {
           // Día de semana (no sábado/domingo/feriado) sin turno cargado y
-          // sin texto en el Excel: no hay actividad ahí. Se marca con "X"
-          // en vez de depender de que la celda haya quedado pintada gris
-          // al importar (esa marca no siempre está guardada).
+          // sin texto en el Excel, en una columna real de la tabla (no un
+          // margen, separador o columna de notas): no hay actividad ahí.
+          // Se marca con "X" en vez de depender de que la celda haya
+          // quedado pintada gris al importar (esa marca no siempre está
+          // guardada).
           contenido = "X";
         } else {
           contenido = "";
