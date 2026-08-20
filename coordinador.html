@@ -823,7 +823,8 @@ function renderGrillaCoord() {
       // Cualquier celda fuera de la lógica de turnos (referencias al pie,
       // notas de LA/FR/LIBRE, etc.) se puede editar con doble click,
       // directo desde el panel, sin depender de pedírselo a otra sesión.
-      const dataEditar = ` data-editar-sector="${coordSectorActual}" data-editar-fila="${r}" data-editar-col="${c}"`;
+      const tieneBordes = bd.t && bd.b && bd.l && bd.r ? "1" : "0";
+      const dataEditar = ` data-editar-sector="${coordSectorActual}" data-editar-fila="${r}" data-editar-col="${c}" data-editar-bordes="${tieneBordes}"`;
       html += `<td${attrs}${dataAttr}${dataEditar} style="padding:3px 5px;text-align:center;vertical-align:middle;${borde}${bg}${bold}${cursor}height:22px;">${contenido}</td>`;
     }
     html += `</tr>`;
@@ -846,9 +847,19 @@ function renderGrillaCoord() {
     td.addEventListener("dblclick", async () => {
       const fila = Number(td.dataset.editarFila);
       const col = Number(td.dataset.editarCol);
+      const teniaBordes = td.dataset.editarBordes === "1";
       const actual = td.textContent.trim();
       const nuevo = window.prompt("Editar texto de esta celda:", actual);
       if (nuevo === null) return; // canceló
+      // También se puede agregar (o quitar) el recuadro de bordes de la
+      // celda, para el caso de una celda nueva de referencia (ej. "LIC:
+      // 4 al 30") que antes estaba en blanco y sin borde, igual que las
+      // demás celdas de la tabla.
+      const conBordes = window.confirm(
+        `¿Esta celda debe tener el recuadro de bordes (como el resto de la tabla)?\n\n` +
+        `Ahora mismo: ${teniaBordes ? "SÍ tiene bordes" : "NO tiene bordes"}.\n\n` +
+        `Aceptar = poner bordes. Cancelar = dejar sin bordes.`
+      );
       const ok = await sbCoord(`rpc/editar_texto_celda_excel`, {
         method: "POST",
         body: JSON.stringify({
@@ -856,6 +867,7 @@ function renderGrillaCoord() {
           p_fila: fila,
           p_col: col,
           p_nuevo_texto: nuevo === "" ? null : nuevo,
+          p_bordes: conBordes,
           p_password_coordinador: coordPassword,
           p_mes: `${MES_COORD}-01`
         })
