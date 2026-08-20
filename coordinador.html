@@ -138,16 +138,25 @@
 
   <div class="card">
     <h2>No participará este mes</h2>
-    <label>Grupo</label>
-    <select id="exc-grupo">
-      <option value="RESTO">RESTO</option>
-      <option value="TC">TC</option>
-      <option value="RESO">RESO</option>
-    </select>
     <label>Persona</label>
     <select id="exc-persona"><option value="">Cargando...</option></select>
-    <button class="btn-warn" id="btn-excluir" style="width:100%;">Marcar que no participa</button>
+    <button class="btn-warn" id="btn-excluir-todas" style="width:100%;">Excluir de TODAS las listas que integra este mes (recomendado)</button>
     <div id="exc-msg"></div>
+    <details style="margin-top:10px;">
+      <summary style="cursor:pointer;color:var(--muted);font-size:0.85rem;">Excluir de una sola lista puntual en vez de todas</summary>
+      <div style="margin-top:8px;">
+        <label>Lista</label>
+        <select id="exc-grupo">
+          <option value="RESTO">RESTO</option>
+          <option value="TC">TC</option>
+          <option value="RESO_BSE">RESO_BSE (Española)</option>
+          <option value="RESO_SEDE_CENTRAL">RESO_SEDE_CENTRAL (Española)</option>
+          <option value="RESO">RESO (SUISAS, lista única)</option>
+          <option value="TC_SOLY">TC_SOLY (SUISAS)</option>
+        </select>
+        <button class="btn-warn" id="btn-excluir" style="width:100%;">Marcar que no participa en esta lista</button>
+      </div>
+    </details>
   </div>
 </main>
 
@@ -368,6 +377,22 @@ document.getElementById("btn-habilitar").addEventListener("click", async () => {
   }
 });
 
+document.getElementById("btn-excluir-todas").addEventListener("click", async () => {
+  const personaId = document.getElementById("exc-persona").value;
+  const msg = document.getElementById("exc-msg");
+  if (!personaId) { msg.innerHTML = `<div class="msg-error">Elegí una persona.</div>`; return; }
+  try {
+    const listas = await sb(`rpc/marcar_no_participa_todas_listas`, {
+      method: "POST",
+      body: JSON.stringify({ p_persona_id: personaId, p_mes: MES, p_registrado_por: "COORDINADOR", p_password_coordinador: coordPassword })
+    });
+    msg.innerHTML = `<div class="msg-ok">✓ Excluida de: ${listas.join(", ")}. Si le tocaba el turno ahora en alguna, ya se la salteó.</div>`;
+    cargarProcesos();
+  } catch (e) {
+    msg.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
+  }
+});
+
 document.getElementById("btn-excluir").addEventListener("click", async () => {
   const grupo = document.getElementById("exc-grupo").value;
   const personaId = document.getElementById("exc-persona").value;
@@ -378,7 +403,7 @@ document.getElementById("btn-excluir").addEventListener("click", async () => {
       method: "POST",
       body: JSON.stringify({ p_persona_id: personaId, p_mes: MES, p_grupo: grupo, p_registrado_por: "COORDINADOR", p_password_coordinador: coordPassword })
     });
-    msg.innerHTML = `<div class="msg-ok">✓ Anotado. Si estaba habilitada ahora, ya se la salteó.</div>`;
+    msg.innerHTML = `<div class="msg-ok">✓ Anotado en esa lista puntual. Si estaba habilitada ahora, ya se la salteó.</div>`;
     cargarProcesos();
   } catch (e) {
     msg.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
