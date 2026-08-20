@@ -1738,12 +1738,15 @@ async function renderGrilla() {
           }
         } else if (t) {
           // Turno real vacante (nadie asignado todavía, por la razón que sea).
-          if (puedoElegirAca) {
-            contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
-          } else if (sectorActual === "FOTOG") {
-            // FOTOG nunca se cubre por convocatoria: se vacía en vez de
-            // mostrar el texto crudo del Excel.
+          if (sectorActual === "FOTOG") {
+            // FOTOG nunca se cubre por convocatoria (regla de Cesar: la
+            // hoja de fotógrafos es solo informativa, jamás se ofrece a
+            // suplentes). Va primero y sin excepción: aunque sea el turno
+            // de la persona en la cola de RESTO, acá nunca se muestra
+            // botón de Elegir, se deja vacío.
             contenido = "";
+          } else if (puedoElegirAca) {
+            contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
           } else {
             contenido = "LIBRE";
             clases += " libre-texto";
