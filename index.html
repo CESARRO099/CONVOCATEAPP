@@ -1632,7 +1632,7 @@ async function renderGrilla() {
       // Horario (columna P), sin relación con el día de la grilla principal
       // de esa misma fila. Se busca el turno real por fecha + nombre de
       // franja, no por col_excel.
-      if (sectorActual === "TC" && r >= 14 && r <= 48 && (c === 13 || c === 12)) {
+      if (sectorActual === "TC" && r >= 14 && r <= 50 && (c === 13 || c === 12)) {
         const diaG = filas[r][14]?.v;
         const horarioG = (filas[r][15]?.v || "").toString().trim();
         if (typeof diaG === "number" && horarioG) {
@@ -1642,11 +1642,22 @@ async function renderGrilla() {
             t.fecha === fechaG &&
             (t.franjas_horarias?.nombre || "").trim() === horarioG
           );
+          // Cobertura fija reservada para SUISAS (nombre_externo="SUISAS",
+          // sin persona_id todavía): es un turno real que hay que cubrir,
+          // no un texto informativo fijo. Se ofrece "Elegir" solo a la
+          // persona de SUISAS a la que le toca su turno de ronda ahora.
+          const suisasPuedeElegirG = tG && !tG.persona_id && tG.nombre_externo === "SUISAS"
+            && personaActual?.empresa === "SUISAS" && puedoElegirAca;
           if (c === 12) {
             // Nº Externo: se completa solo con el mismo turno de la columna
             // Apellido de al lado. No es clickeable por separado.
-            if (tG && (tG.persona_id || tG.nombre_externo) && tG.perfiles) {
+            if (tG && tG.persona_id && tG.perfiles) {
               contenido = tG.perfiles.ficha != null ? String(tG.perfiles.ficha) : "";
+            } else if (suisasPuedeElegirG) {
+              contenido = "";
+            } else if (tG && tG.nombre_externo) {
+              // Cobertura externa fija (ej. SUISAS): mismo texto en las dos columnas
+              contenido = sinTildes(tG.nombre_externo).toUpperCase();
             } else if (tG) {
               contenido = "LIBRE";
               clases += " libre-texto";
@@ -1654,7 +1665,9 @@ async function renderGrilla() {
               contenido = "";
             }
           } else if (tG) {
-            if (tG.persona_id || tG.nombre_externo) {
+            if (suisasPuedeElegirG) {
+              contenido = `<button class="btn-elegir" data-turno-id="${tG.id}">Elegir</button>`;
+            } else if (tG.persona_id || tG.nombre_externo) {
               const esPropio = tG.persona_id === personaActual?.id;
               if (esPropio && puedoElegirAca) {
                 contenido = `<button class="btn-rechazar" data-turno-id="${tG.id}">Rechazar</button>`;
@@ -1683,17 +1696,20 @@ async function renderGrilla() {
           } else {
             contenido = tG.perfiles ? nombreAsignado(tG.perfiles) : sinTildes(tG.nombre_externo).toUpperCase();
           }
-        } else if (tG) {
-          // El turno existe en Supabase y está vacante (por ejemplo, se
-          // liberó por licencia, o es un CUBRIR de fin de semana/feriado
-          // cargado con origen_vacante='planilla'): hay que ofrecerlo
-          // igual que una celda amarilla, no dejarlo en blanco.
+        } else if (tG && tG.origen_vacante === 'coordinador') {
+          // El coordinador liberó esta celda a propósito (ej. por
+          // licencia): ofrecerla a convocatoria igual que una amarilla.
           if (puedoElegirAca) {
             contenido = `<button class="btn-elegir" data-turno-id="${tG.id}">Elegir</button>`;
           } else {
             contenido = "LIBRE";
             clases += " libre-texto";
           }
+        } else if (tG) {
+          // Existe un turno en Supabase y está vacante (por ejemplo,
+          // se liberó por licencia): no mostrar el texto viejo del Excel.
+          contenido = "";
+          clases += " gris";
         } else if (celda.v) {
           // No hay ningún turno cargado para esta celda (ej. SUISAS sin
           // gestión todavía): mostrar el texto del Excel de solo lectura
@@ -1739,7 +1755,15 @@ async function renderGrilla() {
           // la rama amarilla, por el col_excel real de la celda.
           tR = porCeldaReal[`${diaLocal}-col:${c}`];
         }
-        if (tR && (tR.persona_id || tR.nombre_externo)) {
+        // Cobertura fija reservada para SUISAS (nombre_externo="SUISAS", sin
+        // persona_id todavía): es un turno real que hay que cubrir, no un
+        // texto informativo fijo. Se ofrece "Elegir" solo a la persona de
+        // SUISAS a la que le toca su turno de ronda ahora mismo.
+        const suisasPuedeElegirR = tR && !tR.persona_id && tR.nombre_externo === "SUISAS"
+          && personaActual?.empresa === "SUISAS" && puedoElegirAca;
+        if (suisasPuedeElegirR) {
+          contenido = `<button class="btn-elegir" data-turno-id="${tR.id}">Elegir</button>`;
+        } else if (tR && (tR.persona_id || tR.nombre_externo)) {
           const esPropio = tR.persona_id === personaActual?.id;
           if (esPropio && puedoElegirAca) {
             contenido = `<button class="btn-rechazar" data-turno-id="${tR.id}">Rechazar</button>`;
@@ -1773,7 +1797,15 @@ async function renderGrilla() {
         // Celda con texto o vacía — verificar si hay turno en Supabase que tenga prioridad
         const franjaKey = `${dia}-col:${c}`;
         const t = porCeldaReal[franjaKey];
-        if (t && t.origen_vacante === 'coordinador') {
+        // Cobertura fija reservada para SUISAS (nombre_externo="SUISAS", sin
+        // persona_id todavía): es un turno real que hay que cubrir, no un
+        // texto informativo fijo. Se ofrece "Elegir" solo a la persona de
+        // SUISAS a la que le toca su turno de ronda ahora mismo.
+        const suisasPuedeElegir = t && !t.persona_id && t.nombre_externo === "SUISAS"
+          && personaActual?.empresa === "SUISAS" && puedoElegirAca;
+        if (suisasPuedeElegir) {
+          contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
+        } else if (t && t.origen_vacante === 'coordinador') {
           // Turno modificado por el coordinador — tiene prioridad sobre el Excel
           if (t.persona_id || t.nombre_externo) {
             const esPropio = t.persona_id === personaActual?.id;
