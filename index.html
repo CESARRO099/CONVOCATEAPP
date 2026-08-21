@@ -1648,13 +1648,22 @@ async function renderGrilla() {
           // persona de SUISAS a la que le toca su turno de ronda ahora.
           const suisasPuedeElegirG = tG && !tG.persona_id && tG.nombre_externo === "SUISAS"
             && personaActual?.empresa === "SUISAS" && puedoElegirAca;
+          // Igual que en la grilla principal: reserva SUISAS disponible ya
+          // mismo, sin esperar la ronda (ver nota del 21 ago 2026 arriba).
+          const esSuisasDirectoG = tG && !tG.persona_id && tG.nombre_externo === "SUISAS_DIRECTO";
+          const suisasPuedeElegirDirectoG = esSuisasDirectoG
+            && personaActual?.empresa === "SUISAS"
+            && misSectoresHabilitados.has(sectorActual);
           if (c === 12) {
             // Nº Externo: se completa solo con el mismo turno de la columna
             // Apellido de al lado. No es clickeable por separado.
             if (tG && tG.persona_id && tG.perfiles) {
               contenido = tG.perfiles.ficha != null ? String(tG.perfiles.ficha) : "";
-            } else if (suisasPuedeElegirG) {
+            } else if (suisasPuedeElegirG || suisasPuedeElegirDirectoG) {
               contenido = "";
+            } else if (esSuisasDirectoG) {
+              contenido = "SUISAS";
+              clases += " libre-texto";
             } else if (tG && tG.nombre_externo) {
               // Cobertura externa fija (ej. SUISAS): mismo texto en las dos columnas
               contenido = sinTildes(tG.nombre_externo).toUpperCase();
@@ -1665,8 +1674,11 @@ async function renderGrilla() {
               contenido = "";
             }
           } else if (tG) {
-            if (suisasPuedeElegirG) {
+            if (suisasPuedeElegirG || suisasPuedeElegirDirectoG) {
               contenido = `<button class="btn-elegir" data-turno-id="${tG.id}">Elegir</button>`;
+            } else if (esSuisasDirectoG) {
+              contenido = "SUISAS";
+              clases += " libre-texto";
             } else if (tG.persona_id || tG.nombre_externo) {
               const esPropio = tG.persona_id === personaActual?.id;
               if (esPropio && puedoElegirAca) {
@@ -1727,8 +1739,25 @@ async function renderGrilla() {
         const suisasPuedeElegir = t && !t.persona_id && t.nombre_externo === "SUISAS"
           && personaActual?.empresa === "SUISAS" && puedoElegirAca;
 
-        if (suisasPuedeElegir) {
+        // NUEVO (21 ago 2026, a pedido de Cesar): celda que el coordinador
+        // dejó vacante como "exclusiva SUISAS, disponible ya mismo" (marcada
+        // con nombre_externo="SUISAS_DIRECTO"). A diferencia de la reserva
+        // normal de arriba, ésta no espera a que arranque la ronda de ese
+        // grupo — alcanza con ser de SUISAS y tener ese sector habilitado.
+        const esSuisasDirecto = t && !t.persona_id && t.nombre_externo === "SUISAS_DIRECTO";
+        const suisasPuedeElegirDirecto = esSuisasDirecto
+          && personaActual?.empresa === "SUISAS"
+          && misSectoresHabilitados.has(sectorActual);
+
+        if (suisasPuedeElegir || suisasPuedeElegirDirecto) {
           contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
+        } else if (esSuisasDirecto) {
+          // Reservada para SUISAS y disponible ya mismo, pero esta persona
+          // no es quien puede tomarla (Española, o SUISAS sin ese sector
+          // habilitado) — se muestra igual que cualquier otra reserva de
+          // SUISAS, nunca como "LIBRE" genérica.
+          contenido = "SUISAS";
+          clases += " libre-texto";
         } else if (t && (t.persona_id || t.nombre_externo)) {
           const esPropio = t.persona_id === personaActual?.id;
           if (esPropio && puedoElegirAca) {
