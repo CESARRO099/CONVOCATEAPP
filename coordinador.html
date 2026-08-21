@@ -103,6 +103,8 @@
       <div style="font-weight:700;font-size:0.95rem;" id="coord-modal-titulo"></div>
       <button id="coord-btn-activar" class="btn-ok" style="display:none;">✓ Activar para convocatoria</button>
       <button id="coord-btn-vacante" class="btn-ok" style="display:none;">◯ Dejar como vacante (LIBRE)</button>
+      <button id="coord-btn-vacante-suisas" class="btn-ok" style="display:none;">◯ Dejar vacante — exclusiva SUISAS (ya mismo)</button>
+      <button id="coord-btn-quitar-suisas" class="btn-warn" style="display:none;">↩ Volver a modo normal (Española + SUISAS)</button>
       <div id="coord-asignar-wrap" style="display:none;">
         <label>Asignar a</label>
         <select id="coord-sel-persona"></select>
@@ -746,8 +748,16 @@ function renderGrillaCoord() {
             // pensar que liberar una celda no había funcionado cuando en
             // realidad sí había funcionado, solo que la pantalla no lo
             // reflejaba.
-            contenido = "LIBRE";
-            bg = "background:#FFF9C4;color:#7B6000;font-weight:700;";
+            // NUEVO (21 ago 2026): si el coordinador la dejó marcada como
+            // exclusiva de SUISAS (disponible ya mismo, sin pasar por la
+            // Española), se distingue con su propio texto acá también.
+            if (turno.nombre_externo === "SUISAS_DIRECTO") {
+              contenido = "LIBRE (SUISAS)";
+              bg = "background:#DCEEFF;color:#0B5394;font-weight:700;";
+            } else {
+              contenido = "LIBRE";
+              bg = "background:#FFF9C4;color:#7B6000;font-weight:700;";
+            }
           }
           cursor = "cursor:pointer;";
           dataAttr = ` data-dia="${dia}" data-col="${c}" data-turno-id="${turno.id}"`;
@@ -902,14 +912,18 @@ function abrirModalCelda(td) {
   const contenidoActual = celdaSeleccionada.valorActual || "—";
   titulo.textContent = `Día ${celdaSeleccionada.dia} · ${contenidoActual}`;
 
-  const btnActivar    = document.getElementById("coord-btn-activar");
-  const btnVacante    = document.getElementById("coord-btn-vacante");
-  const wrapAsignar   = document.getElementById("coord-asignar-wrap");
-  const btnDesactivar = document.getElementById("coord-btn-desactivar");
+  const btnActivar       = document.getElementById("coord-btn-activar");
+  const btnVacante       = document.getElementById("coord-btn-vacante");
+  const btnVacanteSuisas = document.getElementById("coord-btn-vacante-suisas");
+  const btnQuitarSuisas  = document.getElementById("coord-btn-quitar-suisas");
+  const wrapAsignar      = document.getElementById("coord-asignar-wrap");
+  const btnDesactivar    = document.getElementById("coord-btn-desactivar");
 
   // Reset
   btnActivar.style.display = "none";
   btnVacante.style.display = "none";
+  btnVacanteSuisas.style.display = "none";
+  btnQuitarSuisas.style.display = "none";
   wrapAsignar.style.display = "none";
   btnDesactivar.style.display = "none";
 
@@ -926,16 +940,24 @@ function abrirModalCelda(td) {
       btnDesactivar.style.display = "none";
     }
   } else if (!turno.persona_id) {
-    // Turno vacante — asignar o quitar de convocatoria
+    // Turno vacante — asignar, quitar de convocatoria, o (nuevo) marcar /
+    // desmarcar como reserva exclusiva de SUISAS disponible ya mismo.
     btnActivar.style.display = "none";
     btnVacante.style.display = "none";
     wrapAsignar.style.display = "block";
     btnDesactivar.style.display = "block";
     btnDesactivar.textContent = "✗ Quitar de convocatoria";
+    if (turno.nombre_externo === "SUISAS_DIRECTO") {
+      btnQuitarSuisas.style.display = "block";
+    } else {
+      btnVacanteSuisas.style.display = "block";
+    }
   } else {
-    // Turno asignado — dejar vacante, cambiar persona, o quitar
+    // Turno asignado — dejar vacante (normal o exclusiva SUISAS), cambiar
+    // persona, o quitar.
     btnActivar.style.display = "none";
     btnVacante.style.display = "block";
+    btnVacanteSuisas.style.display = "block";
     wrapAsignar.style.display = "block";
     btnDesactivar.style.display = "block";
     btnDesactivar.textContent = "✗ Dejar sin convocatoria";
@@ -971,6 +993,50 @@ document.getElementById("coord-btn-vacante").addEventListener("click", async () 
     await recargarTurnos();
   } catch (e) {
     alert("No se pudo dejar la celda vacante: " + e.message);
+  }
+});
+
+// NUEVO (21 ago 2026, a pedido de Cesar): dejar una celda vacante pero
+// reservada exclusivamente para SUISAS, disponible ya mismo — sin pasar
+// por la Española y sin esperar a que arranque la ronda de SUISAS de ese
+// grupo. Se marca con turnos.nombre_externo = 'SUISAS_DIRECTO' (chequeado
+// del lado del servidor en tomar_turno).
+document.getElementById("coord-btn-vacante-suisas").addEventListener("click", async () => {
+  if (!celdaSeleccionada.turnoId) {
+    alert("No se pudo identificar el turno de esta celda.");
+    return;
+  }
+  try {
+    await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        persona_id: null,
+        asignado_en: null,
+        origen_vacante: "coordinador",
+        nombre_externo: "SUISAS_DIRECTO"
+      })
+    });
+    document.getElementById("coord-modal").style.display = "none";
+    await recargarTurnos();
+  } catch (e) {
+    alert("No se pudo dejar la celda como exclusiva de SUISAS: " + e.message);
+  }
+});
+
+document.getElementById("coord-btn-quitar-suisas").addEventListener("click", async () => {
+  if (!celdaSeleccionada.turnoId) {
+    alert("No se pudo identificar el turno de esta celda.");
+    return;
+  }
+  try {
+    await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ nombre_externo: null })
+    });
+    document.getElementById("coord-modal").style.display = "none";
+    await recargarTurnos();
+  } catch (e) {
+    alert("No se pudo volver la celda a modo normal: " + e.message);
   }
 });
 
@@ -1070,7 +1136,7 @@ async function recargarTurnos() {
   let desde = 0;
   while (true) {
     const pag = await sbCoord(
-      `turnos?select=id,fecha,col_excel,persona_id,origen_vacante,` +
+      `turnos?select=id,fecha,col_excel,persona_id,origen_vacante,nombre_externo,` +
       `franjas_horarias!inner(nombre,sector_id,sectores!inner(nombre)),perfiles(apellido,nombre,empresa,ficha)` +
       `&franjas_horarias.sector_id=eq.${sectorId}` +
       `&fecha=gte.${MES_COORD}-01&fecha=lte.${ultimoDiaMesStrCoord(MES_COORD)}&order=id.asc`,
