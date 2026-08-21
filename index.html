@@ -175,6 +175,7 @@
   td.gris{ background:#A6A6A6 !important; }
   td.dia-semana{ background:#BDD7EE !important; }
   td.libre-texto{ color: #00C853; font-weight:700; }
+  td.suisas-directo-texto{ color: #00C853; font-weight:normal; }
   td.libre-suisas{ color: #D32F2F; font-weight:700; }
   button.btn-elegir{
     width:100%; border:1px solid #000; border-radius:6px; padding:4px 1px;
@@ -1663,7 +1664,7 @@ async function renderGrilla() {
               contenido = "";
             } else if (esSuisasDirectoG) {
               contenido = "SUISAS";
-              clases += " libre-texto";
+              clases += " suisas-directo-texto";
             } else if (tG && tG.nombre_externo) {
               // Cobertura externa fija (ej. SUISAS): mismo texto en las dos columnas
               contenido = sinTildes(tG.nombre_externo).toUpperCase();
@@ -1678,7 +1679,7 @@ async function renderGrilla() {
               contenido = `<button class="btn-elegir" data-turno-id="${tG.id}">Elegir</button>`;
             } else if (esSuisasDirectoG) {
               contenido = "SUISAS";
-              clases += " libre-texto";
+              clases += " suisas-directo-texto";
             } else if (tG.persona_id || tG.nombre_externo) {
               const esPropio = tG.persona_id === personaActual?.id;
               if (esPropio && puedoElegirAca) {
@@ -1757,7 +1758,7 @@ async function renderGrilla() {
           // habilitado) — se muestra igual que cualquier otra reserva de
           // SUISAS, nunca como "LIBRE" genérica.
           contenido = "SUISAS";
-          clases += " libre-texto";
+          clases += " suisas-directo-texto";
         } else if (t && (t.persona_id || t.nombre_externo)) {
           const esPropio = t.persona_id === personaActual?.id;
           if (esPropio && puedoElegirAca) {
