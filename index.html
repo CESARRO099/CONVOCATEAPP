@@ -9,7 +9,9 @@
 <link rel="icon" href="./icon.png" type="image/png" />
 <link rel="apple-touch-icon" href="./icon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Jost:wght@400;500;600&display=swap" rel="stylesheet" />
 <style>
   :root{
     --bg: #F4F1EC;
@@ -332,10 +334,261 @@
     0%   { transform: translateX(0); }
     100% { transform: translateX(-50%); }
   }
+
+  /* =====================================================
+     PANTALLA DE BIENVENIDA (splash) — agregado nuevo.
+     Todo con prefijo "cvt-" para no chocar con ninguna
+     clase/variable ya usada arriba. No modifica ni
+     depende de nada de la app real: solo se superpone y,
+     al tocar "Entrar", se oculta dejando ver la app de
+     siempre (buscador de nombre + PIN reales, sin tocar).
+  ===================================================== */
+  :root{
+    --cvt-ink:#0a0a0d;
+    --cvt-gold:#c9a227;
+    --cvt-gold-hi:#f0d688;
+    --cvt-ivory:#f3ecdd;
+    --cvt-lightbox:#bfe3f0;
+    --cvt-mute:#8a8478;
+  }
+
+  .cvt-splash{
+    position:fixed; top:0; right:0; bottom:0; left:0;
+    z-index:99999;
+    display:flex; align-items:center; justify-content:center;
+    background: radial-gradient(ellipse at 50% 38%, #16151c 0%, var(--cvt-ink) 62%, #050506 100%);
+    font-family:'Jost', sans-serif;
+  }
+
+  .cvt-grain{
+    position:absolute; top:0; right:0; bottom:0; left:0;
+    pointer-events:none;
+    opacity:.05;
+    mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    animation:cvtGrainShift 1.4s steps(4) infinite;
+  }
+  @keyframes cvtGrainShift{
+    0%,100%{transform:translate(0,0)}
+    25%{transform:translate(-1%,1%)}
+    50%{transform:translate(1%,-1%)}
+    75%{transform:translate(-1%,-1%)}
+  }
+
+  .cvt-glow{
+    position:absolute;
+    width:min(70vw,760px);
+    height:min(70vw,760px);
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(191,227,240,0.16) 0%, rgba(191,227,240,0.05) 45%, transparent 72%);
+    animation:cvtPulseGlow 5.5s ease-in-out infinite;
+    filter:blur(2px);
+  }
+  @keyframes cvtPulseGlow{
+    0%,100%{opacity:.6; transform:scale(1);}
+    50%{opacity:1; transform:scale(1.06);}
+  }
+
+  .cvt-iris-hole{
+    position:absolute;
+    top:50%; left:50%;
+    width:0; height:0;
+    border-radius:50%;
+    transform:translate(-50%,-50%);
+    box-shadow:0 0 0 100vmax var(--cvt-ink);
+    border:1px solid rgba(201,162,39,0);
+    z-index:5;
+    transition:
+      width 1.6s cubic-bezier(.65,0,.2,1),
+      height 1.6s cubic-bezier(.65,0,.2,1),
+      border-color 1.6s ease;
+  }
+  .cvt-splash.cvt-opened .cvt-iris-hole{
+    width:240vmax; height:240vmax;
+    border-color:rgba(201,162,39,.3);
+  }
+
+  .cvt-content{
+    position:relative;
+    z-index:4;
+    text-align:center;
+    padding:0 6vw;
+    opacity:0;
+    transition:opacity .6s ease .8s;
+  }
+  .cvt-splash.cvt-opened .cvt-content{ opacity:1; }
+
+  .cvt-eyebrow{
+    font-family:'Cormorant Garamond', serif;
+    font-style:italic;
+    font-size:clamp(12px,1.6vw,16px);
+    letter-spacing:.32em;
+    text-transform:uppercase;
+    color:var(--cvt-mute);
+    margin:0 0 22px;
+    opacity:0;
+    animation:cvtRiseIn .9s ease forwards;
+    animation-delay:3.8s;
+  }
+
+  .cvt-title{
+    margin:0;
+    font-family:'Marcellus', serif;
+    font-weight:400;
+    font-size:clamp(46px,9vw,108px);
+    line-height:1;
+    color:var(--cvt-ivory);
+    text-shadow:0 0 30px rgba(201,162,39,.25);
+  }
+  .cvt-title span{
+    display:inline-block;
+    opacity:0;
+    letter-spacing:.5em;
+    filter:blur(6px) brightness(.4);
+    animation:
+      cvtLetterInLight 1s cubic-bezier(.2,.9,.2,1) forwards,
+      cvtLetterFlash .8s ease-out forwards;
+  }
+  @keyframes cvtLetterInLight{
+    0%{ opacity:0; letter-spacing:.5em; filter:blur(6px) brightness(.35); color:#2c2a24; text-shadow:0 0 0 rgba(243,236,221,0); }
+    55%{ opacity:1; letter-spacing:.06em; filter:blur(0) brightness(1.5); color:var(--cvt-ivory); }
+    100%{ opacity:1; letter-spacing:0; filter:blur(0) brightness(1); color:var(--cvt-ivory); text-shadow:0 0 10px rgba(243,236,221,.25); }
+  }
+  @keyframes cvtLetterFlash{
+    0%{ filter:brightness(1); text-shadow:0 0 10px rgba(243,236,221,.25); color:var(--cvt-ivory); }
+    45%{ filter:brightness(1.9); text-shadow:0 0 26px rgba(255,255,255,.9); color:#ffffff; }
+    100%{ filter:brightness(1); text-shadow:0 0 3px rgba(243,236,221,.9), 0 0 24px rgba(243,236,221,.55); color:#050505; }
+  }
+
+  .cvt-shimmer{ position:relative; display:inline-block; }
+  .cvt-shimmer::after{
+    content:"";
+    position:absolute; top:0; right:0; bottom:0; left:0;
+    background:linear-gradient(100deg, transparent 40%, rgba(240,214,136,.55) 50%, transparent 60%);
+    background-size:250% 100%;
+    mix-blend-mode:overlay;
+    animation:cvtSweep 4.5s ease-in-out 2.6s infinite;
+  }
+  @keyframes cvtSweep{
+    0%{ background-position:150% 0; }
+    35%,100%{ background-position:-50% 0; }
+  }
+
+  .cvt-subtitle{
+    font-family:'Cormorant Garamond', serif;
+    font-style:italic;
+    font-size:clamp(15px,2vw,20px);
+    color:var(--cvt-ivory);
+    opacity:0;
+    margin:22px 0 0;
+    letter-spacing:.02em;
+    animation:cvtRiseIn .9s ease forwards;
+    animation-delay:4.4s;
+  }
+
+  .cvt-divider{
+    width:64px; height:1px;
+    margin:26px auto;
+    background:linear-gradient(90deg, transparent, var(--cvt-gold), transparent);
+    opacity:0;
+    animation:cvtRiseIn .9s ease forwards;
+    animation-delay:4.2s;
+  }
+
+  .cvt-cta{
+    font-family:'Jost', sans-serif;
+    font-size:13px;
+    letter-spacing:.28em;
+    text-transform:uppercase;
+    color:var(--cvt-lightbox);
+    background:transparent;
+    border:1px solid rgba(191,227,240,.5);
+    padding:14px 40px;
+    border-radius:2px;
+    cursor:pointer;
+    margin-top:6px;
+    opacity:0;
+    animation:cvtRiseIn .9s ease forwards, cvtPulseBtn 3s ease-in-out 4.4s infinite;
+    animation-delay:4.4s, 4.4s;
+    transition:background .3s ease, color .3s ease, border-color .3s ease;
+  }
+  .cvt-cta:hover{ background:rgba(191,227,240,.14); color:var(--cvt-ivory); border-color:rgba(191,227,240,.85); }
+  @keyframes cvtPulseBtn{
+    0%,100%{ box-shadow:0 0 0 rgba(191,227,240,0); }
+    50%{ box-shadow:0 0 22px rgba(191,227,240,.4); }
+  }
+
+  @keyframes cvtRiseIn{
+    from{ opacity:0; transform:translateY(10px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .cvt-splash *{ animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+  }
+
+  @media (max-width:560px){
+    .cvt-title span{ letter-spacing:.25em; }
+  }
 </style>
 </head>
 
 <body>
+
+<!-- =====================================================
+     PANTALLA DE BIENVENIDA (splash) — agregado nuevo.
+     Se superpone a toda la app con position:fixed y z-index
+     altísimo. Al tocar "Entrar" simplemente se oculta, dejando
+     ver la app de siempre (que ya venía cargando datos en
+     segundo plano mientras tanto). No toca el buscador de
+     nombre ni el sistema de PIN reales — esos siguen
+     funcionando exactamente igual que antes, apenas quedan
+     "detrás" del splash hasta que se oculta.
+===================================================== -->
+<div class="cvt-splash" id="cvt-splash">
+  <div class="cvt-iris-hole"></div>
+  <div class="cvt-grain"></div>
+  <div class="cvt-glow"></div>
+  <div class="cvt-content" id="cvt-content">
+    <p class="cvt-eyebrow">Servicio de Imagenología</p>
+    <h1 class="cvt-title cvt-shimmer" id="cvt-title"></h1>
+    <div class="cvt-divider"></div>
+    <button class="cvt-cta" id="cvt-enter" type="button">Entrar</button>
+  </div>
+</div>
+<script>
+(function(){
+  var word = "ConvocaTE";
+  var titleEl = document.getElementById('cvt-title');
+  var n = word.length;
+  var step1 = 0.055, dur1 = 1, pause = 0.25, step2 = 0.06;
+  var phase1End = 0.55 + (n - 1) * step1 + dur1;
+
+  for (var i = 0; i < word.length; i++) {
+    var span = document.createElement('span');
+    span.textContent = word[i];
+    var delay1 = 0.55 + i * step1;
+    var delay2 = phase1End + pause + i * step2;
+    span.style.animationDelay = delay1 + 's, ' + delay2 + 's';
+    titleEl.appendChild(span);
+  }
+
+  var splash = document.getElementById('cvt-splash');
+  document.body.style.overflow = 'hidden';
+  requestAnimationFrame(function(){
+    setTimeout(function(){ splash.classList.add('cvt-opened'); }, 120);
+  });
+
+  document.getElementById('cvt-enter').addEventListener('click', function(){
+    splash.style.transition = 'opacity .5s ease';
+    splash.style.opacity = '0';
+    setTimeout(function(){
+      splash.style.display = 'none';
+      document.body.style.overflow = '';
+    }, 500);
+  });
+})();
+</script>
 
 <button id="btn-tema" aria-label="Cambiar tema" title="Cambiar tema">🌙</button>
 
