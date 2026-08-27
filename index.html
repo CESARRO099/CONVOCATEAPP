@@ -605,31 +605,33 @@
 <header class="top" id="header-top" style="display:none;"></header>
 
 <main>
-  <div id="bienvenida-wrap" style="padding:0.5rem 0 0.5rem;"></div>
+  <div id="inicio-centrado-wrap" style="min-height:calc(100vh - 100px); display:flex; flex-direction:column; justify-content:center;">
+    <div id="bienvenida-wrap" style="padding:0.5rem 0 0.5rem;"></div>
 
-  <div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-      <label class="field-label" for="persona-search" style="margin-bottom:0;"></label>
-      <button id="btn-cambiar-usuario" style="display:none; background:transparent; border:none; color:var(--ink-soft); font-family:inherit; font-size:0.7rem; text-decoration:underline; cursor:pointer;">Cambiar de usuario</button>
-    </div>
-    <div id="persona-combo-wrap" style="position:relative;">
-      <input type="text" id="persona-search" autocomplete="off" placeholder="Buscá tu nombre y empresa"
-        style="width:100%; box-sizing:border-box; padding:12px 12px; border:2px solid var(--ink); border-radius:6px; font-family:inherit; font-size:0.95rem; background:#fff;">
-      <div id="persona-options" style="display:none; position:absolute; z-index:50; top:calc(100% + 4px); left:0; right:0; max-height:240px; overflow-y:auto; background:#fff; border:2px solid var(--ink); border-radius:6px; box-shadow:0 4px 10px rgba(0,0,0,0.15);"></div>
-    </div>
-    <select id="persona-select" style="display:none;">
-      <option value="">Cargando personas…</option>
-    </select>
-    <div id="empresa-pill-row" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-      <div id="empresa-pill-wrap"></div>
-      <button id="btn-mis-turnos" style="display:none; flex:0 0 auto; width:118px; overflow:hidden; font-family:inherit; font-size:0.7rem; font-weight:600; padding:4px 0; border-radius:999px; cursor:pointer;">
-        <span class="mis-turnos-marquee">📅&nbsp;Mis turnos&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;📅&nbsp;Mis turnos&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <label class="field-label" for="persona-search" style="margin-bottom:0;"></label>
+        <button id="btn-cambiar-usuario" style="display:none; background:transparent; border:none; color:var(--ink-soft); font-family:inherit; font-size:0.7rem; text-decoration:underline; cursor:pointer;">Cambiar de usuario</button>
+      </div>
+      <div id="persona-combo-wrap" style="position:relative;">
+        <input type="text" id="persona-search" autocomplete="off" placeholder="Buscá tu nombre y empresa"
+          style="width:100%; box-sizing:border-box; padding:12px 12px; border:2px solid var(--ink); border-radius:6px; font-family:inherit; font-size:0.95rem; background:#fff;">
+        <div id="persona-options" style="display:none; position:absolute; z-index:50; top:calc(100% + 4px); left:0; right:0; max-height:240px; overflow-y:auto; background:#fff; border:2px solid var(--ink); border-radius:6px; box-shadow:0 4px 10px rgba(0,0,0,0.15);"></div>
+      </div>
+      <select id="persona-select" style="display:none;">
+        <option value="">Cargando personas…</option>
+      </select>
+      <div id="empresa-pill-row" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+        <div id="empresa-pill-wrap"></div>
+        <button id="btn-mis-turnos" style="display:none; flex:0 0 auto; width:118px; overflow:hidden; font-family:inherit; font-size:0.7rem; font-weight:600; padding:4px 0; border-radius:999px; cursor:pointer;">
+          <span class="mis-turnos-marquee">📅&nbsp;Mis turnos&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;📅&nbsp;Mis turnos&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+        </button>
+      </div>
+      <button id="btn-notif" style="display:none; margin-top:12px; padding:8px 12px; border:2px solid var(--ink); border-radius:6px; background:transparent; color:var(--ink); font-family:inherit; font-size:0.78rem; font-weight:700; cursor:pointer;">
+        🔔 Activar notificaciones de la APP
       </button>
+      <div id="notif-status" class="detalle" style="margin-top:8px; text-align:center; font-size:0.85rem; color:var(--ink-soft);"></div>
     </div>
-    <button id="btn-notif" style="display:none; margin-top:12px; padding:8px 12px; border:2px solid var(--ink); border-radius:6px; background:transparent; color:var(--ink); font-family:inherit; font-size:0.78rem; font-weight:700; cursor:pointer;">
-      🔔 Activar notificaciones de la APP
-    </button>
-    <div id="notif-status" class="detalle" style="margin-top:8px; text-align:center; font-size:0.85rem; color:var(--ink-soft);"></div>
   </div>
 
   <div id="convocatoria-wrap" style="display:none;">
