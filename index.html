@@ -2581,5 +2581,31 @@ cargarPersonas().then(intentarAutoLogin);
   new MutationObserver(actualizar).observe(conv, { attributes:true, attributeFilter:['style'] });
 })();
 </script>
+
+<!-- Script chiquito, independiente: resalta el botón de "Octubre" en el
+     selector de meses (verde manzana, letras negras negrita). Como esos
+     botones se arman dinámicamente en renderSelectorMeses(), esto no
+     toca esa función — solo observa el contenedor y, cada vez que se
+     vuelven a dibujar los botones, le aplica el estilo al que diga
+     "Octubre". No lee ni modifica ninguna variable de la app real. -->
+<script>
+(function(){
+  var wrapMeses = document.getElementById('mes-selector-wrap');
+  if (!wrapMeses) return;
+  function resaltarOctubre(){
+    wrapMeses.querySelectorAll('.mes-tab').forEach(function(btn){
+      var esOctubre = btn.textContent.trim().toLowerCase().startsWith('octubre');
+      if (esOctubre) {
+        btn.style.background = '#8BC53F';
+        btn.style.borderColor = '#8BC53F';
+        btn.style.color = '#000';
+        btn.style.fontWeight = '700';
+      }
+    });
+  }
+  resaltarOctubre();
+  new MutationObserver(resaltarOctubre).observe(wrapMeses, { childList:true });
+})();
+</script>
 </body>
 </html>
