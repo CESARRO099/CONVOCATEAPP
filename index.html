@@ -540,6 +540,21 @@
   @media (max-width:560px){
     .cvt-title span{ letter-spacing:.25em; }
   }
+
+  /* Centra verticalmente la pantalla de "elegí tu nombre" mientras la
+     grilla todavía no se muestra. En cuanto aparece la convocatoria
+     (grilla, banner, etc.) un pequeño script la achica de nuevo a su
+     tamaño normal — ver el observer al final del body. */
+  .cvt-inicio-centrado{
+    min-height:calc(100vh - 100px);
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+  }
+  .cvt-inicio-centrado.cvt-compacto{
+    min-height:0;
+    display:block;
+  }
 </style>
 </head>
 
@@ -605,7 +620,7 @@
 <header class="top" id="header-top" style="display:none;"></header>
 
 <main>
-  <div id="inicio-centrado-wrap" style="min-height:calc(100vh - 100px); display:flex; flex-direction:column; justify-content:center;">
+  <div id="inicio-centrado-wrap" class="cvt-inicio-centrado">
     <div id="bienvenida-wrap" style="padding:0.5rem 0 0.5rem;"></div>
 
     <div class="card">
@@ -2546,6 +2561,25 @@ async function intentarAutoLogin() {
 }
 
 cargarPersonas().then(intentarAutoLogin);
+</script>
+
+<!-- Script chiquito, independiente del de arriba: solo achica el
+     contenedor que centra la pantalla de "elegí tu nombre" en cuanto
+     la convocatoria (grilla) queda visible, y lo vuelve a agrandar si
+     se cierra sesión con "Cambiar de usuario". No lee ni modifica
+     ninguna variable ni función de la app real. -->
+<script>
+(function(){
+  var wrap = document.getElementById('inicio-centrado-wrap');
+  var conv = document.getElementById('convocatoria-wrap');
+  if (!wrap || !conv) return;
+  function actualizar(){
+    var visible = conv.style.display !== 'none';
+    wrap.classList.toggle('cvt-compacto', visible);
+  }
+  actualizar();
+  new MutationObserver(actualizar).observe(conv, { attributes:true, attributeFilter:['style'] });
+})();
 </script>
 </body>
 </html>
