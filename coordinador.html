@@ -870,24 +870,18 @@ function abrirModalCelda(td) {
 
 document.getElementById("coord-btn-vacante").addEventListener("click", async () => {
   try {
-    if (celdaSeleccionada.turnoId) {
-      await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ persona_id: null, asignado_en: null, origen_vacante: "coordinador" })
-      });
-    } else {
-      await sbCoord(`rpc/coordinador_activar_celda`, {
-        method: "POST",
-        body: JSON.stringify({
-          p_sector: coordSectorActual,
-          p_dia: celdaSeleccionada.dia,
-          p_col_excel: celdaSeleccionada.col,
-          p_mes: MES_COORD + "-01",
-          p_origen: "coordinador",
-          p_password_coordinador: coordPassword
-        })
-      });
-    }
+    await sbCoord(`rpc/coordinador_activar_celda`, {
+      method: "POST",
+      body: JSON.stringify({
+        p_sector: coordSectorActual,
+        p_dia: celdaSeleccionada.dia,
+        p_col_excel: celdaSeleccionada.col,
+        p_mes: MES_COORD + "-01",
+        p_origen: "coordinador",
+        p_password_coordinador: coordPassword,
+        p_nombre_externo: null
+      })
+    });
     document.getElementById("coord-modal").style.display = "none";
     await recargarTurnos();
   } catch (e) {
@@ -896,18 +890,17 @@ document.getElementById("coord-btn-vacante").addEventListener("click", async () 
 });
 
 document.getElementById("coord-btn-vacante-suisas").addEventListener("click", async () => {
-  if (!celdaSeleccionada.turnoId) {
-    alert("No se pudo identificar el turno de esta celda.");
-    return;
-  }
   try {
-    await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, {
-      method: "PATCH",
+    await sbCoord(`rpc/coordinador_activar_celda`, {
+      method: "POST",
       body: JSON.stringify({
-        persona_id: null,
-        asignado_en: null,
-        origen_vacante: "coordinador",
-        nombre_externo: "SUISAS_DIRECTO"
+        p_sector: coordSectorActual,
+        p_dia: celdaSeleccionada.dia,
+        p_col_excel: celdaSeleccionada.col,
+        p_mes: MES_COORD + "-01",
+        p_origen: "coordinador",
+        p_password_coordinador: coordPassword,
+        p_nombre_externo: "SUISAS_DIRECTO"
       })
     });
     document.getElementById("coord-modal").style.display = "none";
@@ -918,14 +911,18 @@ document.getElementById("coord-btn-vacante-suisas").addEventListener("click", as
 });
 
 document.getElementById("coord-btn-quitar-suisas").addEventListener("click", async () => {
-  if (!celdaSeleccionada.turnoId) {
-    alert("No se pudo identificar el turno de esta celda.");
-    return;
-  }
   try {
-    await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, {
-      method: "PATCH",
-      body: JSON.stringify({ nombre_externo: null })
+    await sbCoord(`rpc/coordinador_activar_celda`, {
+      method: "POST",
+      body: JSON.stringify({
+        p_sector: coordSectorActual,
+        p_dia: celdaSeleccionada.dia,
+        p_col_excel: celdaSeleccionada.col,
+        p_mes: MES_COORD + "-01",
+        p_origen: "coordinador",
+        p_password_coordinador: coordPassword,
+        p_nombre_externo: null
+      })
     });
     document.getElementById("coord-modal").style.display = "none";
     await recargarTurnos();
@@ -962,24 +959,17 @@ document.getElementById("coord-btn-asignar").addEventListener("click", async () 
   if (!personaId) return;
 
   try {
-    if (celdaSeleccionada.turnoId) {
-      await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ persona_id: personaId, asignado_en: new Date().toISOString() })
-      });
-    } else {
-      await sbCoord(`rpc/coordinador_activar_celda`, {
-        method: "POST",
-        body: JSON.stringify({
-          p_sector: coordSectorActual,
-          p_dia: celdaSeleccionada.dia,
-          p_col_excel: celdaSeleccionada.col,
-          p_mes: MES_COORD + "-01",
-          p_persona_id: personaId,
-          p_password_coordinador: coordPassword
-        })
-      });
-    }
+    await sbCoord(`rpc/coordinador_activar_celda`, {
+      method: "POST",
+      body: JSON.stringify({
+        p_sector: coordSectorActual,
+        p_dia: celdaSeleccionada.dia,
+        p_col_excel: celdaSeleccionada.col,
+        p_mes: MES_COORD + "-01",
+        p_persona_id: personaId,
+        p_password_coordinador: coordPassword
+      })
+    });
     document.getElementById("coord-modal").style.display = "none";
     await recargarTurnos();
   } catch (e) {
@@ -992,7 +982,16 @@ document.getElementById("coord-btn-desactivar").addEventListener("click", async 
 
   try {
     if (celdaSeleccionada.turnoId) {
-      await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, { method: "DELETE" });
+      await sbCoord(`rpc/coordinador_desactivar_celda`, {
+        method: "POST",
+        body: JSON.stringify({
+          p_sector: coordSectorActual,
+          p_dia: celdaSeleccionada.dia,
+          p_col_excel: celdaSeleccionada.col,
+          p_mes: MES_COORD + "-01",
+          p_password_coordinador: coordPassword
+        })
+      });
     } else {
       await sbCoord(`rpc/coordinador_activar_celda`, {
         method: "POST",
