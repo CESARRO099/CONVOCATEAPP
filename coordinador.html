@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <style>
   :root{
     --bg:#F4F1EC; --surface:#FFFFFF; --ink:#17262B; --ink-soft:#5B6B70;
@@ -87,6 +88,9 @@
     </select>
     <button id="btn-resumen-vacantes" class="btn-primary" style="margin-top:8px;">
       📋 Ver vacantes (todos los sectores)
+    </button>
+    <button id="btn-exportar-excel" class="btn-primary" style="margin-top:8px;">
+      📥 Descargar planilla pública en Excel (16 hojas)
     </button>
     <div style="display:flex; justify-content:flex-end; margin:8px 0;">
       <div style="display:flex; align-items:center; background:#f4f4f4; border-radius:20px; padding:2px;">
@@ -591,6 +595,335 @@ function cerrarResumenVacantes() {
 }
 
 document.getElementById("btn-resumen-vacantes").addEventListener("click", mostrarResumenVacantes);
+
+// =========================================================
+// DESCARGA DE LA PLANILLA PÚBLICA EN EXCEL (16 hojas, un solo
+// archivo). Es una copia visual de lo que hoy se ve en la app
+// pública (index.html): mismo texto, "LIBRE"/nombre asignado/
+// "SUISAS", la marca "X" en huecos de día hábil sin actividad,
+// FOTOG oculto, y el gris de fin de semana/feriado. Reproduce
+// la MISMA lógica de celda que usa index.html (HEADER_MAP,
+// textoEncabezado, caso especial de guardia TC), copiada tal
+// cual para que no pueda divergir de lo que ve el suplente.
+// No modifica nada, solo lee.
+// =========================================================
+const SECTORES_EXPORT_PUBLICA = ["BQ","BSE","CCA","CENDYTMA","DENSITO","EMERG","FOTOG","GREMCA","GUARDIA","POLI","RESO","RETEN","SOLY","TC","TRAUMA","UCAL"];
+
+const APELLIDOS_AMBIGUOS_EXPORT = new Set(["Alegre", "Ferreira", "Gonzalez", "Gutierrez", "Martinez", "Rodriguez"]);
+
+function nombreAsignadoExport(p) {
+  const ap = sinTildes(p.apellido || "").toUpperCase();
+  const apSinTildes = sinTildes(p.apellido || "").trim();
+  const inicial = (APELLIDOS_AMBIGUOS_EXPORT.has(apSinTildes) && p.nombre)
+    ? " " + sinTildes(p.nombre).trim().charAt(0).toUpperCase()
+    : "";
+  return ap + inicial + (p.empresa === "SUISAS" ? " (S)" : "");
+}
+
+// Copiado tal cual de index.html — traduce encabezados del Excel al
+// nombre de franja real en Supabase, para el mismo fallback de matching
+// de celda que usa la app pública.
+const HEADER_MAP_EXPORT = {
+  "BQ|6:30 A 8:30": "6:30 a 8:30",
+  "BQ|8 A 12": "8 A 12 (D)",
+  "BQ|8 A 12 (E)": "8 A 12 (E)",
+  "BQ|12 A 16 (F)": "12 A 16 (F)",
+  "BQ|12 A 16 (G)": "12 A 16 (G)",
+  "BQ|16 A 20 (H)": "16 A 20 (H)",
+  "BQ|16 A 20 (I)": "16 A 20 (I)",
+  "BQ|16 A 20": "16 A 20 (H)",
+  "BQ|16 A 20 SUP": "16 A 20 SUP",
+  "BSE|8 A 12": "8 A 12",
+  "BSE|12 A 16": "12 A 16",
+  "BSE|16 A 20": "16 A 20",
+  "BSE|20 A 24": "20 A 24",
+  "CCA|8 A 12": "8 A 12",
+  "CCA|12 A 16": "12 A 16",
+  "CCA|16 A 20": "16 A 20",
+  "CENDYTMA|7:30 A 11:30": "7:30 A 11:30",
+  "CENDYTMA|11:30 A 15:30": "11:30 A 15:30",
+  "CENDYTMA|15:30 A 19:30": "15:30 A 19:30",
+  "CENDYTMA|FUJI 8 A 12": "FUJI 8 A 12",
+  "CENDYTMA|FUJI 9 A 12": "FUJI 9 A 12",
+  "CENDYTMA|12 A 15": "FUJI 12 A 15",
+  "CENDYTMA|12 A 16": "FUJI 12 A 16",
+  "DENSITO|7:30 A 11:30": "7:30 A 11:30",
+  "DENSITO|12 A 16": "12 A 16",
+  "EMERG|1 A 7": "1 A 7",
+  "EMERG|7 A 11": "7 A 11",
+  "EMERG|12 A 16": "12 A 16",
+  "EMERG|16 A 20": "16 A 20",
+  "EMERG|20 A 1": "20 A 1",
+  "FOTOG|7 A 13": "7 A 13",
+  "FOTOG|8 A 14": "8 A 14",
+  "FOTOG|13 A 19": "13 A 19",
+  "GREMCA|9 A 12": "9 A 12",
+  "GUARDIA|7 A 19": "7 A 19",
+  "GUARDIA|8 A 20": "8 A 20",
+  "GUARDIA|20 A 7": "20 A 7",
+  "GUARDIA|19 A 7": "19 A 7",
+  "POLI|SALA 2 (7 A 11)": "SALA 2 (7 A 11)",
+  "POLI|TRAUMA / POLI (7 A 11)": "TRAUMA/POLI (7 A 11)",
+  "POLI|PORTATILES (8 A 12)": "PORTATILES (8 A 12)",
+  "POLI|SUPERNUMERARIO (8 A 12)": "SUPERNUMERARIO (8 A 12)",
+  "POLI|EMER/POLI (11 A 15)": "EMER/POLI (11 A 15)",
+  "POLI|PORTATILES (12 A 16)": "PORTATILES (12 A 16)",
+  "POLI|SALA 1 (12 A 16)": "SALA 1 (12 A 16)",
+  "POLI|SALA 2 (12 A 16)": "SALA 2 (12 A 16)",
+  "POLI|SALA 2 (15:30 A 19:30)": "SALA 2 (15:30 A 19:30)",
+  "POLI|PORTATILES (16 A 20)": "PORTATILES (16 A 20)",
+  "POLI|SALA 2 (16:30 A 20:30)": "SALA 2 (16:30 A 20:30)",
+  "POLI|NOCTURNA (20 A 0)": "NOCTURNA (20 A 0)",
+  "POLI|FONASA (8 A 12)": "FONASA (8 A 12)",
+  "RESO|7:30 A 11:30": "7:30 A 11:30",
+  "RESO|11:30 A 15:30": "11:30 A 15:30",
+  "RESO|12 A 16 (1,5 T)": "12 A 16 (1,5T)",
+  "RESO|12 A 16 (1,5T)": "12 A 16 (1,5T)",
+  "RESO|15:30 A 19:30": "15:30 A 19:30",
+  "RESO|16 A 20 (1,5T)": "16 A 20 (1,5T)",
+  "RESO|19:30 A 23:30": "19:30 A 23:30",
+  "RESO|8 A 14": "8 A 14",
+  "RESO|14 A 20": "14 A 20",
+  "RESO|20 A 24": "20 A 24",
+  "RETEN|20 A 8": "20 A 8 (LUN-VIE)",
+  "RETEN|20 A 24": "20 A 24 (LUN-VIE)",
+  "RETEN|8 A 20": "8 A 20 (FIN DE SEMANA)",
+  "RETEN|20 A 8 FDS": "20 A 8 (FIN DE SEMANA)",
+  "SOLY|7 A 11": "7 A 11",
+  "SOLY|12 A 16": "12 A 16",
+  "SOLY|16 A 20": "16 A 20",
+  "SOLY|16 A 20 TC": "16 A 20 TC",
+  "SOLY|9 A 13": "9 A 13",
+  "TC|8 A 12 (C)": "8 A 12 (C)",
+  "TC|8 A 12 (D)": "8 A 12 (D)",
+  "TC|12 A 16 (E)": "12 A 16 (E)",
+  "TC|12 A 16 (F)": "12 A 16 (F)",
+  "TC|16 A 20 (G)": "16 A 20 (G)",
+  "TC|16 A 20 (H)": "16 A 20 (H)",
+  "TC|20 A 24 (I)": "20 A 24 (I)",
+  "TC|20 A 24 (J)": "20 A 24 (J)",
+  "TRAUMA|8 A 12": "8 A 12",
+  "TRAUMA|12 A 16": "12 A 16",
+  "TRAUMA|16 A 20": "16 A 20",
+  "UCAL|6 A 12": "6 A 12",
+  "UCAL|12 A 16": "12 A 16",
+  "UCAL|16 A 20": "16 A 20",
+};
+
+function textoEncabezadoExport(estructura, col, sector) {
+  for (let r = estructura.first_day_row - 1; r >= 0; r--) {
+    const v = estructura.filas[r][col]?.v;
+    if (v && String(v).trim() !== "") {
+      const raw = String(v).trim();
+      if (sector) {
+        const mapped = HEADER_MAP_EXPORT[`${sector}|${raw.toUpperCase()}`]
+                    || HEADER_MAP_EXPORT[`${sector}|${raw}`];
+        if (mapped) return mapped;
+      }
+      return raw;
+    }
+  }
+  return "";
+}
+
+function hexFillExport(hex) {
+  return { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + hex.replace("#", "").toUpperCase() } };
+}
+
+async function obtenerTurnosSectorExport(sector, mesCoord) {
+  const sectores = await sbCoord(`sectores?select=id,nombre&nombre=eq.${sector}`);
+  if (!sectores || !sectores.length) return [];
+  const sectorId = sectores[0].id;
+  let lista = [];
+  let desde = 0;
+  while (true) {
+    const pag = await sbCoord(
+      `turnos?select=id,fecha,col_excel,persona_id,nombre_externo,` +
+      `franjas_horarias!inner(nombre,sector_id,sectores!inner(nombre)),perfiles(apellido,nombre,empresa,ficha)` +
+      `&franjas_horarias.sector_id=eq.${sectorId}` +
+      `&fecha=gte.${mesCoord}-01&fecha=lte.${ultimoDiaMesStrCoord(mesCoord)}&order=id.asc`,
+      { headers: { "Range-Unit": "items", Range: `${desde}-${desde+999}` } }
+    );
+    if (!pag || !pag.length) break;
+    lista.push(...pag);
+    if (pag.length < 1000) break;
+    desde += 1000;
+  }
+  return lista;
+}
+
+// Calcula contenido + estilo de una celda replicando EXACTAMENTE la
+// lógica de renderGrilla() en index.html (sin las ramas que dependen de
+// quién está logueado, porque acá no hay un suplente puntual mirando).
+function calcularCeldaExport({ sector, estructura, turnosLista, r, c, mesCoord, feriadosSet }) {
+  const { filas, dia_col, first_day_row, last_day_row, columnas_grises } = estructura;
+  const setColumnasGrises = Array.isArray(columnas_grises) ? new Set(columnas_grises) : null;
+  const celda = filas[r][c];
+
+  const esFilaDeDia = r >= first_day_row && r <= last_day_row;
+  let dia = esFilaDeDia ? filas[r][dia_col]?.v : null;
+
+  let grisFila = false;
+  if (esFilaDeDia && typeof dia === "number") {
+    const fechaStr = `${mesCoord}-${String(dia).padStart(2, "0")}`;
+    const d = new Date(fechaStr + "T12:00:00");
+    const diaSemana = ((d.getDay() + 6) % 7) + 1;
+    const esFinde = diaSemana === 6 || diaSemana === 7;
+    const esFeriado = feriadosSet.has(fechaStr) && sector !== "BSE";
+    grisFila = esFinde || esFeriado;
+  }
+
+  let contenido = celda.v ?? "";
+  let bg = null, color = null, negrita = !!celda.bold;
+
+  if ((esFilaDeDia || r > last_day_row) && typeof celda.v === "number" && celda.v >= 1 && celda.v <= 31) {
+    if (!setColumnasGrises || setColumnasGrises.has(c)) {
+      if (grisFila) bg = "A6A6A6"; else bg = "BDD7EE";
+    }
+  } else if ((esFilaDeDia || r > last_day_row) && typeof celda.v === "string" && /^\d{1,2}\s*A\s*\d{1,2}$/i.test(celda.v.trim())) {
+    contenido = celda.v;
+  } else if (esFilaDeDia) {
+    let diaLocal = dia;
+    if (sector === "TC") {
+      const posibleDia = filas[r][c - 1]?.v;
+      if (typeof posibleDia === "number" && posibleDia >= 1 && posibleDia <= 31) diaLocal = posibleDia;
+    }
+    const t = turnosLista.find(x => Number(x.fecha.slice(8,10)) === diaLocal && x.col_excel === (100 + r))
+      || turnosLista.find(x => Number(x.fecha.slice(8,10)) === diaLocal && x.col_excel === c)
+      || turnosLista.find(x => Number(x.fecha.slice(8,10)) === dia && (x.franjas_horarias?.nombre || "").trim() === textoEncabezadoExport(estructura, c, sector));
+
+    const esSuisasDirecto = t && !t.persona_id && t.nombre_externo === "SUISAS_DIRECTO";
+
+    if (esSuisasDirecto) {
+      contenido = "SUISAS"; color = "00C853"; negrita = false;
+    } else if (t && (t.persona_id || t.nombre_externo)) {
+      contenido = t.perfiles ? nombreAsignadoExport(t.perfiles) : sinTildes(t.nombre_externo).toUpperCase();
+    } else if (t) {
+      if (sector === "FOTOG") { contenido = ""; }
+      else { contenido = "LIBRE"; color = "00C853"; negrita = true; }
+    } else if (celda.v) {
+      contenido = sinTildes(String(celda.v)).toUpperCase();
+    } else if (!grisFila && c !== dia_col && (!setColumnasGrises || setColumnasGrises.has(c))) {
+      contenido = "X";
+    } else {
+      contenido = "";
+    }
+  }
+
+  if (grisFila && (setColumnasGrises ? setColumnasGrises.has(c) : true)) bg = "A6A6A6";
+  if (celda.g && !bg) bg = "A6A6A6";
+
+  return { celda, contenido, bg, color, negrita };
+}
+
+function calcularCeldaGuardiaTCExport({ sector, estructura, turnosLista, r, c, mesCoord }) {
+  if (sector !== "TC" || r < 14 || r > 50 || (c !== 12 && c !== 13)) return null;
+  const { filas } = estructura;
+  const diaG = filas[r][14]?.v;
+  const horarioG = (filas[r][15]?.v || "").toString().trim();
+  if (typeof diaG !== "number" || !horarioG) return { contenido: "", bg: null, color: null, negrita: false };
+
+  const fechaG = `${mesCoord}-${String(diaG).padStart(2, "0")}`;
+  const tG = turnosLista.find(t =>
+    t.fecha === fechaG && (t.franjas_horarias?.nombre || "").trim() === horarioG
+  );
+  const esSuisasDirectoG = tG && !tG.persona_id && tG.nombre_externo === "SUISAS_DIRECTO";
+
+  let contenido = "", color = null, negrita = false;
+
+  if (c === 12) {
+    if (tG && tG.persona_id && tG.perfiles) contenido = tG.perfiles.ficha != null ? String(tG.perfiles.ficha) : "";
+    else if (esSuisasDirectoG) { contenido = "SUISAS"; color = "00C853"; }
+    else if (tG && tG.nombre_externo) contenido = sinTildes(tG.nombre_externo).toUpperCase();
+    else if (tG) { contenido = "LIBRE"; color = "00C853"; negrita = true; }
+  } else if (tG) {
+    if (esSuisasDirectoG) { contenido = "SUISAS"; color = "00C853"; }
+    else if (tG.persona_id || tG.nombre_externo) {
+      contenido = tG.perfiles ? nombreAsignadoExport(tG.perfiles) : sinTildes(tG.nombre_externo).toUpperCase();
+    } else { contenido = "LIBRE"; color = "00C853"; negrita = true; }
+  }
+  return { contenido, bg: null, color, negrita };
+}
+
+async function exportarPlanillaPublica() {
+  const btn = document.getElementById("btn-exportar-excel");
+  const original = btn.textContent;
+  btn.disabled = true;
+
+  try {
+    const workbook = new ExcelJS.Workbook();
+
+    for (const sector of SECTORES_EXPORT_PUBLICA) {
+      btn.textContent = `Generando ${sector}...`;
+      const hojas = await sbCoord(`hojas_excel?select=estructura&sector=eq.${sector}&mes=eq.${MES_COORD}-01`);
+      if (!hojas || !hojas.length) continue;
+
+      const estructura = hojas[0].estructura;
+      const { cols, merges, filas, ultima_col_real, first_day_row } = estructura;
+      const totalCols = (typeof ultima_col_real === "number") ? ultima_col_real + 1 : cols.length;
+      const turnosLista = await obtenerTurnosSectorExport(sector, MES_COORD);
+
+      const ws = workbook.addWorksheet(sector.substring(0, 31));
+      for (let i = 0; i < totalCols; i++) ws.getColumn(i + 1).width = cols[i] || 8;
+
+      const skip = new Set();
+      for (const m of merges) {
+        ws.mergeCells(m.r1, m.c1, m.r2, m.c2);
+        for (let r = m.r1 - 1; r <= m.r2 - 1; r++)
+          for (let c = m.c1 - 1; c <= m.c2 - 1; c++)
+            if (!(r === m.r1 - 1 && c === m.c1 - 1)) skip.add(`${r}-${c}`);
+      }
+
+      for (let r = 0; r < filas.length; r++) {
+        for (let c = 0; c < totalCols; c++) {
+          if (skip.has(`${r}-${c}`)) continue;
+
+          let resultado = calcularCeldaGuardiaTCExport({ sector, estructura, turnosLista, r, c, mesCoord: MES_COORD });
+          let celda = filas[r][c];
+          if (!resultado) {
+            resultado = calcularCeldaExport({ sector, estructura, turnosLista, r, c, mesCoord: MES_COORD, feriadosSet });
+            celda = resultado.celda;
+          }
+
+          const { contenido, bg, color, negrita } = resultado;
+
+          const cell = ws.getCell(r + 1, c + 1);
+          cell.value = contenido === "" ? null : contenido;
+          if (bg) cell.fill = hexFillExport(bg);
+          cell.font = { bold: negrita, color: color ? { argb: "FF" + color } : undefined };
+          cell.alignment = { vertical: "middle", horizontal: "center" };
+
+          const esEnc = r < first_day_row;
+          if (!esEnc && celda?.bd) {
+            const bd = celda.bd;
+            cell.border = {
+              top: bd.t ? { style: "thin" } : undefined,
+              bottom: bd.b ? { style: "thin" } : undefined,
+              left: bd.l ? { style: "thin" } : undefined,
+              right: bd.r ? { style: "thin" } : undefined,
+            };
+          }
+        }
+      }
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Planilla_publica_${MES_COORD}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert("No se pudo generar el Excel: " + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+document.getElementById("btn-exportar-excel").addEventListener("click", exportarPlanillaPublica);
 
 document.getElementById("coord-sector").addEventListener("change", async (e) => {
   const sector = e.target.value;
