@@ -1472,7 +1472,7 @@ async function cargarDatosConvocatoria() {
     while (true) {
       const pagina = await sb(
         `turnos?select=id,fecha,persona_id,nombre_externo,origen_vacante,col_excel,` +
-        `franjas_horarias(nombre,sector_id,hora_inicio,hora_fin,horas_reales,es_reten,sectores(nombre)),perfiles(apellido,nombre,empresa,ficha)` +
+        `franjas_horarias(nombre,sector_id,hora_inicio,hora_fin,horas_reales,es_reten,sectores(nombre)),perfiles!turnos_persona_id_fkey(apellido,nombre,empresa,ficha)` +
         `&fecha=gte.${mesActivo}-01&fecha=lte.${ultimoDiaMesStr(mesActivo)}&order=id.asc`,
         { headers: { "Range-Unit": "items", "Range": `${desde}-${desde + 999}` } }
       );
