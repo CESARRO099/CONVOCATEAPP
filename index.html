@@ -656,15 +656,29 @@
     <div id="banner-turno-wrap"></div>
     <div id="banner-solicitud-wrap"></div>
 
-    <!-- Botón siempre visible para solicitar cambio -->
+    <!-- Botón siempre visible para informar un cambio -->
     <div id="cambio-wrap" style="display:none; padding:0 0 8px;">
-      <button class="btn-cambio" id="btn-abrir-cambio">Realizar un cambio en la convocatoria</button>
+      <button class="btn-cambio" id="btn-abrir-cambio">Informar un cambio en mi convocatoria</button>
     </div>
 
-    <!-- Modal de solicitud de cambio -->
+    <!-- Modal de elección: cambiar con alguien vs dejar vacante -->
+    <div class="modal-overlay" id="modal-elegir-tipo-cambio">
+      <div class="modal-box">
+        <h3>Informar un cambio en mi convocatoria</h3>
+        <button class="btn-primary" id="btn-ir-cambio-persona" style="width:100%; margin-bottom:10px;">
+          Cambiar mi turno con alguien
+        </button>
+        <button class="btn-primary" id="btn-ir-dejar-vacante" style="width:100%;">
+          Dejar mi turno vacante
+        </button>
+        <button class="btn-cancel" id="btn-cancelar-elegir-tipo" style="margin-top:10px;">Cancelar</button>
+      </div>
+    </div>
+
+    <!-- Modal de solicitud de cambio (persona a persona) -->
     <div class="modal-overlay" id="modal-cambio">
       <div class="modal-box">
-        <h3>Solicitar cambio de turno</h3>
+        <h3>Cambiar mi turno con alguien</h3>
         <div>
           <label style="font-size:0.85rem;font-weight:600;">Turno que querés ceder</label>
           <select id="sel-turno-ceder"></select>
@@ -675,6 +689,36 @@
         </div>
         <button class="btn-primary" id="btn-enviar-cambio">Enviar solicitud</button>
         <button class="btn-cancel" id="btn-cancelar-cambio">Cancelar</button>
+      </div>
+    </div>
+
+    <!-- Modal de dejar turno vacante (para cobertura automática) -->
+    <div class="modal-overlay" id="modal-dejar-vacante">
+      <div class="modal-box">
+        <h3>Dejar mi turno vacante</h3>
+        <div>
+          <label style="font-size:0.85rem;font-weight:600;">Turno que querés dejar vacante</label>
+          <select id="sel-turno-vacante"></select>
+        </div>
+        <div>
+          <label style="font-size:0.85rem;font-weight:600;">Motivo</label>
+          <select id="sel-causal-vacante">
+            <option value="">Motivo personal (no listado abajo)</option>
+            <option value="Estudio">Estudio</option>
+            <option value="Fallecimiento de familiar">Fallecimiento de familiar</option>
+            <option value="Enfermedad">Enfermedad</option>
+            <option value="Internación de familiar">Internación de familiar</option>
+            <option value="Donación de sangre">Donación de sangre</option>
+            <option value="Citación del Poder Judicial como testigo">Citación del Poder Judicial como testigo</option>
+            <option value="Día por PAP">Día por PAP</option>
+            <option value="Día por mamografía">Día por mamografía</option>
+            <option value="Participación en congreso">Participación en congreso</option>
+            <option value="Casamiento">Casamiento</option>
+            <option value="Licencia por maternidad/paternidad">Licencia por maternidad/paternidad</option>
+          </select>
+        </div>
+        <button class="btn-primary" id="btn-enviar-dejar-vacante">Enviar solicitud</button>
+        <button class="btn-cancel" id="btn-cancelar-dejar-vacante">Cancelar</button>
       </div>
     </div>
     <div class="horas-wrap">
@@ -2373,29 +2417,97 @@ async function responderSolicitud(id, aceptar) {
   }
 }
 
-document.getElementById("btn-abrir-cambio").addEventListener("click", async () => {
+const modalElegirTipo   = document.getElementById("modal-elegir-tipo-cambio");
+const modalDejarVacante = document.getElementById("modal-dejar-vacante");
+const selTurnoVacante   = document.getElementById("sel-turno-vacante");
+const selCausalVacante  = document.getElementById("sel-causal-vacante");
+
+async function cargarMisTurnosDelMes() {
+  return await sb(
+    `turnos?select=id,fecha,franjas_horarias(nombre,sectores(nombre))` +
+    `&persona_id=eq.${personaActual.id}` +
+    `&fecha=gte.${mesActivo}-01&fecha=lte.${ultimoDiaMesStr(mesActivo)}&order=fecha.asc`
+  );
+}
+
+function opcionesDeTurnos(misTurnos) {
+  return misTurnos.map(t =>
+    `<option value="${t.id}">${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ` +
+    `${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}</option>`
+  ).join("");
+}
+
+document.getElementById("btn-abrir-cambio").addEventListener("click", () => {
+  modalElegirTipo.classList.add("open");
+});
+
+document.getElementById("btn-cancelar-elegir-tipo").addEventListener("click", () => {
+  modalElegirTipo.classList.remove("open");
+});
+
+document.getElementById("btn-ir-cambio-persona").addEventListener("click", async () => {
   const publicado = await sb(`meses_publicados?select=mes&mes=eq.${mesActivo}-01`);
   if (!publicado || !publicado.length) {
     alert("No es posible modificar la convocatoria de este mes.");
     return;
   }
 
-  const misTurnos = await sb(
-    `turnos?select=id,fecha,franjas_horarias(nombre,sectores(nombre))` +
-    `&persona_id=eq.${personaActual.id}` +
-    `&fecha=gte.${mesActivo}-01&fecha=lte.${ultimoDiaMesStr(mesActivo)}&order=fecha.asc`
-  );
-  selTurno.innerHTML = misTurnos.map(t =>
-    `<option value="${t.id}">${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ` +
-    `${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}</option>`
-  ).join("");
+  const misTurnos = await cargarMisTurnosDelMes();
+  selTurno.innerHTML = opcionesDeTurnos(misTurnos);
 
   selCobertura.innerHTML = (window.__personas || [])
     .filter(p => p.id !== personaActual.id)
     .map(p => `<option value="${p.id}">${nombreCompleto(p)}</option>`)
     .join("");
 
+  modalElegirTipo.classList.remove("open");
   modalCambio.classList.add("open");
+});
+
+document.getElementById("btn-ir-dejar-vacante").addEventListener("click", async () => {
+  const publicado = await sb(`meses_publicados?select=mes&mes=eq.${mesActivo}-01`);
+  if (!publicado || !publicado.length) {
+    alert("No es posible modificar la convocatoria de este mes.");
+    return;
+  }
+
+  const misTurnos = await cargarMisTurnosDelMes();
+  selTurnoVacante.innerHTML = opcionesDeTurnos(misTurnos);
+  selCausalVacante.value = "";
+
+  modalElegirTipo.classList.remove("open");
+  modalDejarVacante.classList.add("open");
+});
+
+document.getElementById("btn-cancelar-dejar-vacante").addEventListener("click", () => {
+  modalDejarVacante.classList.remove("open");
+});
+
+document.getElementById("btn-enviar-dejar-vacante").addEventListener("click", async () => {
+  const turnoId = Number(selTurnoVacante.value);
+  const causal  = selCausalVacante.value;
+  if (!turnoId) return;
+
+  const resultado = await sb(`rpc/solicitar_dejar_turno_vacante`, {
+    method: "POST",
+    body: JSON.stringify({
+      p_turno_id: turnoId,
+      p_solicitante_id: personaActual.id,
+      p_pin: personaPin,
+      p_causal: causal
+    })
+  });
+
+  modalDejarVacante.classList.remove("open");
+  if (resultado === "ok") {
+    alert("Listo, le avisamos al coordinador que dejás este turno vacante.");
+  } else if (resultado === "mes_no_publicado") {
+    alert("No es posible modificar la convocatoria de este mes.");
+  } else if (resultado === "ya_pendiente") {
+    alert("Ya hay un pedido pendiente para ese turno.");
+  } else {
+    alert("No se pudo enviar el pedido.");
+  }
 });
 
 document.getElementById("btn-cancelar-cambio").addEventListener("click", () => {
