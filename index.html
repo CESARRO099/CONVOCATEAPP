@@ -669,6 +669,21 @@
       <button class="btn-cambio" id="btn-abrir-cambio">Informar un cambio en mi convocatoria</button>
     </div>
 
+    <!-- Botón de postulación a actividades ofrecidas (solo aparece si hay algo disponible) -->
+    <div id="postulacion-wrap" style="display:none; padding:0 0 8px;">
+      <button class="btn-cambio" id="btn-abrir-postulacion" style="background:var(--accent);"></button>
+    </div>
+
+    <!-- Modal de postulación a actividades -->
+    <div class="modal-overlay" id="modal-postulacion">
+      <div class="modal-box">
+        <h3>Actividades para postularme</h3>
+        <div id="postulacion-lista" style="margin-bottom:12px;"></div>
+        <button class="btn-primary" id="btn-confirmar-postulacion" style="width:100%;">Confirmar postulación</button>
+        <button class="btn-cancel" id="btn-cerrar-postulacion" style="margin-top:6px;">Cerrar</button>
+      </div>
+    </div>
+
     <!-- Modal de elección: cambiar con alguien vs dejar vacante -->
     <div class="modal-overlay" id="modal-elegir-tipo-cambio">
       <div class="modal-box">
@@ -2697,6 +2712,13 @@ document.getElementById("btn-confirmar-actividades").addEventListener("click", a
     return;
   }
 
+  // Un mismo lote_id para todos los turnos de esta tanda, así después se
+  // puede armar UN solo correo a RRHH con todas las coberturas juntas
+  // (en vez de un correo por turno) cuando se construya esa parte.
+  const loteId = (window.crypto && window.crypto.randomUUID)
+    ? window.crypto.randomUUID()
+    : "lote-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+
   let enviados = 0, yaPendientes = 0, mesNoPublicado = 0, errores = 0;
 
   for (const t of turnosEncontradosVacante) {
@@ -2707,7 +2729,8 @@ document.getElementById("btn-confirmar-actividades").addEventListener("click", a
         p_solicitante_id: personaActual.id,
         p_pin: personaPin,
         p_causal: causalElegidaVacante,
-        p_hora_citacion: horaCitacionElegida
+        p_hora_citacion: horaCitacionElegida,
+        p_lote_id: loteId
       })
     });
     if (resultado === "ok") enviados++;
@@ -2761,11 +2784,126 @@ function actualizarBotonesCambio() {
   if (personaActual) {
     cambioWrap.style.display = "block";
     cargarSolicitudesPendientes();
+    actualizarBotonPostulacion();
+    if (!window.__intervaloPostulacion) {
+      window.__intervaloPostulacion = setInterval(actualizarBotonPostulacion, 30000);
+    }
   } else {
     cambioWrap.style.display = "none";
     bannerSolicitud.innerHTML = "";
+    postulacionWrap.style.display = "none";
   }
 }
+
+// ---------------------------------------------------------
+// Pantalla "Actividades para postularme" (Flujo 1, Paso C):
+// muestra las actividades que se le ofrecieron a esta persona
+// (sector habilitado + oferta abierta), con checkbox para
+// postularse y un contador regresivo por actividad hasta que
+// se cierra la ventana de 1 hora.
+// ---------------------------------------------------------
+const postulacionWrap  = document.getElementById("postulacion-wrap");
+const btnAbrirPostulacion = document.getElementById("btn-abrir-postulacion");
+const modalPostulacion = document.getElementById("modal-postulacion");
+const postulacionLista = document.getElementById("postulacion-lista");
+let actividadesDisponiblesCache = [];
+let intervaloContadorPostulacion = null;
+
+async function cargarActividadesDisponibles() {
+  if (!personaActual) return [];
+  return await sb(`rpc/actividades_disponibles_para`, {
+    method: "POST",
+    body: JSON.stringify({ p_persona_id: personaActual.id })
+  }) || [];
+}
+
+async function actualizarBotonPostulacion() {
+  const actividades = await cargarActividadesDisponibles();
+  const pendientesSinPostular = actividades.filter(a => !a.ya_postulado);
+  if (pendientesSinPostular.length > 0) {
+    postulacionWrap.style.display = "block";
+    btnAbrirPostulacion.textContent = `Actividades para postularme (${pendientesSinPostular.length})`;
+  } else {
+    postulacionWrap.style.display = "none";
+  }
+}
+
+function formatearRestante(cierraEnIso) {
+  const restanteMs = new Date(cierraEnIso).getTime() - Date.now();
+  if (restanteMs <= 0) return "vencida";
+  const totalSeg = Math.floor(restanteMs / 1000);
+  const min = Math.floor(totalSeg / 60);
+  const seg = totalSeg % 60;
+  return `vence en ${min}:${String(seg).padStart(2, "0")}`;
+}
+
+function actualizarContadoresPostulacion() {
+  postulacionLista.querySelectorAll("[data-cierra]").forEach(el => {
+    el.textContent = formatearRestante(el.dataset.cierra);
+  });
+}
+
+async function abrirModalPostulacion() {
+  actividadesDisponiblesCache = await cargarActividadesDisponibles();
+
+  if (!actividadesDisponiblesCache.length) {
+    postulacionLista.innerHTML = `<div style="color:var(--ink-soft);font-size:0.85rem;">No hay actividades disponibles en este momento.</div>`;
+  } else {
+    postulacionLista.innerHTML = actividadesDisponiblesCache.map(a => `
+      <div style="display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin-bottom:6px;">
+        <input type="checkbox" data-solicitud-id="${a.solicitud_id}" ${a.ya_postulado ? "checked disabled" : ""} style="width:20px;height:20px;flex-shrink:0;" />
+        <div style="flex:1;">
+          <div style="font-size:0.85rem;font-weight:600;">${a.fecha.slice(8,10)}/${a.fecha.slice(5,7)} — ${a.sector} ${a.franja}</div>
+          <div style="font-size:0.75rem;color:${a.ya_postulado ? "var(--ok)" : "var(--warn)"};" ${a.ya_postulado ? "" : `data-cierra="${a.cierra_en}"`}>
+            ${a.ya_postulado ? "Ya te postulaste" : formatearRestante(a.cierra_en)}
+          </div>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  modalPostulacion.classList.add("open");
+  clearInterval(intervaloContadorPostulacion);
+  intervaloContadorPostulacion = setInterval(actualizarContadoresPostulacion, 1000);
+}
+
+btnAbrirPostulacion.addEventListener("click", abrirModalPostulacion);
+
+document.getElementById("btn-cerrar-postulacion").addEventListener("click", () => {
+  modalPostulacion.classList.remove("open");
+  clearInterval(intervaloContadorPostulacion);
+});
+
+document.getElementById("btn-confirmar-postulacion").addEventListener("click", async () => {
+  const checks = postulacionLista.querySelectorAll("input[type=checkbox]:checked:not(:disabled)");
+  if (!checks.length) {
+    alert("Marcá al menos una actividad para postularte.");
+    return;
+  }
+
+  let enviadas = 0, errores = 0;
+  for (const chk of checks) {
+    const solicitudId = Number(chk.dataset.solicitudId);
+    const resultado = await sb(`rpc/postularse_actividad`, {
+      method: "POST",
+      body: JSON.stringify({
+        p_solicitud_vacante_id: solicitudId,
+        p_persona_id: personaActual.id,
+        p_pin: personaPin
+      })
+    });
+    if (resultado === "ok") enviadas++;
+    else errores++;
+  }
+
+  clearInterval(intervaloContadorPostulacion);
+  modalPostulacion.classList.remove("open");
+  actualizarBotonPostulacion();
+
+  let mensaje = `Te postulaste a ${enviadas} actividad(es).`;
+  if (errores) mensaje += ` ${errores} no se pudieron enviar (puede que la ventana ya haya cerrado).`;
+  alert(mensaje);
+});
 
 
 const VAPID_PUBLIC_KEY = "BHNTEZRf4uqYFfr_IqFMk6e8w6gcg115m7FRausnVsGjM6e7u48Ec1w-H7KouhwMFmXsuQm1x5WN5O1a37E9HSM";
