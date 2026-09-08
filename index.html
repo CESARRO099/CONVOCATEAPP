@@ -213,6 +213,14 @@
     100% { box-shadow: 0 0 0 0 rgba(10,41,102,0); }
   }
   .btn-cambio:active{ opacity: 0.85; transform: scale(0.98); }
+  .btn-motivo{
+    background: #f4f4f4; color: var(--ink); border: 1.5px solid var(--line);
+    border-radius: 8px; padding:8px 6px; font-size:0.78rem; font-weight:600;
+    cursor:pointer; font-family:inherit; text-align:center;
+  }
+  .btn-motivo.activo{
+    background: #0a2966; color: #fff; border-color:#0a2966;
+  }
   .modal-overlay{
     display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: rgba(0,0,0,0.45);
     z-index: 100; align-items: center; justify-content: center;
@@ -696,29 +704,65 @@
     <div class="modal-overlay" id="modal-dejar-vacante">
       <div class="modal-box">
         <h3>Dejar mi turno vacante</h3>
-        <div>
-          <label style="font-size:0.85rem;font-weight:600;">Turno que querés dejar vacante</label>
-          <select id="sel-turno-vacante"></select>
-        </div>
-        <div>
+
+        <!-- PASO 1: motivo -->
+        <div id="paso-motivo">
           <label style="font-size:0.85rem;font-weight:600;">Motivo</label>
-          <select id="sel-causal-vacante">
-            <option value="">Motivo personal (no listado abajo)</option>
-            <option value="Estudio">Estudio</option>
-            <option value="Fallecimiento de familiar">Fallecimiento de familiar</option>
-            <option value="Enfermedad">Enfermedad</option>
-            <option value="Internación de familiar">Internación de familiar</option>
-            <option value="Donación de sangre">Donación de sangre</option>
-            <option value="Citación del Poder Judicial como testigo">Citación del Poder Judicial como testigo</option>
+          <div style="display:flex; gap:8px; margin-bottom:8px;">
+            <button type="button" class="btn-motivo" id="btn-motivo-lp" style="flex:1;">Libre Particular</button>
+            <button type="button" class="btn-motivo" id="btn-motivo-rc" style="flex:1;">Rechazo de Convocatoria</button>
+          </div>
+          <div style="display:flex; gap:8px; margin-bottom:8px;">
+            <button type="button" class="btn-motivo" id="btn-motivo-enfermedad" style="flex:1;">Licencia por Enfermedad</button>
+            <button type="button" class="btn-motivo" id="btn-motivo-otra" style="flex:1;">Otra causa</button>
+          </div>
+          <select id="sel-causal-vacante" style="display:none;">
+            <option value="" disabled selected>-- Seleccioná la causa --</option>
             <option value="Día por PAP">Día por PAP</option>
             <option value="Día por mamografía">Día por mamografía</option>
-            <option value="Participación en congreso">Participación en congreso</option>
-            <option value="Casamiento">Casamiento</option>
-            <option value="Licencia por maternidad/paternidad">Licencia por maternidad/paternidad</option>
+            <option value="Día por donación de sangre">Día por donación de sangre</option>
+            <option value="Días por internación de familiar">Días por internación de familiar</option>
+            <option value="Días por fallecimiento de familiar">Días por fallecimiento de familiar</option>
+            <option value="Días por estudio">Días por estudio</option>
+            <option value="Citación del Poder Judicial como testigo">Citación del Poder Judicial como testigo</option>
+            <option value="Días por participación a congreso">Días por participación a congreso</option>
+            <option value="Días por casamiento">Días por casamiento</option>
+            <option value="Licencia por paternidad/maternidad">Licencia por paternidad/maternidad</option>
           </select>
+          <div id="motivo-elegido-texto" style="font-size:0.85rem;color:var(--ink-soft);margin:6px 0;"></div>
+          <button class="btn-primary" id="btn-motivo-siguiente" style="width:100%;margin-top:6px;">Siguiente</button>
         </div>
-        <button class="btn-primary" id="btn-enviar-dejar-vacante">Enviar solicitud</button>
-        <button class="btn-cancel" id="btn-cancelar-dejar-vacante">Cancelar</button>
+
+        <!-- PASO 2: fechas -->
+        <div id="paso-fechas" style="display:none;">
+          <div id="fechas-frase" style="font-weight:600;font-size:0.95rem;margin-bottom:10px;"></div>
+          <div id="fechas-rango" style="display:none;">
+            <label style="font-size:0.85rem;font-weight:600;">Desde</label>
+            <input type="date" id="input-fecha-desde" />
+            <label style="font-size:0.85rem;font-weight:600;">Hasta</label>
+            <input type="date" id="input-fecha-hasta" />
+          </div>
+          <div id="fechas-un-dia" style="display:none;">
+            <label style="font-size:0.85rem;font-weight:600;">Día</label>
+            <input type="date" id="input-fecha-unica" />
+          </div>
+          <div id="fechas-hora" style="display:none;">
+            <label style="font-size:0.85rem;font-weight:600;">Hora de la citación</label>
+            <input type="time" id="input-hora-citacion" />
+          </div>
+          <button class="btn-primary" id="btn-buscar-actividades" style="width:100%;margin-top:10px;">Buscar mis actividades</button>
+          <button class="btn-cancel" id="btn-fechas-volver" style="margin-top:6px;">Volver</button>
+        </div>
+
+        <!-- PASO 3: confirmar -->
+        <div id="paso-confirmar" style="display:none;">
+          <div style="font-weight:600;font-size:0.9rem;margin-bottom:8px;">Estas son las actividades que encontramos en ese período:</div>
+          <div id="lista-actividades-encontradas" style="margin-bottom:10px;"></div>
+          <button class="btn-primary" id="btn-confirmar-actividades" style="width:100%;">Confirmar y enviar</button>
+          <button class="btn-cancel" id="btn-confirmar-volver" style="margin-top:6px;">Volver</button>
+        </div>
+
+        <button class="btn-cancel" id="btn-cancelar-dejar-vacante" style="margin-top:10px;">Cancelar</button>
       </div>
     </div>
     <div class="horas-wrap">
@@ -2419,8 +2463,181 @@ async function responderSolicitud(id, aceptar) {
 
 const modalElegirTipo   = document.getElementById("modal-elegir-tipo-cambio");
 const modalDejarVacante = document.getElementById("modal-dejar-vacante");
-const selTurnoVacante   = document.getElementById("sel-turno-vacante");
-const selCausalVacante  = document.getElementById("sel-causal-vacante");
+
+// Config de las 13 causales: tipo de selector de fecha + frase a mostrar.
+// expandeA (para fallecimiento/paternidad-maternidad) queda en null hasta
+// que Cesar confirme la cantidad de días — mientras tanto se comporta
+// como selección de un solo día, sin expandir.
+const CAUSALES_CONFIG = {
+  "Libre Particular": { tipo: "rango", frase: "Elegí los días que vas a estar ausente." },
+  "Rechazo de Convocatoria": { tipo: "rango", frase: "Elegí los días que vas a estar ausente." },
+  "Licencia por Enfermedad": { tipo: "rango", frase: "Cuéntanos las fechas de tu certificación" },
+  "Día por PAP": { tipo: "un_dia", frase: "¿Qué día tenés el estudio?" },
+  "Día por mamografía": { tipo: "un_dia", frase: "¿Qué día tenés el estudio?" },
+  "Día por donación de sangre": { tipo: "un_dia", frase: "¿Qué día donás?" },
+  "Días por internación de familiar": { tipo: "rango", frase: "Elegí los días que necesitás pedir" },
+  "Días por fallecimiento de familiar": { tipo: "un_dia", frase: "Seleccioná el día de fallecimiento", expandeA: null },
+  "Días por estudio": { tipo: "rango", frase: "Elegí tus días para estudiar" },
+  "Citación del Poder Judicial como testigo": { tipo: "un_dia_hora", frase: "Dinos qué día y hora te citaron" },
+  "Días por participación a congreso": { tipo: "rango", frase: "Elegí los días que estarás de congreso" },
+  "Días por casamiento": { tipo: "un_dia", frase: "¿Qué día te casás?" },
+  "Licencia por paternidad/maternidad": { tipo: "un_dia", frase: "¿Qué día llegó ese bebé?", expandeA: null },
+};
+
+const selCausalVacante    = document.getElementById("sel-causal-vacante");
+const btnMotivoLP         = document.getElementById("btn-motivo-lp");
+const btnMotivoRC         = document.getElementById("btn-motivo-rc");
+const btnMotivoEnfermedad = document.getElementById("btn-motivo-enfermedad");
+const btnMotivoOtra       = document.getElementById("btn-motivo-otra");
+const motivoElegidoTexto  = document.getElementById("motivo-elegido-texto");
+
+const pasoMotivo     = document.getElementById("paso-motivo");
+const pasoFechas      = document.getElementById("paso-fechas");
+const pasoConfirmar   = document.getElementById("paso-confirmar");
+const fechasFrase     = document.getElementById("fechas-frase");
+const fechasRangoWrap = document.getElementById("fechas-rango");
+const fechasUnDiaWrap = document.getElementById("fechas-un-dia");
+const fechasHoraWrap  = document.getElementById("fechas-hora");
+const inputFechaDesde = document.getElementById("input-fecha-desde");
+const inputFechaHasta = document.getElementById("input-fecha-hasta");
+const inputFechaUnica = document.getElementById("input-fecha-unica");
+const inputHoraCitacion = document.getElementById("input-hora-citacion");
+const listaActividadesEncontradas = document.getElementById("lista-actividades-encontradas");
+
+let causalElegidaVacante = "";
+let turnosEncontradosVacante = [];
+let horaCitacionElegida = null;
+
+function limpiarSeleccionMotivo() {
+  causalElegidaVacante = "";
+  btnMotivoLP.classList.remove("activo");
+  btnMotivoRC.classList.remove("activo");
+  btnMotivoEnfermedad.classList.remove("activo");
+  btnMotivoOtra.classList.remove("activo");
+  selCausalVacante.style.display = "none";
+  selCausalVacante.value = "";
+  motivoElegidoTexto.textContent = "";
+  inputFechaDesde.value = "";
+  inputFechaHasta.value = "";
+  inputFechaUnica.value = "";
+  inputHoraCitacion.value = "";
+  turnosEncontradosVacante = [];
+  horaCitacionElegida = null;
+  pasoMotivo.style.display = "block";
+  pasoFechas.style.display = "none";
+  pasoConfirmar.style.display = "none";
+}
+
+function elegirMotivoFijo(valor, boton) {
+  causalElegidaVacante = valor;
+  btnMotivoLP.classList.remove("activo");
+  btnMotivoRC.classList.remove("activo");
+  btnMotivoEnfermedad.classList.remove("activo");
+  btnMotivoOtra.classList.remove("activo");
+  boton.classList.add("activo");
+  selCausalVacante.style.display = "none";
+  motivoElegidoTexto.textContent = "Motivo: " + valor;
+}
+
+btnMotivoLP.addEventListener("click", () => elegirMotivoFijo("Libre Particular", btnMotivoLP));
+btnMotivoRC.addEventListener("click", () => elegirMotivoFijo("Rechazo de Convocatoria", btnMotivoRC));
+btnMotivoEnfermedad.addEventListener("click", () => elegirMotivoFijo("Licencia por Enfermedad", btnMotivoEnfermedad));
+
+btnMotivoOtra.addEventListener("click", () => {
+  btnMotivoLP.classList.remove("activo");
+  btnMotivoRC.classList.remove("activo");
+  btnMotivoEnfermedad.classList.remove("activo");
+  btnMotivoOtra.classList.add("activo");
+  selCausalVacante.style.display = "block";
+  causalElegidaVacante = "";
+  motivoElegidoTexto.textContent = "";
+});
+
+selCausalVacante.addEventListener("change", () => {
+  causalElegidaVacante = selCausalVacante.value;
+  motivoElegidoTexto.textContent = causalElegidaVacante ? "Motivo: " + causalElegidaVacante : "";
+});
+
+document.getElementById("btn-motivo-siguiente").addEventListener("click", () => {
+  if (!causalElegidaVacante) {
+    alert("Elegí un motivo antes de continuar.");
+    return;
+  }
+  const config = CAUSALES_CONFIG[causalElegidaVacante];
+  fechasFrase.textContent = config.frase;
+  fechasRangoWrap.style.display = config.tipo === "rango" ? "block" : "none";
+  fechasUnDiaWrap.style.display = (config.tipo === "un_dia" || config.tipo === "un_dia_hora") ? "block" : "none";
+  fechasHoraWrap.style.display = config.tipo === "un_dia_hora" ? "block" : "none";
+
+  pasoMotivo.style.display = "none";
+  pasoFechas.style.display = "block";
+});
+
+document.getElementById("btn-fechas-volver").addEventListener("click", () => {
+  pasoFechas.style.display = "none";
+  pasoMotivo.style.display = "block";
+});
+
+document.getElementById("btn-buscar-actividades").addEventListener("click", async () => {
+  const config = CAUSALES_CONFIG[causalElegidaVacante];
+  let fechaDesde, fechaHasta;
+
+  if (config.tipo === "rango") {
+    fechaDesde = inputFechaDesde.value;
+    fechaHasta = inputFechaHasta.value;
+    if (!fechaDesde || !fechaHasta) {
+      alert("Elegí las dos fechas (desde y hasta).");
+      return;
+    }
+    if (fechaHasta < fechaDesde) {
+      alert("La fecha 'hasta' no puede ser anterior a 'desde'.");
+      return;
+    }
+  } else {
+    fechaDesde = fechaHasta = inputFechaUnica.value;
+    if (!fechaDesde) {
+      alert("Elegí un día.");
+      return;
+    }
+  }
+
+  if (config.tipo === "un_dia_hora") {
+    horaCitacionElegida = inputHoraCitacion.value;
+    if (!horaCitacionElegida) {
+      alert("Elegí la hora de la citación.");
+      return;
+    }
+  } else {
+    horaCitacionElegida = null;
+  }
+
+  const turnos = await sb(
+    `turnos?select=id,fecha,franjas_horarias(nombre,sectores(nombre))` +
+    `&persona_id=eq.${personaActual.id}` +
+    `&fecha=gte.${fechaDesde}&fecha=lte.${fechaHasta}&order=fecha.asc`
+  );
+
+  turnosEncontradosVacante = turnos || [];
+
+  if (!turnosEncontradosVacante.length) {
+    listaActividadesEncontradas.innerHTML =
+      `<div style="color:var(--ink-soft);font-size:0.85rem;">No encontramos ninguna actividad tuya en ese período.</div>`;
+  } else {
+    listaActividadesEncontradas.innerHTML = turnosEncontradosVacante.map(t =>
+      `<div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:0.85rem;">` +
+      `${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}` +
+      `</div>`
+    ).join("");
+  }
+
+  pasoFechas.style.display = "none";
+  pasoConfirmar.style.display = "block";
+});
+
+document.getElementById("btn-confirmar-volver").addEventListener("click", () => {
+  pasoConfirmar.style.display = "none";
+  pasoFechas.style.display = "block";
+});
 
 async function cargarMisTurnosDelMes() {
   return await sb(
@@ -2464,17 +2681,8 @@ document.getElementById("btn-ir-cambio-persona").addEventListener("click", async
   modalCambio.classList.add("open");
 });
 
-document.getElementById("btn-ir-dejar-vacante").addEventListener("click", async () => {
-  const publicado = await sb(`meses_publicados?select=mes&mes=eq.${mesActivo}-01`);
-  if (!publicado || !publicado.length) {
-    alert("No es posible modificar la convocatoria de este mes.");
-    return;
-  }
-
-  const misTurnos = await cargarMisTurnosDelMes();
-  selTurnoVacante.innerHTML = opcionesDeTurnos(misTurnos);
-  selCausalVacante.value = "";
-
+document.getElementById("btn-ir-dejar-vacante").addEventListener("click", () => {
+  limpiarSeleccionMotivo();
   modalElegirTipo.classList.remove("open");
   modalDejarVacante.classList.add("open");
 });
@@ -2483,31 +2691,38 @@ document.getElementById("btn-cancelar-dejar-vacante").addEventListener("click", 
   modalDejarVacante.classList.remove("open");
 });
 
-document.getElementById("btn-enviar-dejar-vacante").addEventListener("click", async () => {
-  const turnoId = Number(selTurnoVacante.value);
-  const causal  = selCausalVacante.value;
-  if (!turnoId) return;
+document.getElementById("btn-confirmar-actividades").addEventListener("click", async () => {
+  if (!turnosEncontradosVacante.length) {
+    modalDejarVacante.classList.remove("open");
+    return;
+  }
 
-  const resultado = await sb(`rpc/solicitar_dejar_turno_vacante`, {
-    method: "POST",
-    body: JSON.stringify({
-      p_turno_id: turnoId,
-      p_solicitante_id: personaActual.id,
-      p_pin: personaPin,
-      p_causal: causal
-    })
-  });
+  let enviados = 0, yaPendientes = 0, mesNoPublicado = 0, errores = 0;
+
+  for (const t of turnosEncontradosVacante) {
+    const resultado = await sb(`rpc/solicitar_dejar_turno_vacante`, {
+      method: "POST",
+      body: JSON.stringify({
+        p_turno_id: t.id,
+        p_solicitante_id: personaActual.id,
+        p_pin: personaPin,
+        p_causal: causalElegidaVacante,
+        p_hora_citacion: horaCitacionElegida
+      })
+    });
+    if (resultado === "ok") enviados++;
+    else if (resultado === "ya_pendiente") yaPendientes++;
+    else if (resultado === "mes_no_publicado") mesNoPublicado++;
+    else errores++;
+  }
 
   modalDejarVacante.classList.remove("open");
-  if (resultado === "ok") {
-    alert("Listo, le avisamos al coordinador que dejás este turno vacante.");
-  } else if (resultado === "mes_no_publicado") {
-    alert("No es posible modificar la convocatoria de este mes.");
-  } else if (resultado === "ya_pendiente") {
-    alert("Ya hay un pedido pendiente para ese turno.");
-  } else {
-    alert("No se pudo enviar el pedido.");
-  }
+
+  let mensaje = `Se enviaron ${enviados} pedido(s) de cobertura.`;
+  if (mesNoPublicado) mensaje += ` ${mesNoPublicado} quedaron afuera porque su mes todavía no está publicado.`;
+  if (yaPendientes) mensaje += ` ${yaPendientes} ya tenían un pedido pendiente.`;
+  if (errores) mensaje += ` ${errores} no se pudieron enviar.`;
+  alert(mensaje);
 });
 
 document.getElementById("btn-cancelar-cambio").addEventListener("click", () => {
