@@ -2739,6 +2739,13 @@ document.getElementById("btn-confirmar-actividades").addEventListener("click", a
     else errores++;
   }
 
+  if (enviados > 0) {
+    await sb(`rpc/abrir_oferta_cobertura`, {
+      method: "POST",
+      body: JSON.stringify({ p_lote_id: loteId })
+    });
+  }
+
   modalDejarVacante.classList.remove("open");
 
   let mensaje = `Se enviaron ${enviados} pedido(s) de cobertura.`;
