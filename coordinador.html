@@ -241,8 +241,8 @@
 <script>
 const SUPABASE_URL = "https://lcnvdgjedxikpqxxyzqr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_HAAHgNldQ3_wJH0EDrq3DA_u04xA7Yd";
-let MES = "2026-10-01";
-let MES_COORD = "2026-10";
+let MES = "2026-12-01";
+let MES_COORD = "2026-12";
 
 function ultimoDiaMesStrCoord(mesYYYYMM) {
   const [anio, mes] = mesYYYYMM.split("-").map(Number);
@@ -501,7 +501,7 @@ async function iniciarApp() {
   setInterval(cargarSolicitudes, 15000);
 }
 
-let MESES_DISPONIBLES_COORD = ["2026-10"];
+let MESES_DISPONIBLES_COORD = ["2026-12"];
 
 async function cargarFeriadosCoord() {
   try {
