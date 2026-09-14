@@ -1156,7 +1156,7 @@ function abrirModalCelda(td) {
 
 document.getElementById("coord-btn-vacante").addEventListener("click", async () => {
   try {
-    await sbCoord(`rpc/coordinador_activar_celda`, {
+    const ok = await sbCoord(`rpc/coordinador_activar_celda`, {
       method: "POST",
       body: JSON.stringify({
         p_sector: coordSectorActual,
@@ -1167,6 +1167,7 @@ document.getElementById("coord-btn-vacante").addEventListener("click", async () 
         p_password_coordinador: coordPassword
       })
     });
+    if (ok === false) throw new Error("Contraseña de coordinador incorrecta o celda no encontrada.");
     document.getElementById("coord-modal").style.display = "none";
     await recargarTurnos();
   } catch (e) {
@@ -1176,7 +1177,7 @@ document.getElementById("coord-btn-vacante").addEventListener("click", async () 
 
 document.getElementById("coord-btn-vacante-suisas").addEventListener("click", async () => {
   try {
-    await sbCoord(`rpc/coordinador_activar_celda`, {
+    const ok = await sbCoord(`rpc/coordinador_activar_celda`, {
       method: "POST",
       body: JSON.stringify({
         p_sector: coordSectorActual,
@@ -1188,6 +1189,7 @@ document.getElementById("coord-btn-vacante-suisas").addEventListener("click", as
         p_password_coordinador: coordPassword
       })
     });
+    if (ok === false) throw new Error("Contraseña de coordinador incorrecta o celda no encontrada.");
     document.getElementById("coord-modal").style.display = "none";
     await recargarTurnos();
   } catch (e) {
@@ -1201,13 +1203,14 @@ document.getElementById("coord-btn-quitar-suisas").addEventListener("click", asy
     return;
   }
   try {
-    await sbCoord(`rpc/coordinador_quitar_nombre_externo`, {
+    const ok = await sbCoord(`rpc/coordinador_quitar_nombre_externo`, {
       method: "POST",
       body: JSON.stringify({
         p_turno_id: celdaSeleccionada.turnoId,
         p_password_coordinador: coordPassword
       })
     });
+    if (ok === false) throw new Error("Contraseña de coordinador incorrecta.");
     document.getElementById("coord-modal").style.display = "none";
     await recargarTurnos();
   } catch (e) {
@@ -1221,7 +1224,7 @@ document.getElementById("coord-btn-cerrar").addEventListener("click", () => {
 
 document.getElementById("coord-btn-activar").addEventListener("click", async () => {
   try {
-    await sbCoord(`rpc/coordinador_activar_celda`, {
+    const ok = await sbCoord(`rpc/coordinador_activar_celda`, {
       method: "POST",
       body: JSON.stringify({
         p_sector: coordSectorActual,
@@ -1231,6 +1234,7 @@ document.getElementById("coord-btn-activar").addEventListener("click", async () 
         p_password_coordinador: coordPassword
       })
     });
+    if (ok === false) throw new Error("Contraseña de coordinador incorrecta o celda no encontrada.");
     document.getElementById("coord-modal").style.display = "none";
     await recargarTurnos();
   } catch (e) {
@@ -1243,7 +1247,7 @@ document.getElementById("coord-btn-asignar").addEventListener("click", async () 
   if (!personaId) return;
 
   try {
-    await sbCoord(`rpc/coordinador_activar_celda`, {
+    const ok = await sbCoord(`rpc/coordinador_activar_celda`, {
       method: "POST",
       body: JSON.stringify({
         p_sector: coordSectorActual,
@@ -1254,6 +1258,7 @@ document.getElementById("coord-btn-asignar").addEventListener("click", async () 
         p_password_coordinador: coordPassword
       })
     });
+    if (ok === false) throw new Error("Contraseña de coordinador incorrecta o celda no encontrada.");
     document.getElementById("coord-modal").style.display = "none";
     await recargarTurnos();
   } catch (e) {
@@ -1265,8 +1270,9 @@ document.getElementById("coord-btn-desactivar").addEventListener("click", async 
   if (!confirm("¿Seguro que querés quitar esta celda de la convocatoria?")) return;
 
   try {
+    let ok;
     if (celdaSeleccionada.turnoId) {
-      await sbCoord(`rpc/coordinador_eliminar_turno`, {
+      ok = await sbCoord(`rpc/coordinador_eliminar_turno`, {
         method: "POST",
         body: JSON.stringify({
           p_turno_id: celdaSeleccionada.turnoId,
@@ -1274,7 +1280,7 @@ document.getElementById("coord-btn-desactivar").addEventListener("click", async 
         })
       });
     } else {
-      await sbCoord(`rpc/coordinador_activar_celda`, {
+      ok = await sbCoord(`rpc/coordinador_activar_celda`, {
         method: "POST",
         body: JSON.stringify({
           p_sector: coordSectorActual,
@@ -1286,6 +1292,7 @@ document.getElementById("coord-btn-desactivar").addEventListener("click", async 
         })
       });
     }
+    if (ok === false) throw new Error("Contraseña de coordinador incorrecta o celda no encontrada.");
     document.getElementById("coord-modal").style.display = "none";
     await recargarTurnos();
   } catch (e) {
