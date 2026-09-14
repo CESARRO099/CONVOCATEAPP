@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <style>
   :root{
     --bg:#F4F1EC; --surface:#FFFFFF; --ink:#17262B; --ink-soft:#5B6B70;
@@ -94,6 +95,10 @@
     <button id="btn-resumen-vacantes" class="btn-primary" style="margin-top:8px;">
       📋 Ver vacantes (todos los sectores)
     </button>
+    <button id="btn-subir-planilla" class="btn-primary" style="margin-top:8px;">
+      📤 Subir planilla del mes (Excel)
+    </button>
+    <input type="file" id="input-planilla-excel" accept=".xlsx" style="display:none;" />
     <div style="display:flex; justify-content:flex-end; margin:8px 0;">
       <div style="display:flex; align-items:center; background:#f4f4f4; border-radius:20px; padding:2px;">
         <button id="btn-zoom-out-coord" style="width:28px; height:28px; border:none; border-radius:50%; background:transparent; color:var(--ink-soft); font-size:0.95rem; cursor:pointer; line-height:1;">－</button>
@@ -119,6 +124,20 @@
       </div>
       <button id="coord-btn-desactivar" class="btn-warn" style="display:none;">✗ Desactivar / Quitar persona</button>
       <button id="coord-btn-cerrar" style="background:var(--line);color:var(--ink);">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- Modal de vista previa de carga de planilla -->
+  <div id="planilla-preview-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;align-items:center;justify-content:center;padding:16px;">
+    <div style="background:#fff;border-radius:16px;padding:20px;width:min(760px,96vw);max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:12px;">
+      <div style="font-weight:700;font-size:1.05rem;">Vista previa antes de cargar</div>
+      <div id="planilla-preview-resumen" style="font-size:0.85rem; line-height:1.5;"></div>
+      <div id="planilla-preview-ambiguos" style="display:none; background:#fff3cd; border:1px solid #e0a800; border-radius:8px; padding:10px; font-size:0.82rem;"></div>
+      <div id="planilla-preview-errores" style="display:none; background:#fde2e2; border:1px solid #d9534f; border-radius:8px; padding:10px; font-size:0.82rem;"></div>
+      <div style="display:flex; gap:10px; margin-top:8px;">
+        <button id="btn-confirmar-carga-planilla" class="btn-ok" style="flex:1;">✓ Confirmar y cargar</button>
+        <button id="btn-cancelar-carga-planilla" style="flex:1; background:var(--line); color:var(--ink);">Cancelar</button>
+      </div>
     </div>
   </div>
 
@@ -1727,6 +1746,404 @@ if ("serviceWorker" in navigator) {
     }).catch(() => {});
   });
 }
+
+/* ==========================================================================
+   CARGA DIRECTA DE PLANILLA EXCEL — motor de parseo + vista previa + carga.
+   Nada se escribe en la base sin que el coordinador confirme la vista previa.
+   ========================================================================== */
+
+const PLANILLA_COL_MAP = {"BQ": {"2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7, "9": 8}, "BSE": {"2": 9, "3": 10, "4": 11, "5": 12, "7": 89, "8": 90}, "CCA": {"2": 13, "3": 14, "4": 15}, "CENDYTMA": {"2": 16, "3": 17, "4": 18, "7": 19, "8": 20, "9": 21, "10": 22}, "DENSITO": {"2": 23, "3": 24}, "EMERG": {"2": 25, "3": 26, "4": 27, "5": 28, "6": 29}, "FOTOG": {"2": 30, "3": 31, "5": 84}, "GREMCA": {"2": 33}, "GUARDIA": {"2": 34, "3": 35, "4": 36, "5": 37}, "POLI": {"2": 38, "3": 39, "4": 40, "5": 41, "6": 42, "7": 43, "8": 44, "9": 45, "11": 46, "12": 47, "13": 48, "14": 49, "15": 50}, "RESO": {"2": 51, "3": 52, "4": 53, "5": 54, "6": 55, "7": 56, "9": 57, "10": 58, "11": 59}, "RETEN": {"2": 60, "3": 61, "5": 62, "6": 63}, "SOLY": {"2": 64, "3": 65, "4": 66, "5": 67, "6": 68}, "TC": {"2": 69, "3": 70, "4": 71, "5": 72, "6": 73, "7": 74, "8": 75, "9": 76}, "TRAUMA": {"2": 77, "3": 78, "4": 79}, "UCAL": {"2": 80, "3": 81, "4": 82}};
+
+const PLANILLA_SECTOR_META = {
+  BQ:       { minRow: 6,  dayCol: 1 }, BSE:      { minRow: 6,  dayCol: 1 },
+  CCA:      { minRow: 6,  dayCol: 1 }, CENDYTMA: { minRow: 6,  dayCol: 1 },
+  DENSITO:  { minRow: 6,  dayCol: 1 }, EMERG:    { minRow: 6,  dayCol: 1 },
+  FOTOG:    { minRow: 6,  dayCol: 1 }, GREMCA:   { minRow: 6,  dayCol: 1 },
+  GUARDIA:  { minRow: 6,  dayCol: 1 }, POLI:     { minRow: 8,  dayCol: 1 },
+  RESO:     { minRow: 6,  dayCol: 1 }, RETEN:    { minRow: 7,  dayCol: 1 },
+  SOLY:     { minRow: 6,  dayCol: 1 }, TC:       { minRow: 6,  dayCol: 1 },
+  TRAUMA:   { minRow: 6,  dayCol: 1 }, UCAL:     { minRow: 6,  dayCol: 1 },
+};
+
+const PLANILLA_VISUAL_META = {
+  BQ:       { dayRepeatCol: 11, firstDayRow: 6 }, BSE:      { dayRepeatCol: null, firstDayRow: 6 },
+  CCA:      { dayRepeatCol: null, firstDayRow: 6 }, CENDYTMA: { dayRepeatCol: 7,  firstDayRow: 6 },
+  DENSITO:  { dayRepeatCol: null, firstDayRow: 6 }, EMERG:    { dayRepeatCol: 7,  firstDayRow: 6 },
+  FOTOG:    { dayRepeatCol: 8,  firstDayRow: 6 }, GREMCA:   { dayRepeatCol: null, firstDayRow: 6 },
+  GUARDIA:  { dayRepeatCol: null, firstDayRow: 6 }, POLI:     { dayRepeatCol: 10, firstDayRow: 8 },
+  RESO:     { dayRepeatCol: 12, firstDayRow: 6 }, RETEN:    { dayRepeatCol: 8,  firstDayRow: 7 },
+  SOLY:     { dayRepeatCol: 9,  firstDayRow: 6 }, TC:       { dayRepeatCol: 10, firstDayRow: 6 },
+  TRAUMA:   { dayRepeatCol: null, firstDayRow: 6 }, UCAL:     { dayRepeatCol: null, firstDayRow: 6 },
+};
+
+const PLANILLA_SECTORES = ['BQ','BSE','CCA','CENDYTMA','DENSITO','EMERG','FOTOG','GREMCA','GUARDIA','POLI','RESO','RETEN','SOLY','TC','TRAUMA','UCAL'];
+const PLANILLA_HORARIO_TC_SUISAS = { '0 A 8': 85, '8 A 20': 88, '20 A 8': 87 };
+const PLANILLA_REGLAS_DESAMBIGUACION = [
+  { apellido: 'GIGIREY', empresa: 'ESPANOLA', nombre: 'Pablo' },
+];
+
+function planillaNormalize(s) {
+  return sinTildes(String(s || '')).toUpperCase().trim();
+}
+
+function planillaAplicarRegla(apellidoPart, empresa, perfiles) {
+  const regla = PLANILLA_REGLAS_DESAMBIGUACION.find(
+    r => r.apellido === planillaNormalize(apellidoPart) && r.empresa === empresa
+  );
+  if (!regla) return null;
+  return perfiles.find(p => planillaNormalize(p.apellido) === regla.apellido && p.empresa === empresa && p.nombre === regla.nombre) || null;
+}
+
+function planillaFindPersona(nameRaw, sector, perfiles) {
+  let name = nameRaw.trim();
+  const isSuisas = name.endsWith('(S)');
+  if (isSuisas) name = name.slice(0, -3).trim();
+  const empresa = isSuisas ? 'SUISAS' : 'ESPANOLA';
+
+  if (sector === 'FOTOG' && planillaNormalize(name) === 'MARTINEZ') {
+    const p = perfiles.find(pp => planillaNormalize(pp.apellido) === 'MARTINEZ' && pp.nombre === 'Carlos');
+    if (p) return { persona: p, error: null };
+  }
+
+  const exact = perfiles.filter(p => planillaNormalize(p.apellido) === planillaNormalize(name) && p.empresa === empresa);
+  if (exact.length === 1) return { persona: exact[0], error: null };
+
+  const parts = name.split(' ');
+  let initial = null, apellidoPart = name;
+  if (parts.length > 1 && parts[parts.length - 1].length <= 2) {
+    initial = parts[parts.length - 1];
+    apellidoPart = parts.slice(0, -1).join(' ');
+  }
+  const candidates = perfiles.filter(p => planillaNormalize(p.apellido) === planillaNormalize(apellidoPart) && p.empresa === empresa);
+  if (candidates.length === 1) return { persona: candidates[0], error: null };
+  if (candidates.length > 1 && initial) {
+    const narrowed = candidates.filter(c => planillaNormalize(c.nombre).startsWith(planillaNormalize(initial)));
+    if (narrowed.length === 1) return { persona: narrowed[0], error: null };
+  }
+  if (exact.length > 1) {
+    const porRegla = planillaAplicarRegla(name, empresa, perfiles);
+    if (porRegla) return { persona: porRegla, error: null, resueltoPorRegla: true };
+    return { persona: null, error: `AMBIGUO: "${nameRaw}" — candidatos: ${exact.map(c => `${c.apellido} ${c.nombre}`).join(' / ')}` };
+  }
+  if (candidates.length === 0) {
+    return { persona: null, error: `No encontrado: "${nameRaw}" (${empresa === 'SUISAS' ? 'SUISAS' : 'Española'})` };
+  }
+  const porRegla = planillaAplicarRegla(apellidoPart, empresa, perfiles);
+  if (porRegla) return { persona: porRegla, error: null, resueltoPorRegla: true };
+  return { persona: null, error: `AMBIGUO: "${nameRaw}" — candidatos: ${candidates.map(c => `${c.apellido} ${c.nombre}`).join(' / ')}` };
+}
+
+function planillaCeldaTexto(cell) {
+  let v = cell.value;
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'object' && !(v instanceof Date)) {
+    if (v.richText) v = v.richText.map(t => t.text).join('');
+    else if (v.result !== undefined) v = v.result;
+    else return null;
+  }
+  return v;
+}
+
+function planillaParseSector(worksheet, sector, anio, mes, perfiles) {
+  const meta = PLANILLA_SECTOR_META[sector];
+  const colMap = PLANILLA_COL_MAP[sector];
+  const turnos = [];
+  const issues = [];
+
+  worksheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+    if (rowNumber < meta.minRow) return;
+    const day = planillaCeldaTexto(row.getCell(meta.dayCol + 1));
+    if (!Number.isInteger(day) || day < 1 || day > 31) return;
+    const fecha = `${anio}-${String(mes).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+    for (const [idxStr, franjaId] of Object.entries(colMap)) {
+      const idx = parseInt(idxStr, 10);
+      let val = planillaCeldaTexto(row.getCell(idx + 1));
+      if (val === null || val === undefined) continue;
+      if (typeof val === 'string') val = val.trim();
+      if (val === '' || (typeof val === 'string' && val.toUpperCase() === 'X')) continue;
+
+      const valStr = String(val).trim();
+      const valUpper = valStr.toUpperCase();
+
+      if (valUpper === 'CUBRIR' || valUpper === 'LIBRE') {
+        turnos.push({ fecha, franja_horaria_id: franjaId, persona_id: null, es_titular: false, origen_vacante: 'planilla', nombre_externo: null, col_excel: idx, sector, texto: valStr });
+      } else if (valUpper === 'SUISAS') {
+        turnos.push({ fecha, franja_horaria_id: franjaId, persona_id: null, es_titular: false, origen_vacante: 'planilla', nombre_externo: 'SUISAS', col_excel: idx, sector, texto: valStr });
+      } else {
+        const { persona, error, resueltoPorRegla } = planillaFindPersona(valStr, sector, perfiles);
+        if (error) {
+          issues.push({ sector, fecha, col_excel: idx, texto: valStr, error });
+        } else {
+          turnos.push({ fecha, franja_horaria_id: franjaId, persona_id: persona.id, es_titular: true, origen_vacante: 'planilla', nombre_externo: null, col_excel: idx, sector, texto: valStr, resueltoPorRegla: !!resueltoPorRegla, personaTexto: `${persona.apellido} ${persona.nombre}` });
+        }
+      }
+    }
+  });
+
+  return { turnos, issues };
+}
+
+function planillaParseTCEspeciales(worksheet, anio, mes, perfiles) {
+  const turnos = [];
+  const issues = [];
+  worksheet.eachRow({ includeEmpty: true }, (row) => {
+    const ficha = planillaCeldaTexto(row.getCell(13));
+    const periodo = planillaCeldaTexto(row.getCell(15));
+    if (Number.isInteger(ficha) && typeof periodo === 'string') {
+      const m = periodo.match(/del (\d+) hora (\d+) al (\d+) hora (\d+)/i);
+      if (m) {
+        const diaIni = parseInt(m[1], 10);
+        const horaIni = parseInt(m[2], 10);
+        const franjaId = horaIni === 0 ? 85 : (horaIni === 20 ? 87 : (horaIni === 8 ? 88 : null));
+        const persona = perfiles.find(p => p.ficha === ficha);
+        if (persona && franjaId) {
+          const fecha = `${anio}-${String(mes).padStart(2, '0')}-${String(diaIni).padStart(2, '0')}`;
+          turnos.push({ fecha, franja_horaria_id: franjaId, persona_id: persona.id, es_titular: true, origen_vacante: 'planilla', nombre_externo: null, col_excel: null, sector: 'TC', texto: `ESPAÑOLA-COBERTURA ficha ${ficha}`, personaTexto: `${persona.apellido} ${persona.nombre}` });
+        } else {
+          issues.push({ sector: 'TC', fecha: null, texto: periodo, error: `Cobertura España: no se pudo resolver ficha ${ficha}` });
+        }
+      }
+    }
+    const apellidoCol = planillaCeldaTexto(row.getCell(14));
+    const dia = planillaCeldaTexto(row.getCell(15));
+    const horario = planillaCeldaTexto(row.getCell(16));
+    if (apellidoCol === 'SUISAS' && Number.isInteger(dia) && typeof horario === 'string') {
+      const franjaId = PLANILLA_HORARIO_TC_SUISAS[horario.trim().toUpperCase()];
+      if (franjaId) {
+        const fecha = `${anio}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+        turnos.push({ fecha, franja_horaria_id: franjaId, persona_id: null, es_titular: false, origen_vacante: 'planilla', nombre_externo: 'SUISAS', col_excel: null, sector: 'TC', texto: `SUISAS-COBERTURA dia ${dia} ${horario}` });
+      } else {
+        issues.push({ sector: 'TC', fecha: null, texto: horario, error: `Cobertura SUISAS: horario desconocido "${horario}"` });
+      }
+    }
+  });
+  return { turnos, issues };
+}
+
+function planillaParseTC(worksheet, anio, mes, perfiles) {
+  const grilla = planillaParseSector(worksheet, 'TC', anio, mes, perfiles);
+  const especiales = planillaParseTCEspeciales(worksheet, anio, mes, perfiles);
+  return { turnos: [...grilla.turnos, ...especiales.turnos], issues: [...grilla.issues, ...especiales.issues] };
+}
+
+function planillaGenerarHojaVisual(worksheet, sector, anio, mes) {
+  const meta = PLANILLA_VISUAL_META[sector];
+  let maxRow = 0, maxCol = 0;
+  worksheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      const v = cell.value;
+      if (v !== null && v !== undefined && v !== '') {
+        if (rowNumber > maxRow) maxRow = rowNumber;
+        if (colNumber > maxCol) maxCol = colNumber;
+      }
+    });
+  });
+
+  const cols = [];
+  for (let c = 1; c <= maxCol; c++) {
+    const col = worksheet.getColumn(c);
+    cols.push(col.width ? Math.round(col.width * 10000) / 10000 : 8.43);
+  }
+
+  const filas = [];
+  for (let r = 1; r <= maxRow; r++) {
+    const rowCells = [];
+    const row = worksheet.getRow(r);
+    for (let c = 1; c <= maxCol; c++) {
+      const cell = row.getCell(c);
+      let v = cell.value;
+      if (v && typeof v === 'object' && !(v instanceof Date)) {
+        if (v.richText) v = v.richText.map(t => t.text).join('');
+        else if (v.result !== undefined) v = v.result;
+        else v = String(v);
+      }
+      const bold = !!(cell.font && cell.font.bold);
+      const bd = { b: false, l: false, r: false, t: false };
+      if (cell.border) {
+        bd.b = !!(cell.border.bottom && cell.border.bottom.style);
+        bd.l = !!(cell.border.left && cell.border.left.style);
+        bd.r = !!(cell.border.right && cell.border.right.style);
+        bd.t = !!(cell.border.top && cell.border.top.style);
+      }
+      rowCells.push({ v: v === undefined ? null : v, y: false, bd, bold });
+    }
+    filas.push(rowCells);
+  }
+
+  const merges = [];
+  const modelMerges = (worksheet.model && worksheet.model.merges) || [];
+  const colToNum = (s) => { let n = 0; for (const ch of s) n = n * 26 + (ch.charCodeAt(0) - 64); return n; };
+  for (const m of modelMerges) {
+    const match = m.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+    if (!match) continue;
+    merges.push({ c1: colToNum(match[1]), c2: colToNum(match[3]), r1: parseInt(match[2], 10), r2: parseInt(match[4], 10) });
+  }
+
+  const firstDayRow = meta.firstDayRow - 1;
+  const diasEnMes = new Date(anio, mes, 0).getDate();
+  const lastDayRow = firstDayRow + diasEnMes - 1;
+
+  let columnasGrises, ultimaColReal;
+  if (meta.dayRepeatCol) {
+    columnasGrises = [];
+    for (let i = 1; i < meta.dayRepeatCol; i++) columnasGrises.push(i);
+    ultimaColReal = meta.dayRepeatCol + 2;
+  } else {
+    columnasGrises = [];
+    for (let i = 1; i < maxCol - 2; i++) columnasGrises.push(i);
+    ultimaColReal = maxCol - 1;
+  }
+
+  return { cols, filas, merges, dia_col: 1, last_day_row: lastDayRow, first_day_row: firstDayRow, columnas_grises: columnasGrises, ultima_col_real: ultimaColReal };
+}
+
+let planillaPendiente = null;
+
+async function planillaProcesarArchivo(file) {
+  const resumenEl = document.getElementById('planilla-preview-resumen');
+  const ambiguosEl = document.getElementById('planilla-preview-ambiguos');
+  const erroresEl = document.getElementById('planilla-preview-errores');
+  const modal = document.getElementById('planilla-preview-modal');
+  const btnConfirmar = document.getElementById('btn-confirmar-carga-planilla');
+
+  resumenEl.innerHTML = 'Procesando archivo…';
+  ambiguosEl.style.display = 'none';
+  erroresEl.style.display = 'none';
+  btnConfirmar.disabled = false;
+  modal.style.display = 'flex';
+
+  try {
+    if (!coordPersonas || coordPersonas.length === 0) {
+      await cargarPersonasCoord();
+    }
+    const [anio, mes] = MES.split('-').map(Number);
+
+    const arrayBuffer = await file.arrayBuffer();
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(arrayBuffer);
+
+    let totalTurnos = 0;
+    let totalIssues = 0;
+    const resumenPorSector = [];
+    const turnosPorSector = {};
+    const hojasPorSector = {};
+    const todosLosIssues = [];
+    const todosLosResueltos = [];
+
+    for (const sector of PLANILLA_SECTORES) {
+      const ws = wb.getWorksheet(sector);
+      if (!ws) {
+        resumenPorSector.push(`<tr><td>${sector}</td><td colspan="2" style="color:#d9534f;">Hoja no encontrada en el Excel</td></tr>`);
+        continue;
+      }
+      const { turnos, issues } = sector === 'TC'
+        ? planillaParseTC(ws, anio, mes, coordPersonas)
+        : planillaParseSector(ws, sector, anio, mes, coordPersonas);
+
+      turnosPorSector[sector] = turnos;
+      hojasPorSector[sector] = planillaGenerarHojaVisual(ws, sector, anio, mes);
+
+      totalTurnos += turnos.length;
+      totalIssues += issues.length;
+      todosLosIssues.push(...issues);
+      const resueltos = turnos.filter(t => t.resueltoPorRegla);
+      todosLosResueltos.push(...resueltos);
+
+      resumenPorSector.push(`<tr><td>${sector}</td><td>${turnos.length} turnos</td><td>${issues.length ? `<span style="color:#d9534f;">${issues.length} sin resolver</span>` : '✓'}</td></tr>`);
+    }
+
+    resumenEl.innerHTML = `
+      <table style="width:100%; border-collapse:collapse;">
+        <thead><tr><th style="text-align:left;">Sector</th><th style="text-align:left;">Turnos</th><th style="text-align:left;">Estado</th></tr></thead>
+        <tbody>${resumenPorSector.join('')}</tbody>
+      </table>
+      <div style="margin-top:8px; font-weight:700;">Total: ${totalTurnos} turnos${totalIssues ? `, ${totalIssues} sin resolver` : ''}</div>
+    `;
+
+    if (todosLosResueltos.length > 0) {
+      ambiguosEl.style.display = 'block';
+      ambiguosEl.innerHTML = `<b>Resueltos automáticamente por regla conocida (revisar):</b><br>` +
+        todosLosResueltos.map(t => `${t.sector} ${t.fecha}: "${t.texto}" → ${t.personaTexto}`).join('<br>');
+    }
+
+    if (todosLosIssues.length > 0) {
+      erroresEl.style.display = 'block';
+      erroresEl.innerHTML = `<b>No se pudieron resolver (corregir la planilla y volver a subir):</b><br>` +
+        todosLosIssues.map(i => `${i.sector}${i.fecha ? ' ' + i.fecha : ''}: "${i.texto}" — ${i.error}`).join('<br>');
+      btnConfirmar.disabled = true;
+    }
+
+    planillaPendiente = { turnosPorSector, hojasPorSector, anio, mes };
+  } catch (e) {
+    resumenEl.innerHTML = `<span style="color:#d9534f;">Error procesando el archivo: ${e.message}</span>`;
+    btnConfirmar.disabled = true;
+    planillaPendiente = null;
+  }
+}
+
+async function planillaConfirmarCarga() {
+  if (!planillaPendiente) return;
+  const btnConfirmar = document.getElementById('btn-confirmar-carga-planilla');
+  const resumenEl = document.getElementById('planilla-preview-resumen');
+  btnConfirmar.disabled = true;
+
+  try {
+    const { turnosPorSector, hojasPorSector, anio, mes } = planillaPendiente;
+    const primerDia = `${anio}-${String(mes).padStart(2, '0')}-01`;
+    const ultimoDia = ultimoDiaMesStrCoord(`${anio}-${String(mes).padStart(2, '0')}`);
+    const mesStr = `${anio}-${String(mes).padStart(2, '0')}-01`;
+
+    resumenEl.innerHTML += '<br>Borrando datos anteriores del mes…';
+    await sbCoord(`turnos?fecha=gte.${primerDia}&fecha=lte.${ultimoDia}`, { method: 'DELETE' });
+    await sbCoord(`hojas_excel?mes=eq.${mesStr}`, { method: 'DELETE' });
+
+    resumenEl.innerHTML += '<br>Cargando turnos…';
+    for (const sector of PLANILLA_SECTORES) {
+      const turnos = turnosPorSector[sector] || [];
+      const filas = turnos.map(t => ({
+        fecha: t.fecha, franja_horaria_id: t.franja_horaria_id, persona_id: t.persona_id,
+        es_titular: t.es_titular, origen_vacante: t.origen_vacante, nombre_externo: t.nombre_externo, col_excel: t.col_excel,
+      }));
+      for (let i = 0; i < filas.length; i += 200) {
+        const lote = filas.slice(i, i + 200);
+        if (lote.length === 0) continue;
+        await sbCoord('turnos', { method: 'POST', body: JSON.stringify(lote) });
+      }
+    }
+
+    resumenEl.innerHTML += '<br>Cargando hojas visuales…';
+    for (const sector of PLANILLA_SECTORES) {
+      const estructura = hojasPorSector[sector];
+      if (!estructura) continue;
+      await sbCoord('hojas_excel', { method: 'POST', body: JSON.stringify([{ sector, mes: mesStr, estructura }]) });
+    }
+
+    resumenEl.innerHTML += '<br><b style="color:green;">✓ Carga completa.</b>';
+    setTimeout(() => {
+      document.getElementById('planilla-preview-modal').style.display = 'none';
+      location.reload();
+    }, 1200);
+  } catch (e) {
+    resumenEl.innerHTML += `<br><span style="color:#d9534f;">Error cargando a la base: ${e.message}</span>`;
+    btnConfirmar.disabled = false;
+  }
+}
+
+document.getElementById('btn-subir-planilla').addEventListener('click', () => {
+  document.getElementById('input-planilla-excel').click();
+});
+document.getElementById('input-planilla-excel').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) planillaProcesarArchivo(file);
+  e.target.value = '';
+});
+document.getElementById('btn-confirmar-carga-planilla').addEventListener('click', planillaConfirmarCarga);
+document.getElementById('btn-cancelar-carga-planilla').addEventListener('click', () => {
+  document.getElementById('planilla-preview-modal').style.display = 'none';
+  planillaPendiente = null;
+});
+
 </script>
 </body>
 </html>
