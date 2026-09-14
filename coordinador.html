@@ -1156,19 +1156,13 @@ function abrirModalCelda(td) {
 
 document.getElementById("coord-btn-vacante").addEventListener("click", async () => {
   try {
-    let ok;
     if (celdaSeleccionada.turnoId) {
-      ok = await sbCoord(`rpc/coordinador_vacante_turno_existente`, {
-        method: "POST",
-        body: JSON.stringify({
-          p_turno_id: celdaSeleccionada.turnoId,
-          p_origen: "coordinador",
-          p_nombre_externo: null,
-          p_password_coordinador: coordPassword
-        })
+      await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ persona_id: null, asignado_en: null, origen_vacante: "coordinador" })
       });
     } else {
-      ok = await sbCoord(`rpc/coordinador_activar_celda`, {
+      await sbCoord(`rpc/coordinador_activar_celda`, {
         method: "POST",
         body: JSON.stringify({
           p_sector: coordSectorActual,
@@ -1180,7 +1174,6 @@ document.getElementById("coord-btn-vacante").addEventListener("click", async () 
         })
       });
     }
-    if (ok === false) throw new Error("Contraseña de coordinador incorrecta o celda no encontrada.");
     document.getElementById("coord-modal").style.display = "none";
     await recargarTurnos();
   } catch (e) {
@@ -1189,33 +1182,20 @@ document.getElementById("coord-btn-vacante").addEventListener("click", async () 
 });
 
 document.getElementById("coord-btn-vacante-suisas").addEventListener("click", async () => {
+  if (!celdaSeleccionada.turnoId) {
+    alert("No se pudo identificar el turno de esta celda.");
+    return;
+  }
   try {
-    let ok;
-    if (celdaSeleccionada.turnoId) {
-      ok = await sbCoord(`rpc/coordinador_vacante_turno_existente`, {
-        method: "POST",
-        body: JSON.stringify({
-          p_turno_id: celdaSeleccionada.turnoId,
-          p_origen: "coordinador",
-          p_nombre_externo: "SUISAS_DIRECTO",
-          p_password_coordinador: coordPassword
-        })
-      });
-    } else {
-      ok = await sbCoord(`rpc/coordinador_activar_celda`, {
-        method: "POST",
-        body: JSON.stringify({
-          p_sector: coordSectorActual,
-          p_dia: celdaSeleccionada.dia,
-          p_col_excel: celdaSeleccionada.col,
-          p_mes: MES_COORD + "-01",
-          p_origen: "coordinador",
-          p_nombre_externo: "SUISAS_DIRECTO",
-          p_password_coordinador: coordPassword
-        })
-      });
-    }
-    if (ok === false) throw new Error("Contraseña de coordinador incorrecta o celda no encontrada.");
+    await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        persona_id: null,
+        asignado_en: null,
+        origen_vacante: "coordinador",
+        nombre_externo: "SUISAS_DIRECTO"
+      })
+    });
     document.getElementById("coord-modal").style.display = "none";
     await recargarTurnos();
   } catch (e) {
@@ -1229,14 +1209,10 @@ document.getElementById("coord-btn-quitar-suisas").addEventListener("click", asy
     return;
   }
   try {
-    const ok = await sbCoord(`rpc/coordinador_quitar_nombre_externo`, {
-      method: "POST",
-      body: JSON.stringify({
-        p_turno_id: celdaSeleccionada.turnoId,
-        p_password_coordinador: coordPassword
-      })
+    await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ nombre_externo: null })
     });
-    if (ok === false) throw new Error("Contraseña de coordinador incorrecta.");
     document.getElementById("coord-modal").style.display = "none";
     await recargarTurnos();
   } catch (e) {
@@ -1250,7 +1226,7 @@ document.getElementById("coord-btn-cerrar").addEventListener("click", () => {
 
 document.getElementById("coord-btn-activar").addEventListener("click", async () => {
   try {
-    const ok = await sbCoord(`rpc/coordinador_activar_celda`, {
+    await sbCoord(`rpc/coordinador_activar_celda`, {
       method: "POST",
       body: JSON.stringify({
         p_sector: coordSectorActual,
@@ -1260,7 +1236,6 @@ document.getElementById("coord-btn-activar").addEventListener("click", async () 
         p_password_coordinador: coordPassword
       })
     });
-    if (ok === false) throw new Error("Contraseña de coordinador incorrecta o celda no encontrada.");
     document.getElementById("coord-modal").style.display = "none";
     await recargarTurnos();
   } catch (e) {
@@ -1273,18 +1248,13 @@ document.getElementById("coord-btn-asignar").addEventListener("click", async () 
   if (!personaId) return;
 
   try {
-    let ok;
     if (celdaSeleccionada.turnoId) {
-      ok = await sbCoord(`rpc/coordinador_asignar_turno_existente`, {
-        method: "POST",
-        body: JSON.stringify({
-          p_turno_id: celdaSeleccionada.turnoId,
-          p_persona_id: personaId,
-          p_password_coordinador: coordPassword
-        })
+      await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ persona_id: personaId, asignado_en: new Date().toISOString() })
       });
     } else {
-      ok = await sbCoord(`rpc/coordinador_activar_celda`, {
+      await sbCoord(`rpc/coordinador_activar_celda`, {
         method: "POST",
         body: JSON.stringify({
           p_sector: coordSectorActual,
@@ -1296,7 +1266,6 @@ document.getElementById("coord-btn-asignar").addEventListener("click", async () 
         })
       });
     }
-    if (ok === false) throw new Error("Contraseña de coordinador incorrecta o celda no encontrada.");
     document.getElementById("coord-modal").style.display = "none";
     await recargarTurnos();
   } catch (e) {
@@ -1308,17 +1277,10 @@ document.getElementById("coord-btn-desactivar").addEventListener("click", async 
   if (!confirm("¿Seguro que querés quitar esta celda de la convocatoria?")) return;
 
   try {
-    let ok;
     if (celdaSeleccionada.turnoId) {
-      ok = await sbCoord(`rpc/coordinador_eliminar_turno`, {
-        method: "POST",
-        body: JSON.stringify({
-          p_turno_id: celdaSeleccionada.turnoId,
-          p_password_coordinador: coordPassword
-        })
-      });
+      await sbCoord(`turnos?id=eq.${celdaSeleccionada.turnoId}`, { method: "DELETE" });
     } else {
-      ok = await sbCoord(`rpc/coordinador_activar_celda`, {
+      await sbCoord(`rpc/coordinador_activar_celda`, {
         method: "POST",
         body: JSON.stringify({
           p_sector: coordSectorActual,
@@ -1330,7 +1292,6 @@ document.getElementById("coord-btn-desactivar").addEventListener("click", async 
         })
       });
     }
-    if (ok === false) throw new Error("Contraseña de coordinador incorrecta o celda no encontrada.");
     document.getElementById("coord-modal").style.display = "none";
     await recargarTurnos();
   } catch (e) {
@@ -1348,7 +1309,7 @@ async function recargarTurnos() {
   while (true) {
     const pag = await sbCoord(
       `turnos?select=id,fecha,col_excel,persona_id,origen_vacante,nombre_externo,` +
-      `franjas_horarias!inner(nombre,sector_id,sectores!inner(nombre)),perfiles!turnos_persona_id_fkey(apellido,nombre,empresa,ficha)` +
+      `franjas_horarias!inner(nombre,sector_id,sectores!inner(nombre)),perfiles(apellido,nombre,empresa,ficha)` +
       `&franjas_horarias.sector_id=eq.${sectorId}` +
       `&fecha=gte.${MES_COORD}-01&fecha=lte.${ultimoDiaMesStrCoord(MES_COORD)}&order=id.asc`,
       { headers: { "Range-Unit": "items", Range: `${desde}-${desde+999}` } }
@@ -2129,36 +2090,26 @@ async function planillaConfirmarCarga() {
 
   try {
     const { turnosPorSector, hojasPorSector, anio, mes } = planillaPendiente;
-    const primerDia = `${anio}-${String(mes).padStart(2, '0')}-01`;
-    const ultimoDia = ultimoDiaMesStrCoord(`${anio}-${String(mes).padStart(2, '0')}`);
     const mesStr = `${anio}-${String(mes).padStart(2, '0')}-01`;
 
-    resumenEl.innerHTML += '<br>Borrando datos anteriores del mes…';
-    await sbCoord(`turnos?fecha=gte.${primerDia}&fecha=lte.${ultimoDia}`, { method: 'DELETE' });
-    await sbCoord(`hojas_excel?mes=eq.${mesStr}`, { method: 'DELETE' });
-
-    resumenEl.innerHTML += '<br>Cargando turnos…';
+    const turnosPlanos = [];
     for (const sector of PLANILLA_SECTORES) {
-      const turnos = turnosPorSector[sector] || [];
-      const filas = turnos.map(t => ({
-        fecha: t.fecha, franja_horaria_id: t.franja_horaria_id, persona_id: t.persona_id,
-        es_titular: t.es_titular, origen_vacante: t.origen_vacante, nombre_externo: t.nombre_externo, col_excel: t.col_excel,
-      }));
-      for (let i = 0; i < filas.length; i += 200) {
-        const lote = filas.slice(i, i + 200);
-        if (lote.length === 0) continue;
-        await sbCoord('turnos', { method: 'POST', body: JSON.stringify(lote) });
+      for (const t of (turnosPorSector[sector] || [])) {
+        turnosPlanos.push({
+          fecha: t.fecha, franja_horaria_id: t.franja_horaria_id, persona_id: t.persona_id,
+          es_titular: t.es_titular, origen_vacante: t.origen_vacante, nombre_externo: t.nombre_externo, col_excel: t.col_excel,
+        });
       }
     }
+    const hojasPlanas = PLANILLA_SECTORES.filter(s => hojasPorSector[s]).map(s => ({ sector: s, estructura: hojasPorSector[s] }));
 
-    resumenEl.innerHTML += '<br>Cargando hojas visuales…';
-    for (const sector of PLANILLA_SECTORES) {
-      const estructura = hojasPorSector[sector];
-      if (!estructura) continue;
-      await sbCoord('hojas_excel', { method: 'POST', body: JSON.stringify([{ sector, mes: mesStr, estructura }]) });
-    }
+    resumenEl.innerHTML += '<br>Cargando a la base…';
+    const resultado = await sbCoord('rpc/coordinador_cargar_planilla_mes', {
+      method: 'POST',
+      body: JSON.stringify({ p_mes: mesStr, p_turnos: turnosPlanos, p_hojas: hojasPlanas, p_password_coordinador: coordPassword }),
+    });
 
-    resumenEl.innerHTML += '<br><b style="color:green;">✓ Carga completa.</b>';
+    resumenEl.innerHTML += `<br><b style="color:green;">✓ Carga completa: ${resultado.turnos_insertados} turnos, ${resultado.hojas_insertadas} hojas.</b>`;
     setTimeout(() => {
       document.getElementById('planilla-preview-modal').style.display = 'none';
       location.reload();
