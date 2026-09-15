@@ -2167,7 +2167,7 @@ document.getElementById("btn-descargar-planilla").addEventListener("click", asyn
       while (true) {
         const pag = await sbCoord(
           `turnos?select=id,fecha,col_excel,persona_id,nombre_externo,` +
-          `franjas_horarias!inner(nombre,sector_id),perfiles(apellido,nombre,empresa)` +
+          `franjas_horarias!inner(nombre,sector_id),perfiles!turnos_persona_id_fkey(apellido,nombre,empresa)` +
           `&franjas_horarias.sector_id=eq.${sectorId}` +
           `&fecha=gte.${MES_COORD}-01&fecha=lte.${ultimoDiaMesStrCoord(MES_COORD)}&order=id.asc`,
           { headers: { "Range-Unit": "items", Range: `${desde}-${desde+999}` } }
