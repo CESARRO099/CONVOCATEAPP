@@ -902,7 +902,7 @@ async function cargarSelectorMeses() {
       if (mesStr !== MES_CONVOCATORIA) meses.push(mesStr);
       mes++; if (mes > 12) { mes = 1; anio++; }
     }
-    mesesPublicadosDisponibles = meses.slice(-3); // tope de seguridad, últimos 3
+    mesesPublicadosDisponibles = meses.slice(-1); // solo el mes anterior más reciente
   } catch (e) {
     mesesPublicadosDisponibles = [];
   }
