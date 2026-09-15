@@ -457,13 +457,12 @@
     filter:blur(6px) brightness(.4);
     animation-name: cvtLetterInLight, cvtLetterFlash, cvtLetterGlowRepeat;
     animation-duration: 1s, 0.8s, 4.5s;
-    animation-timing-function: cubic-bezier(.2,.9,.2,1), ease-out, ease-in-out;
+    animation-timing-function: ease-out, ease-out, ease-in-out;
     animation-iteration-count: 1, 1, infinite;
     animation-fill-mode: forwards, forwards, none;
   }
   @keyframes cvtLetterInLight{
-    0%{ opacity:0; letter-spacing:.5em; filter:blur(6px) brightness(.35); color:#2c2a24; text-shadow:0 0 0 rgba(243,236,221,0); }
-    55%{ opacity:1; letter-spacing:.06em; filter:blur(0) brightness(1.5); color:var(--cvt-ivory); }
+    0%{ opacity:0; letter-spacing:.16em; filter:blur(8px) brightness(.6); color:#2c2a24; text-shadow:0 0 0 rgba(243,236,221,0); }
     100%{ opacity:1; letter-spacing:0; filter:blur(0) brightness(1); color:var(--cvt-ivory); text-shadow:0 0 10px rgba(243,236,221,.25); }
   }
   @keyframes cvtLetterFlash{
