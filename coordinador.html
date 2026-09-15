@@ -1992,7 +1992,9 @@ function planillaGenerarHojaVisual(worksheet, sector, anio, mes) {
     RETEN: [[1,2,3,4,5,6,7],7], SOLY: [[1,2,3,4,5,6],6], TC: [[1,2,3,4,5,6,7,8,9,10,17,18,19,20],16],
     TRAUMA: [[1,2,3,4],4], UCAL: [[1,2,3,4],4],
   };
-  const [columnasGrises, ultimaColReal] = PLANILLA_VISUAL_CONST[sector];
+  const [columnasGrisesRaw, ultimaColRealRaw] = PLANILLA_VISUAL_CONST[sector];
+  const ultimaColReal = Math.min(ultimaColRealRaw, maxCol - 1);
+  const columnasGrises = columnasGrisesRaw.filter(i => i < maxCol);
 
   return { cols, filas, merges, dia_col: 1, last_day_row: lastDayRow, first_day_row: firstDayRow, columnas_grises: columnasGrises, ultima_col_real: ultimaColReal };
 }
