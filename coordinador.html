@@ -1980,7 +1980,8 @@ function planillaGenerarHojaVisual(worksheet, sector, anio, mes) {
     merges.push({ c1: colToNum(match[1]), c2: colToNum(match[3]), r1: parseInt(match[2], 10), r2: parseInt(match[4], 10) });
   }
 
-  const firstDayRow = meta.firstDayRow - 1;
+  let firstDayRow = filas.findIndex(row => row[1] && row[1].v === 1);
+  if (firstDayRow === -1) firstDayRow = meta.firstDayRow - 1; // resguardo si no se encuentra
   const diasEnMes = new Date(anio, mes, 0).getDate();
   const lastDayRow = firstDayRow + diasEnMes - 1;
 
