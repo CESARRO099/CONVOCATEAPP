@@ -842,7 +842,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_HAAHgNldQ3_wJH0EDrq3DA_u04xA7Yd";
 // esté o no publicado ni tenga o no procesos activos en
 // procesos_convocatoria. "Publicado" (ver mas_publicados abajo) no
 // controla esto, solo controla el boton de pedir cambios.
-const MES_CONVOCATORIA = "2026-11"; // formato YYYY-MM
+const MES_CONVOCATORIA = "2026-12"; // formato YYYY-MM
 // =========================================================
 
 const personaSelect = document.getElementById("persona-select");
@@ -902,7 +902,7 @@ async function cargarSelectorMeses() {
       if (mesStr !== MES_CONVOCATORIA) meses.push(mesStr);
       mes++; if (mes > 12) { mes = 1; anio++; }
     }
-    mesesPublicadosDisponibles = meses.slice(-1); // solo el mes anterior más reciente
+    mesesPublicadosDisponibles = meses.slice(-3); // tope de seguridad, últimos 3
   } catch (e) {
     mesesPublicadosDisponibles = [];
   }
