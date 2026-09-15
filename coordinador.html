@@ -83,6 +83,8 @@
     <h2>Gestión de planilla</h2>
     <label>Mes</label>
     <div id="coord-mes-selector" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;"></div>
+    <button id="btn-descargar-planilla" class="btn-primary" style="width:100%;margin-bottom:12px;">📥 Descargar planilla pública en Excel (16 hojas)</button>
+    <div id="descarga-planilla-msg" style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:8px;"></div>
     <label>Sector</label>
     <select id="coord-sector">
       <option value="">— elegí un sector —</option>
@@ -2135,6 +2137,164 @@ document.getElementById('btn-cancelar-carga-planilla').addEventListener('click',
   document.getElementById('planilla-preview-modal').style.display = 'none';
   planillaPendiente = null;
 });
+
+// ---------------------------------------------------------
+// Descargar planilla pública en Excel (16 hojas), replicando
+// EXACTAMENTE lo que ve el suplente: nombres, LIBRE, SUISAS,
+// X en huecos vacíos de día hábil, FOTOG oculto, gris de fin
+// de semana/feriado (excepción BSE), negrita y bordes.
+// ---------------------------------------------------------
+const SECTORES_EXPORT = ["BQ","BSE","CCA","CENDYTMA","DENSITO","EMERG","GREMCA",
+  "GUARDIA","POLI","RESO","RETEN","SOLY","TC","TRAUMA","UCAL"]; // sin FOTOG
+
+document.getElementById("btn-descargar-planilla").addEventListener("click", async () => {
+  const msg = document.getElementById("descarga-planilla-msg");
+  msg.textContent = "Generando...";
+  try {
+    const wb = new ExcelJS.Workbook();
+
+    for (const sectorNombre of SECTORES_EXPORT) {
+      const hojas = await sbCoord(`hojas_excel?select=estructura&sector=eq.${sectorNombre}&mes=eq.${MES_COORD}-01`);
+      if (!hojas || !hojas.length) continue;
+      const estructura = hojas[0].estructura;
+
+      const sectores = await sbCoord(`sectores?select=id&nombre=eq.${sectorNombre}`);
+      if (!sectores || !sectores.length) continue;
+      const sectorId = sectores[0].id;
+
+      let turnos = [];
+      let desde = 0;
+      while (true) {
+        const pag = await sbCoord(
+          `turnos?select=id,fecha,col_excel,persona_id,nombre_externo,` +
+          `franjas_horarias!inner(nombre,sector_id),perfiles(apellido,nombre,empresa)` +
+          `&franjas_horarias.sector_id=eq.${sectorId}` +
+          `&fecha=gte.${MES_COORD}-01&fecha=lte.${ultimoDiaMesStrCoord(MES_COORD)}&order=id.asc`,
+          { headers: { "Range-Unit": "items", Range: `${desde}-${desde+999}` } }
+        );
+        if (!pag || !pag.length) break;
+        turnos.push(...pag);
+        if (pag.length < 1000) break;
+        desde += 1000;
+      }
+
+      exportarHojaSector(wb, sectorNombre, estructura, turnos);
+    }
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `planilla_${MES_COORD}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+    msg.textContent = "✓ Descarga lista.";
+  } catch (e) {
+    msg.textContent = "Error: " + e.message;
+  }
+});
+
+function exportarHojaSector(wb, sectorNombre, estructura, turnos) {
+  const { cols, merges, filas, dia_col, first_day_row, last_day_row, ultima_col_real, columnas_grises } = estructura;
+  const totalCols = ultima_col_real + 1;
+  const setGrises = Array.isArray(columnas_grises) ? new Set(columnas_grises) : null;
+
+  const ws = wb.addWorksheet(sectorNombre.substring(0, 31));
+  for (let i = 0; i < totalCols; i++) {
+    ws.getColumn(i + 1).width = cols[i] || 8;
+  }
+
+  const porCelda = {};
+  for (const t of turnos) {
+    const dia = Number(t.fecha.slice(8, 10));
+    if (t.col_excel != null) porCelda[`${dia}-${t.col_excel}`] = t;
+  }
+
+  const skip = new Set();
+  for (const m of merges) {
+    for (let r = m.r1 - 1; r <= m.r2 - 1; r++)
+      for (let c = m.c1 - 1; c <= m.c2 - 1; c++)
+        if (!(r === m.r1 - 1 && c === m.c1 - 1)) skip.add(`${r}-${c}`);
+  }
+
+  const GRIS = "FFA6A6A6", VERDE = "FFE3F0E8", AMARILLO = "FFFFF9C4", AZUL = "FFDCEEFF";
+  const AMARILLO_TXT = "FF7B6000", AZUL_TXT = "FF0B5394";
+
+  for (let r = 0; r < filas.length; r++) {
+    for (let c = 0; c < totalCols; c++) {
+      if (skip.has(`${r}-${c}`)) continue;
+      const celda = filas[r][c];
+      const bd = celda.bd;
+      const esEnc = r < first_day_row;
+      const esFilaDia = r >= first_day_row && r <= last_day_row;
+      const dia = esFilaDia ? filas[r][dia_col]?.v : null;
+
+      let contenido = celda.v ?? "";
+      let fillColor = null, fontColor = null, bold = !!celda.bold;
+
+      let esGrisFinde = false;
+      if (esFilaDia && typeof dia === "number") {
+        const fechaStr = `${MES_COORD}-${String(dia).padStart(2, "0")}`;
+        const d = new Date(fechaStr + "T12:00:00");
+        const diaSemana = ((d.getDay() + 6) % 7) + 1;
+        const esFinde = diaSemana === 6 || diaSemana === 7;
+        const esFeriado = feriadosSet.has(fechaStr) && sectorNombre !== "BSE";
+        esGrisFinde = esFinde || esFeriado;
+      }
+
+      if (esFilaDia && setGrises && !setGrises.has(c)) {
+        // fuera de tabla, no tocar
+      } else if (esFilaDia && c !== dia_col && typeof dia === "number") {
+        const turno = porCelda[`${dia}-${c}`];
+        if (turno) {
+          if (turno.persona_id) {
+            const apAmbiguos = new Set(["Alegre","Ferreira","Gonzalez","Gutierrez","Martinez","Rodriguez"]);
+            const ap = sinTildes(turno.perfiles?.apellido || "").trim();
+            const esAmbiguo = apAmbiguos.has(ap);
+            contenido = turno.perfiles
+              ? sinTildes(turno.perfiles.apellido||"").toUpperCase()
+                + (esAmbiguo && turno.perfiles.nombre ? " " + sinTildes(turno.perfiles.nombre).trim().charAt(0).toUpperCase() : "")
+                + (turno.perfiles.empresa === "SUISAS" ? " (S)" : "")
+              : "ASIGNADO";
+            fillColor = VERDE;
+          } else if (turno.nombre_externo === "SUISAS_DIRECTO") {
+            contenido = "SUISAS"; fillColor = AZUL; fontColor = AZUL_TXT;
+          } else {
+            contenido = "LIBRE"; fillColor = AMARILLO; fontColor = AMARILLO_TXT; bold = true;
+          }
+        } else if (celda.y) {
+          contenido = "—"; fillColor = AMARILLO;
+        } else if (celda.v && !celda.g) {
+          contenido = String(celda.v);
+        } else if (!celda.g) {
+          contenido = esGrisFinde ? "" : "X";
+        }
+      }
+
+      if (esGrisFinde && setGrises && setGrises.has(c)) fillColor = GRIS;
+
+      const cell = ws.getCell(r + 1, c + 1);
+      cell.value = contenido;
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      if (bold) cell.font = { bold: true, color: fontColor ? { argb: fontColor } : undefined };
+      else if (fontColor) cell.font = { color: { argb: fontColor } };
+      if (fillColor) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: fillColor } };
+      if (!esEnc) {
+        cell.border = {
+          top: bd.t ? { style: "thin" } : undefined,
+          bottom: bd.b ? { style: "thin" } : undefined,
+          left: bd.l ? { style: "thin" } : undefined,
+          right: bd.r ? { style: "thin" } : undefined,
+        };
+      }
+    }
+  }
+
+  for (const m of merges) {
+    ws.mergeCells(m.r1, m.c1, m.r2, m.c2);
+  }
+}
 
 </script>
 </body>
