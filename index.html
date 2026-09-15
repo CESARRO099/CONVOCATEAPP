@@ -213,14 +213,6 @@
     100% { box-shadow: 0 0 0 0 rgba(10,41,102,0); }
   }
   .btn-cambio:active{ opacity: 0.85; transform: scale(0.98); }
-  .btn-motivo{
-    background: #f4f4f4; color: var(--ink); border: 1.5px solid var(--line);
-    border-radius: 8px; padding:8px 6px; font-size:0.78rem; font-weight:600;
-    cursor:pointer; font-family:inherit; text-align:center;
-  }
-  .btn-motivo.activo{
-    background: #0a2966; color: #fff; border-color:#0a2966;
-  }
   .modal-overlay{
     display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: rgba(0,0,0,0.45);
     z-index: 100; align-items: center; justify-content: center;
@@ -463,9 +455,11 @@
     opacity:0;
     letter-spacing:.5em;
     filter:blur(6px) brightness(.4);
-    animation:
-      cvtLetterInLight 1s cubic-bezier(.2,.9,.2,1) forwards,
-      cvtLetterFlash .8s ease-out forwards;
+    animation-name: cvtLetterInLight, cvtLetterFlash, cvtLetterGlowRepeat;
+    animation-duration: 1s, 0.8s, 4.5s;
+    animation-timing-function: cubic-bezier(.2,.9,.2,1), ease-out, ease-in-out;
+    animation-iteration-count: 1, 1, infinite;
+    animation-fill-mode: forwards, forwards, none;
   }
   @keyframes cvtLetterInLight{
     0%{ opacity:0; letter-spacing:.5em; filter:blur(6px) brightness(.35); color:#2c2a24; text-shadow:0 0 0 rgba(243,236,221,0); }
@@ -476,6 +470,14 @@
     0%{ filter:brightness(1); text-shadow:0 0 10px rgba(243,236,221,.25); color:var(--cvt-ivory); }
     45%{ filter:brightness(1.9); text-shadow:0 0 26px rgba(255,255,255,.9); color:#ffffff; }
     100%{ filter:brightness(1); text-shadow:0 0 3px rgba(243,236,221,.9), 0 0 24px rgba(243,236,221,.55); color:#050505; }
+  }
+  /* Repite en loop, cada ciclo, solo el brillo blanco inicial pasando
+     letra por letra — el resto del tiempo la letra queda en su estado
+     negro de reposo (igual que al terminar cvtLetterFlash). */
+  @keyframes cvtLetterGlowRepeat{
+    0%{ color:#050505; filter:brightness(1); text-shadow:0 0 3px rgba(243,236,221,.9), 0 0 24px rgba(243,236,221,.55); }
+    4%{ color:var(--cvt-ivory); filter:brightness(1.6); text-shadow:0 0 20px rgba(255,255,255,.9); }
+    10%,100%{ color:#050505; filter:brightness(1); text-shadow:0 0 3px rgba(243,236,221,.9), 0 0 24px rgba(243,236,221,.55); }
   }
 
   .cvt-shimmer{ position:relative; display:inline-block; }
@@ -584,7 +586,7 @@
   <div class="cvt-glow"></div>
   <div class="cvt-content" id="cvt-content">
     <p class="cvt-eyebrow">Servicio de Imagenología</p>
-    <h1 class="cvt-title cvt-shimmer" id="cvt-title"></h1>
+    <h1 class="cvt-title" id="cvt-title"></h1>
     <div class="cvt-divider"></div>
     <button class="cvt-cta" id="cvt-enter" type="button">Entrar</button>
   </div>
@@ -594,15 +596,18 @@
   var word = "ConvocaTE";
   var titleEl = document.getElementById('cvt-title');
   var n = word.length;
-  var step1 = 0.055, dur1 = 1, pause = 0.25, step2 = 0.06;
+  var step1 = 0.055, dur1 = 1, pause = 0.25, step2 = 0.06, dur2 = 0.8;
   var phase1End = 0.55 + (n - 1) * step1 + dur1;
+  var totalOnce = phase1End + pause + (n - 1) * step2 + dur2;
+  var extraPause = 0.4, step3 = 0.06;
 
   for (var i = 0; i < word.length; i++) {
     var span = document.createElement('span');
     span.textContent = word[i];
     var delay1 = 0.55 + i * step1;
     var delay2 = phase1End + pause + i * step2;
-    span.style.animationDelay = delay1 + 's, ' + delay2 + 's';
+    var delay3 = totalOnce + extraPause + i * step3;
+    span.style.animationDelay = delay1 + 's, ' + delay2 + 's, ' + delay3 + 's';
     titleEl.appendChild(span);
   }
 
@@ -664,44 +669,15 @@
     <div id="banner-turno-wrap"></div>
     <div id="banner-solicitud-wrap"></div>
 
-    <!-- Botón siempre visible para informar un cambio -->
+    <!-- Botón siempre visible para solicitar cambio -->
     <div id="cambio-wrap" style="display:none; padding:0 0 8px;">
-      <button class="btn-cambio" id="btn-abrir-cambio">Informar un cambio en mi convocatoria</button>
+      <button class="btn-cambio" id="btn-abrir-cambio">Realizar un cambio en la convocatoria</button>
     </div>
 
-    <!-- Botón de postulación a actividades ofrecidas (solo aparece si hay algo disponible) -->
-    <div id="postulacion-wrap" style="display:none; padding:0 0 8px;">
-      <button class="btn-cambio" id="btn-abrir-postulacion" style="background:var(--accent);"></button>
-    </div>
-
-    <!-- Modal de postulación a actividades -->
-    <div class="modal-overlay" id="modal-postulacion">
-      <div class="modal-box">
-        <h3>Actividades para postularme</h3>
-        <div id="postulacion-lista" style="margin-bottom:12px;"></div>
-        <button class="btn-primary" id="btn-confirmar-postulacion" style="width:100%;">Confirmar postulación</button>
-        <button class="btn-cancel" id="btn-cerrar-postulacion" style="margin-top:6px;">Cerrar</button>
-      </div>
-    </div>
-
-    <!-- Modal de elección: cambiar con alguien vs dejar vacante -->
-    <div class="modal-overlay" id="modal-elegir-tipo-cambio">
-      <div class="modal-box">
-        <h3>Informar un cambio en mi convocatoria</h3>
-        <button class="btn-primary" id="btn-ir-cambio-persona" style="width:100%; margin-bottom:10px;">
-          Cambiar mi turno con alguien
-        </button>
-        <button class="btn-primary" id="btn-ir-dejar-vacante" style="width:100%;">
-          Dejar mi turno vacante
-        </button>
-        <button class="btn-cancel" id="btn-cancelar-elegir-tipo" style="margin-top:10px;">Cancelar</button>
-      </div>
-    </div>
-
-    <!-- Modal de solicitud de cambio (persona a persona) -->
+    <!-- Modal de solicitud de cambio -->
     <div class="modal-overlay" id="modal-cambio">
       <div class="modal-box">
-        <h3>Cambiar mi turno con alguien</h3>
+        <h3>Solicitar cambio de turno</h3>
         <div>
           <label style="font-size:0.85rem;font-weight:600;">Turno que querés ceder</label>
           <select id="sel-turno-ceder"></select>
@@ -712,72 +688,6 @@
         </div>
         <button class="btn-primary" id="btn-enviar-cambio">Enviar solicitud</button>
         <button class="btn-cancel" id="btn-cancelar-cambio">Cancelar</button>
-      </div>
-    </div>
-
-    <!-- Modal de dejar turno vacante (para cobertura automática) -->
-    <div class="modal-overlay" id="modal-dejar-vacante">
-      <div class="modal-box">
-        <h3>Dejar mi turno vacante</h3>
-
-        <!-- PASO 1: motivo -->
-        <div id="paso-motivo">
-          <label style="font-size:0.85rem;font-weight:600;">Motivo</label>
-          <div style="display:flex; gap:8px; margin-bottom:8px;">
-            <button type="button" class="btn-motivo" id="btn-motivo-lp" style="flex:1;">Libre Particular</button>
-            <button type="button" class="btn-motivo" id="btn-motivo-rc" style="flex:1;">Rechazo de Convocatoria</button>
-          </div>
-          <div style="display:flex; gap:8px; margin-bottom:8px;">
-            <button type="button" class="btn-motivo" id="btn-motivo-enfermedad" style="flex:1;">Licencia por Enfermedad</button>
-            <button type="button" class="btn-motivo" id="btn-motivo-otra" style="flex:1;">Otra causa</button>
-          </div>
-          <select id="sel-causal-vacante" style="display:none;">
-            <option value="" disabled selected>-- Seleccioná la causa --</option>
-            <option value="Día por PAP">Día por PAP</option>
-            <option value="Día por mamografía">Día por mamografía</option>
-            <option value="Día por donación de sangre">Día por donación de sangre</option>
-            <option value="Días por internación de familiar">Días por internación de familiar</option>
-            <option value="Días por fallecimiento de familiar">Días por fallecimiento de familiar</option>
-            <option value="Días por estudio">Días por estudio</option>
-            <option value="Citación del Poder Judicial como testigo">Citación del Poder Judicial como testigo</option>
-            <option value="Días por participación a congreso">Días por participación a congreso</option>
-            <option value="Días por casamiento">Días por casamiento</option>
-            <option value="Licencia por paternidad/maternidad">Licencia por paternidad/maternidad</option>
-          </select>
-          <div id="motivo-elegido-texto" style="font-size:0.85rem;color:var(--ink-soft);margin:6px 0;"></div>
-          <button class="btn-primary" id="btn-motivo-siguiente" style="width:100%;margin-top:6px;">Siguiente</button>
-        </div>
-
-        <!-- PASO 2: fechas -->
-        <div id="paso-fechas" style="display:none;">
-          <div id="fechas-frase" style="font-weight:600;font-size:0.95rem;margin-bottom:10px;"></div>
-          <div id="fechas-rango" style="display:none;">
-            <label style="font-size:0.85rem;font-weight:600;">Desde</label>
-            <input type="date" id="input-fecha-desde" />
-            <label style="font-size:0.85rem;font-weight:600;">Hasta</label>
-            <input type="date" id="input-fecha-hasta" />
-          </div>
-          <div id="fechas-un-dia" style="display:none;">
-            <label style="font-size:0.85rem;font-weight:600;">Día</label>
-            <input type="date" id="input-fecha-unica" />
-          </div>
-          <div id="fechas-hora" style="display:none;">
-            <label style="font-size:0.85rem;font-weight:600;">Hora de la citación</label>
-            <input type="time" id="input-hora-citacion" />
-          </div>
-          <button class="btn-primary" id="btn-buscar-actividades" style="width:100%;margin-top:10px;">Buscar mis actividades</button>
-          <button class="btn-cancel" id="btn-fechas-volver" style="margin-top:6px;">Volver</button>
-        </div>
-
-        <!-- PASO 3: confirmar -->
-        <div id="paso-confirmar" style="display:none;">
-          <div style="font-weight:600;font-size:0.9rem;margin-bottom:8px;">Estas son las actividades que encontramos en ese período:</div>
-          <div id="lista-actividades-encontradas" style="margin-bottom:10px;"></div>
-          <button class="btn-primary" id="btn-confirmar-actividades" style="width:100%;">Confirmar y enviar</button>
-          <button class="btn-cancel" id="btn-confirmar-volver" style="margin-top:6px;">Volver</button>
-        </div>
-
-        <button class="btn-cancel" id="btn-cancelar-dejar-vacante" style="margin-top:10px;">Cancelar</button>
       </div>
     </div>
     <div class="horas-wrap">
@@ -842,7 +752,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_HAAHgNldQ3_wJH0EDrq3DA_u04xA7Yd";
 // esté o no publicado ni tenga o no procesos activos en
 // procesos_convocatoria. "Publicado" (ver mas_publicados abajo) no
 // controla esto, solo controla el boton de pedir cambios.
-const MES_CONVOCATORIA = "2026-12"; // formato YYYY-MM
+const MES_CONVOCATORIA = "2026-11"; // formato YYYY-MM
 // =========================================================
 
 const personaSelect = document.getElementById("persona-select");
@@ -1575,7 +1485,7 @@ async function cargarDatosConvocatoria() {
     while (true) {
       const pagina = await sb(
         `turnos?select=id,fecha,persona_id,nombre_externo,origen_vacante,col_excel,` +
-        `franjas_horarias(nombre,sector_id,hora_inicio,hora_fin,horas_reales,es_reten,sectores(nombre)),perfiles!turnos_persona_id_fkey(apellido,nombre,empresa,ficha)` +
+        `franjas_horarias(nombre,sector_id,hora_inicio,hora_fin,horas_reales,es_reten,sectores(nombre)),perfiles(apellido,nombre,empresa,ficha)` +
         `&fecha=gte.${mesActivo}-01&fecha=lte.${ultimoDiaMesStr(mesActivo)}&order=id.asc`,
         { headers: { "Range-Unit": "items", "Range": `${desde}-${desde + 999}` } }
       );
@@ -1946,7 +1856,7 @@ async function renderGrilla() {
   // (que solo cubren 0..totalCols-1), asi que no puede pisar ninguna
   // combinacion de celdas existente.
   const sectoresConEspaciador = new Set([
-    "BQ", "BSE", "CCA", "CENDYTMA", "DENSITO", "FOTOG", "GREMCA",
+    "BSE", "CCA", "CENDYTMA", "DENSITO", "FOTOG", "GREMCA",
     "POLI", "RESO", "RETEN", "SOLY", "TRAUMA", "UCAL"
   ]);
   const necesitaEspaciador = sectoresConEspaciador.has(sectorActual);
@@ -2012,7 +1922,7 @@ async function renderGrilla() {
       // Horario (columna P), sin relación con el día de la grilla principal
       // de esa misma fila. Se busca el turno real por fecha + nombre de
       // franja, no por col_excel.
-      if (sectorActual === "TC" && r >= 14 && r < filas.length && (c === 13 || c === 12)) {
+      if (sectorActual === "TC" && r >= 14 && r <= 50 && (c === 13 || c === 12)) {
         const diaG = filas[r][14]?.v;
         const horarioG = (filas[r][15]?.v || "").toString().trim();
         if (typeof diaG === "number" && horarioG) {
@@ -2476,283 +2386,29 @@ async function responderSolicitud(id, aceptar) {
   }
 }
 
-const modalElegirTipo   = document.getElementById("modal-elegir-tipo-cambio");
-const modalDejarVacante = document.getElementById("modal-dejar-vacante");
-
-// Config de las 13 causales: tipo de selector de fecha + frase a mostrar.
-// expandeA (para fallecimiento/paternidad-maternidad) queda en null hasta
-// que Cesar confirme la cantidad de días — mientras tanto se comporta
-// como selección de un solo día, sin expandir.
-const CAUSALES_CONFIG = {
-  "Libre Particular": { tipo: "rango", frase: "Elegí los días que vas a estar ausente." },
-  "Rechazo de Convocatoria": { tipo: "rango", frase: "Elegí los días que vas a estar ausente." },
-  "Licencia por Enfermedad": { tipo: "rango", frase: "Cuéntanos las fechas de tu certificación" },
-  "Día por PAP": { tipo: "un_dia", frase: "¿Qué día tenés el estudio?" },
-  "Día por mamografía": { tipo: "un_dia", frase: "¿Qué día tenés el estudio?" },
-  "Día por donación de sangre": { tipo: "un_dia", frase: "¿Qué día donás?" },
-  "Días por internación de familiar": { tipo: "rango", frase: "Elegí los días que necesitás pedir" },
-  "Días por fallecimiento de familiar": { tipo: "un_dia", frase: "Seleccioná el día de fallecimiento", expandeA: null },
-  "Días por estudio": { tipo: "rango", frase: "Elegí tus días para estudiar" },
-  "Citación del Poder Judicial como testigo": { tipo: "un_dia_hora", frase: "Dinos qué día y hora te citaron" },
-  "Días por participación a congreso": { tipo: "rango", frase: "Elegí los días que estarás de congreso" },
-  "Días por casamiento": { tipo: "un_dia", frase: "¿Qué día te casás?" },
-  "Licencia por paternidad/maternidad": { tipo: "un_dia", frase: "¿Qué día llegó ese bebé?", expandeA: null },
-};
-
-const selCausalVacante    = document.getElementById("sel-causal-vacante");
-const btnMotivoLP         = document.getElementById("btn-motivo-lp");
-const btnMotivoRC         = document.getElementById("btn-motivo-rc");
-const btnMotivoEnfermedad = document.getElementById("btn-motivo-enfermedad");
-const btnMotivoOtra       = document.getElementById("btn-motivo-otra");
-const motivoElegidoTexto  = document.getElementById("motivo-elegido-texto");
-
-const pasoMotivo     = document.getElementById("paso-motivo");
-const pasoFechas      = document.getElementById("paso-fechas");
-const pasoConfirmar   = document.getElementById("paso-confirmar");
-const fechasFrase     = document.getElementById("fechas-frase");
-const fechasRangoWrap = document.getElementById("fechas-rango");
-const fechasUnDiaWrap = document.getElementById("fechas-un-dia");
-const fechasHoraWrap  = document.getElementById("fechas-hora");
-const inputFechaDesde = document.getElementById("input-fecha-desde");
-const inputFechaHasta = document.getElementById("input-fecha-hasta");
-const inputFechaUnica = document.getElementById("input-fecha-unica");
-const inputHoraCitacion = document.getElementById("input-hora-citacion");
-const listaActividadesEncontradas = document.getElementById("lista-actividades-encontradas");
-
-let causalElegidaVacante = "";
-let turnosEncontradosVacante = [];
-let horaCitacionElegida = null;
-
-function limpiarSeleccionMotivo() {
-  causalElegidaVacante = "";
-  btnMotivoLP.classList.remove("activo");
-  btnMotivoRC.classList.remove("activo");
-  btnMotivoEnfermedad.classList.remove("activo");
-  btnMotivoOtra.classList.remove("activo");
-  selCausalVacante.style.display = "none";
-  selCausalVacante.value = "";
-  motivoElegidoTexto.textContent = "";
-  inputFechaDesde.value = "";
-  inputFechaHasta.value = "";
-  inputFechaUnica.value = "";
-  inputHoraCitacion.value = "";
-  turnosEncontradosVacante = [];
-  horaCitacionElegida = null;
-  pasoMotivo.style.display = "block";
-  pasoFechas.style.display = "none";
-  pasoConfirmar.style.display = "none";
-}
-
-function elegirMotivoFijo(valor, boton) {
-  causalElegidaVacante = valor;
-  btnMotivoLP.classList.remove("activo");
-  btnMotivoRC.classList.remove("activo");
-  btnMotivoEnfermedad.classList.remove("activo");
-  btnMotivoOtra.classList.remove("activo");
-  boton.classList.add("activo");
-  selCausalVacante.style.display = "none";
-  motivoElegidoTexto.textContent = "Motivo: " + valor;
-}
-
-btnMotivoLP.addEventListener("click", () => elegirMotivoFijo("Libre Particular", btnMotivoLP));
-btnMotivoRC.addEventListener("click", () => elegirMotivoFijo("Rechazo de Convocatoria", btnMotivoRC));
-btnMotivoEnfermedad.addEventListener("click", () => elegirMotivoFijo("Licencia por Enfermedad", btnMotivoEnfermedad));
-
-btnMotivoOtra.addEventListener("click", () => {
-  btnMotivoLP.classList.remove("activo");
-  btnMotivoRC.classList.remove("activo");
-  btnMotivoEnfermedad.classList.remove("activo");
-  btnMotivoOtra.classList.add("activo");
-  selCausalVacante.style.display = "block";
-  causalElegidaVacante = "";
-  motivoElegidoTexto.textContent = "";
-});
-
-selCausalVacante.addEventListener("change", () => {
-  causalElegidaVacante = selCausalVacante.value;
-  motivoElegidoTexto.textContent = causalElegidaVacante ? "Motivo: " + causalElegidaVacante : "";
-});
-
-document.getElementById("btn-motivo-siguiente").addEventListener("click", () => {
-  if (!causalElegidaVacante) {
-    alert("Elegí un motivo antes de continuar.");
-    return;
-  }
-  const config = CAUSALES_CONFIG[causalElegidaVacante];
-  fechasFrase.textContent = config.frase;
-  fechasRangoWrap.style.display = config.tipo === "rango" ? "block" : "none";
-  fechasUnDiaWrap.style.display = (config.tipo === "un_dia" || config.tipo === "un_dia_hora") ? "block" : "none";
-  fechasHoraWrap.style.display = config.tipo === "un_dia_hora" ? "block" : "none";
-
-  pasoMotivo.style.display = "none";
-  pasoFechas.style.display = "block";
-});
-
-document.getElementById("btn-fechas-volver").addEventListener("click", () => {
-  pasoFechas.style.display = "none";
-  pasoMotivo.style.display = "block";
-});
-
-document.getElementById("btn-buscar-actividades").addEventListener("click", async () => {
-  const config = CAUSALES_CONFIG[causalElegidaVacante];
-  let fechaDesde, fechaHasta;
-
-  if (config.tipo === "rango") {
-    fechaDesde = inputFechaDesde.value;
-    fechaHasta = inputFechaHasta.value;
-    if (!fechaDesde || !fechaHasta) {
-      alert("Elegí las dos fechas (desde y hasta).");
-      return;
-    }
-    if (fechaHasta < fechaDesde) {
-      alert("La fecha 'hasta' no puede ser anterior a 'desde'.");
-      return;
-    }
-  } else {
-    fechaDesde = fechaHasta = inputFechaUnica.value;
-    if (!fechaDesde) {
-      alert("Elegí un día.");
-      return;
-    }
-  }
-
-  if (config.tipo === "un_dia_hora") {
-    horaCitacionElegida = inputHoraCitacion.value;
-    if (!horaCitacionElegida) {
-      alert("Elegí la hora de la citación.");
-      return;
-    }
-  } else {
-    horaCitacionElegida = null;
-  }
-
-  const turnos = await sb(
-    `turnos?select=id,fecha,franjas_horarias(nombre,sectores(nombre))` +
-    `&persona_id=eq.${personaActual.id}` +
-    `&fecha=gte.${fechaDesde}&fecha=lte.${fechaHasta}&order=fecha.asc`
-  );
-
-  turnosEncontradosVacante = turnos || [];
-
-  if (!turnosEncontradosVacante.length) {
-    listaActividadesEncontradas.innerHTML =
-      `<div style="color:var(--ink-soft);font-size:0.85rem;">No encontramos ninguna actividad tuya en ese período.</div>`;
-  } else {
-    listaActividadesEncontradas.innerHTML = turnosEncontradosVacante.map(t =>
-      `<div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:0.85rem;">` +
-      `${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}` +
-      `</div>`
-    ).join("");
-  }
-
-  pasoFechas.style.display = "none";
-  pasoConfirmar.style.display = "block";
-});
-
-document.getElementById("btn-confirmar-volver").addEventListener("click", () => {
-  pasoConfirmar.style.display = "none";
-  pasoFechas.style.display = "block";
-});
-
-async function cargarMisTurnosDelMes() {
-  return await sb(
-    `turnos?select=id,fecha,franjas_horarias(nombre,sectores(nombre))` +
-    `&persona_id=eq.${personaActual.id}` +
-    `&fecha=gte.${mesActivo}-01&fecha=lte.${ultimoDiaMesStr(mesActivo)}&order=fecha.asc`
-  );
-}
-
-function opcionesDeTurnos(misTurnos) {
-  return misTurnos.map(t =>
-    `<option value="${t.id}">${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ` +
-    `${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}</option>`
-  ).join("");
-}
-
-document.getElementById("btn-abrir-cambio").addEventListener("click", () => {
-  modalElegirTipo.classList.add("open");
-});
-
-document.getElementById("btn-cancelar-elegir-tipo").addEventListener("click", () => {
-  modalElegirTipo.classList.remove("open");
-});
-
-document.getElementById("btn-ir-cambio-persona").addEventListener("click", async () => {
+document.getElementById("btn-abrir-cambio").addEventListener("click", async () => {
   const publicado = await sb(`meses_publicados?select=mes&mes=eq.${mesActivo}-01`);
   if (!publicado || !publicado.length) {
     alert("No es posible modificar la convocatoria de este mes.");
     return;
   }
 
-  const misTurnos = await cargarMisTurnosDelMes();
-  selTurno.innerHTML = opcionesDeTurnos(misTurnos);
+  const misTurnos = await sb(
+    `turnos?select=id,fecha,franjas_horarias(nombre,sectores(nombre))` +
+    `&persona_id=eq.${personaActual.id}` +
+    `&fecha=gte.${mesActivo}-01&fecha=lte.${ultimoDiaMesStr(mesActivo)}&order=fecha.asc`
+  );
+  selTurno.innerHTML = misTurnos.map(t =>
+    `<option value="${t.id}">${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ` +
+    `${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}</option>`
+  ).join("");
 
   selCobertura.innerHTML = (window.__personas || [])
     .filter(p => p.id !== personaActual.id)
     .map(p => `<option value="${p.id}">${nombreCompleto(p)}</option>`)
     .join("");
 
-  modalElegirTipo.classList.remove("open");
   modalCambio.classList.add("open");
-});
-
-document.getElementById("btn-ir-dejar-vacante").addEventListener("click", () => {
-  limpiarSeleccionMotivo();
-  modalElegirTipo.classList.remove("open");
-  modalDejarVacante.classList.add("open");
-});
-
-document.getElementById("btn-cancelar-dejar-vacante").addEventListener("click", () => {
-  modalDejarVacante.classList.remove("open");
-});
-
-document.getElementById("btn-confirmar-actividades").addEventListener("click", async () => {
-  if (!turnosEncontradosVacante.length) {
-    modalDejarVacante.classList.remove("open");
-    return;
-  }
-
-  // Un mismo lote_id para todos los turnos de esta tanda, así después se
-  // puede armar UN solo correo a RRHH con todas las coberturas juntas
-  // (en vez de un correo por turno) cuando se construya esa parte.
-  const loteId = (window.crypto && window.crypto.randomUUID)
-    ? window.crypto.randomUUID()
-    : "lote-" + Date.now() + "-" + Math.random().toString(36).slice(2);
-
-  let enviados = 0, yaPendientes = 0, mesNoPublicado = 0, errores = 0;
-
-  for (const t of turnosEncontradosVacante) {
-    const resultado = await sb(`rpc/solicitar_dejar_turno_vacante`, {
-      method: "POST",
-      body: JSON.stringify({
-        p_turno_id: t.id,
-        p_solicitante_id: personaActual.id,
-        p_pin: personaPin,
-        p_causal: causalElegidaVacante,
-        p_hora_citacion: horaCitacionElegida,
-        p_lote_id: loteId
-      })
-    });
-    if (resultado === "ok") enviados++;
-    else if (resultado === "ya_pendiente") yaPendientes++;
-    else if (resultado === "mes_no_publicado") mesNoPublicado++;
-    else errores++;
-  }
-
-  if (enviados > 0) {
-    await sb(`rpc/abrir_oferta_cobertura`, {
-      method: "POST",
-      body: JSON.stringify({ p_lote_id: loteId })
-    });
-  }
-
-  modalDejarVacante.classList.remove("open");
-
-  let mensaje = `Se enviaron ${enviados} pedido(s) de cobertura.`;
-  if (mesNoPublicado) mensaje += ` ${mesNoPublicado} quedaron afuera porque su mes todavía no está publicado.`;
-  if (yaPendientes) mensaje += ` ${yaPendientes} ya tenían un pedido pendiente.`;
-  if (errores) mensaje += ` ${errores} no se pudieron enviar.`;
-  alert(mensaje);
 });
 
 document.getElementById("btn-cancelar-cambio").addEventListener("click", () => {
@@ -2791,126 +2447,11 @@ function actualizarBotonesCambio() {
   if (personaActual) {
     cambioWrap.style.display = "block";
     cargarSolicitudesPendientes();
-    actualizarBotonPostulacion();
-    if (!window.__intervaloPostulacion) {
-      window.__intervaloPostulacion = setInterval(actualizarBotonPostulacion, 30000);
-    }
   } else {
     cambioWrap.style.display = "none";
     bannerSolicitud.innerHTML = "";
-    postulacionWrap.style.display = "none";
   }
 }
-
-// ---------------------------------------------------------
-// Pantalla "Actividades para postularme" (Flujo 1, Paso C):
-// muestra las actividades que se le ofrecieron a esta persona
-// (sector habilitado + oferta abierta), con checkbox para
-// postularse y un contador regresivo por actividad hasta que
-// se cierra la ventana de 1 hora.
-// ---------------------------------------------------------
-const postulacionWrap  = document.getElementById("postulacion-wrap");
-const btnAbrirPostulacion = document.getElementById("btn-abrir-postulacion");
-const modalPostulacion = document.getElementById("modal-postulacion");
-const postulacionLista = document.getElementById("postulacion-lista");
-let actividadesDisponiblesCache = [];
-let intervaloContadorPostulacion = null;
-
-async function cargarActividadesDisponibles() {
-  if (!personaActual) return [];
-  return await sb(`rpc/actividades_disponibles_para`, {
-    method: "POST",
-    body: JSON.stringify({ p_persona_id: personaActual.id })
-  }) || [];
-}
-
-async function actualizarBotonPostulacion() {
-  const actividades = await cargarActividadesDisponibles();
-  const pendientesSinPostular = actividades.filter(a => !a.ya_postulado);
-  if (pendientesSinPostular.length > 0) {
-    postulacionWrap.style.display = "block";
-    btnAbrirPostulacion.textContent = `Actividades para postularme (${pendientesSinPostular.length})`;
-  } else {
-    postulacionWrap.style.display = "none";
-  }
-}
-
-function formatearRestante(cierraEnIso) {
-  const restanteMs = new Date(cierraEnIso).getTime() - Date.now();
-  if (restanteMs <= 0) return "vencida";
-  const totalSeg = Math.floor(restanteMs / 1000);
-  const min = Math.floor(totalSeg / 60);
-  const seg = totalSeg % 60;
-  return `vence en ${min}:${String(seg).padStart(2, "0")}`;
-}
-
-function actualizarContadoresPostulacion() {
-  postulacionLista.querySelectorAll("[data-cierra]").forEach(el => {
-    el.textContent = formatearRestante(el.dataset.cierra);
-  });
-}
-
-async function abrirModalPostulacion() {
-  actividadesDisponiblesCache = await cargarActividadesDisponibles();
-
-  if (!actividadesDisponiblesCache.length) {
-    postulacionLista.innerHTML = `<div style="color:var(--ink-soft);font-size:0.85rem;">No hay actividades disponibles en este momento.</div>`;
-  } else {
-    postulacionLista.innerHTML = actividadesDisponiblesCache.map(a => `
-      <div style="display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin-bottom:6px;">
-        <input type="checkbox" data-solicitud-id="${a.solicitud_id}" ${a.ya_postulado ? "checked disabled" : ""} style="width:20px;height:20px;flex-shrink:0;" />
-        <div style="flex:1;">
-          <div style="font-size:0.85rem;font-weight:600;">${a.fecha.slice(8,10)}/${a.fecha.slice(5,7)} — ${a.sector} ${a.franja}</div>
-          <div style="font-size:0.75rem;color:${a.ya_postulado ? "var(--ok)" : "var(--warn)"};" ${a.ya_postulado ? "" : `data-cierra="${a.cierra_en}"`}>
-            ${a.ya_postulado ? "Ya te postulaste" : formatearRestante(a.cierra_en)}
-          </div>
-        </div>
-      </div>
-    `).join("");
-  }
-
-  modalPostulacion.classList.add("open");
-  clearInterval(intervaloContadorPostulacion);
-  intervaloContadorPostulacion = setInterval(actualizarContadoresPostulacion, 1000);
-}
-
-btnAbrirPostulacion.addEventListener("click", abrirModalPostulacion);
-
-document.getElementById("btn-cerrar-postulacion").addEventListener("click", () => {
-  modalPostulacion.classList.remove("open");
-  clearInterval(intervaloContadorPostulacion);
-});
-
-document.getElementById("btn-confirmar-postulacion").addEventListener("click", async () => {
-  const checks = postulacionLista.querySelectorAll("input[type=checkbox]:checked:not(:disabled)");
-  if (!checks.length) {
-    alert("Marcá al menos una actividad para postularte.");
-    return;
-  }
-
-  let enviadas = 0, errores = 0;
-  for (const chk of checks) {
-    const solicitudId = Number(chk.dataset.solicitudId);
-    const resultado = await sb(`rpc/postularse_actividad`, {
-      method: "POST",
-      body: JSON.stringify({
-        p_solicitud_vacante_id: solicitudId,
-        p_persona_id: personaActual.id,
-        p_pin: personaPin
-      })
-    });
-    if (resultado === "ok") enviadas++;
-    else errores++;
-  }
-
-  clearInterval(intervaloContadorPostulacion);
-  modalPostulacion.classList.remove("open");
-  actualizarBotonPostulacion();
-
-  let mensaje = `Te postulaste a ${enviadas} actividad(es).`;
-  if (errores) mensaje += ` ${errores} no se pudieron enviar (puede que la ventana ya haya cerrado).`;
-  alert(mensaje);
-});
 
 
 const VAPID_PUBLIC_KEY = "BHNTEZRf4uqYFfr_IqFMk6e8w6gcg115m7FRausnVsGjM6e7u48Ec1w-H7KouhwMFmXsuQm1x5WN5O1a37E9HSM";
