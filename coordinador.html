@@ -1984,16 +1984,15 @@ function planillaGenerarHojaVisual(worksheet, sector, anio, mes) {
   const diasEnMes = new Date(anio, mes, 0).getDate();
   const lastDayRow = firstDayRow + diasEnMes - 1;
 
-  let columnasGrises, ultimaColReal;
-  if (meta.dayRepeatCol) {
-    columnasGrises = [];
-    for (let i = 1; i < meta.dayRepeatCol; i++) columnasGrises.push(i);
-    ultimaColReal = meta.dayRepeatCol + 2;
-  } else {
-    columnasGrises = [];
-    for (let i = 1; i < maxCol - 2; i++) columnasGrises.push(i);
-    ultimaColReal = maxCol - 1;
-  }
+  const PLANILLA_VISUAL_CONST = {
+    BQ: [[1,2,3,4,5,6,7,8,9,10],12], BSE: [[1,2,3,4,5,6],6], CCA: [[1,2,3,4],4],
+    CENDYTMA: [[1,2,3,4,6,7,8,9,10],10], DENSITO: [[1,2,3],3], EMERG: [[1,2,3,4,5,6],8],
+    FOTOG: [[1,2,3,4,5],5], GREMCA: [[1,2],2], GUARDIA: [[1,2,3,4,5],7],
+    POLI: [[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16],16], RESO: [[1,2,3,4,5,6,7,8,9,10,11,12],12],
+    RETEN: [[1,2,3,4,5,6,7],7], SOLY: [[1,2,3,4,5,6],6], TC: [[1,2,3,4,5,6,7,8,9,10,17,18,19,20],16],
+    TRAUMA: [[1,2,3,4],4], UCAL: [[1,2,3,4],4],
+  };
+  const [columnasGrises, ultimaColReal] = PLANILLA_VISUAL_CONST[sector];
 
   return { cols, filas, merges, dia_col: 1, last_day_row: lastDayRow, first_day_row: firstDayRow, columnas_grises: columnasGrises, ultima_col_real: ultimaColReal };
 }
