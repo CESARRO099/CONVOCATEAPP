@@ -1500,6 +1500,25 @@ async function cargarFormulariosPendientes() {
   window.__formulariosVacantePendientes = pendientesEspanola;
 }
 
+function nombreSectorLegible(codigo, franjaNombre) {
+  const mapa = {
+    "BQ": "BQ Central", "CCA": "BQ CCA", "BSE": "RNM BSE",
+    "DENSITO": "Densitometría", "EMERG": "Rx de la Emergencia de Adultos",
+    "FOTOG": "Auxiliar de Técnico", "GREMCA": "Rx Gremca Pando",
+    "GUARDIA": "Guardia interna de Rx en la Sede Central",
+    "POLI": "Policlinica de Rx Sede Central", "RESO": "RNM Sede Central",
+    "RETEN": "Retén de BQ en la Sede Central", "TC": "TC Sede Central",
+    "TRAUMA": "Policlínica de Rx Traumatología edificio Ardao", "UCAL": "BQ UCAL"
+  };
+  if (codigo === "CENDYTMA") {
+    return (franjaNombre || "").toUpperCase().includes("FUJI") ? "Mamógrafo A" : "Mamógrafo B";
+  }
+  if (codigo === "SOLY") {
+    return (franjaNombre || "").toUpperCase().includes("TC") ? "TC Ciudad de la Costa" : "Rx Ciudad de la Costa";
+  }
+  return mapa[codigo] || codigo;
+}
+
 async function generarFormularioDesdeVacante(solicitudId) {
   const it = (window.__formulariosVacantePendientes || []).find(x => x.id === solicitudId);
   if (!it) return;
@@ -1521,7 +1540,7 @@ async function generarFormularioDesdeVacante(solicitudId) {
     fecha: new Date().toLocaleDateString("es-UY"),
     desde: desdeTxt,
     al: alTxt,
-    actividad: `${fh.sectores.nombre} - ${fh.nombre}`,
+    actividad: nombreSectorLegible(fh.sectores.nombre, fh.nombre),
     ficha: sol.ficha != null ? String(sol.ficha) : "",
     nombre: `${sinTildes(sol.nombre||"")} ${sinTildes(sol.apellido||"")}`.trim(),
     cargo: sol.cargo || "Licenciado en Imagenología",
