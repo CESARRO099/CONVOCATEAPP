@@ -1451,12 +1451,21 @@ function descargarPDF(bytes, nombreArchivo) {
 // vacante): solo Libre Particular / Rechazo de Convocatoria,
 // solo Espanola, solo una vez que ya hay cobertura asignada.
 // ---------------------------------------------------------
+function uint8ArrayABase64(bytes) {
+  let binario = "";
+  const chunk = 8192;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binario += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binario);
+}
+
 async function cargarFormulariosPendientes() {
   const cont = document.getElementById("formularios-pendientes-lista");
   const items = await sbCoord(
     `solicitudes_vacante?select=id,causal,turno_id,` +
     `turnos(fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre)),perfiles(apellido,nombre,ficha)),` +
-    `perfiles(apellido,nombre,ficha,cargo,empresa)` +
+    `perfiles(apellido,nombre,ficha,cargo,empresa,email)` +
     `&causal=in.(Libre Particular,Rechazo de Convocatoria)&estado=eq.CUBIERTA&formulario_generado_en=is.null`
   );
 
@@ -1512,6 +1521,18 @@ async function generarFormularioDesdeVacante(solicitudId) {
   const bytes = await generarFormularioPDF(datos);
   const nombreArchivo = (datos.tipo === "LP" ? "LIBRE_PARTICULAR_" : "RECHAZO_CONVOCATORIA_") + datos.ficha + "_" + t.fecha + ".pdf";
   descargarPDF(bytes, nombreArchivo);
+
+  if (sol.email) {
+    const base64 = uint8ArrayABase64(bytes);
+    const asunto = (datos.tipo === "LP" ? "Libre Particular" : "Rechazo de Convocatoria") + " - " + datos.fecha;
+    const cuerpo = `Hola ${sinTildes(sol.nombre||"")}, adjuntamos tu formulario de ${datos.tipo === "LP" ? "Libre Particular" : "Rechazo de Convocatoria"} ya completo. Por favor envialo vos directamente a Recursos Humanos.`;
+    await sbCoord(`rpc/enviar_correo_resend_con_adjunto`, {
+      method: "POST",
+      body: JSON.stringify({ p_to: sol.email, p_subject: asunto, p_body: cuerpo, p_pdf_base64: base64, p_nombre_archivo: nombreArchivo })
+    });
+  } else {
+    alert(`${datos.nombre} no tiene email cargado — el formulario se descargó localmente, hay que enviárselo a mano.`);
+  }
 
   await sbCoord(`solicitudes_vacante?id=eq.${solicitudId}`, {
     method: "PATCH",
