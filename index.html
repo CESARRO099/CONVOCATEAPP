@@ -713,6 +713,10 @@
           <label style="font-size:0.85rem;font-weight:600;">Quién te cubre</label>
           <select id="sel-cobertura"></select>
         </div>
+        <div>
+          <label style="font-size:0.85rem;font-weight:600;">Qué turno de esa persona recibís a cambio</label>
+          <select id="sel-turno-recibido"><option value="">Elegí primero a quién te cubre...</option></select>
+        </div>
         <button class="btn-primary" id="btn-enviar-cambio">Enviar solicitud</button>
         <button class="btn-cancel" id="btn-cancelar-cambio">Cancelar</button>
       </div>
@@ -2419,7 +2423,19 @@ const cambioWrap      = document.getElementById("cambio-wrap");
 const modalCambio     = document.getElementById("modal-cambio");
 const selTurno        = document.getElementById("sel-turno-ceder");
 const selCobertura    = document.getElementById("sel-cobertura");
+const selTurnoRecibido = document.getElementById("sel-turno-recibido");
 const bannerSolicitud = document.getElementById("banner-solicitud-wrap");
+
+selCobertura.addEventListener("change", async () => {
+  const personaId = selCobertura.value;
+  if (!personaId) { selTurnoRecibido.innerHTML = `<option value="">Elegí primero a quién te cubre...</option>`; return; }
+  const turnos = await sb(
+    `turnos?select=id,fecha,franjas_horarias(nombre,sectores(nombre))` +
+    `&persona_id=eq.${personaId}&fecha=gte.${mesActivo}-01&fecha=lte.${ultimoDiaMesStr(mesActivo)}&order=fecha.asc`
+  );
+  selTurnoRecibido.innerHTML = (turnos && turnos.length) ? opcionesDeTurnos(turnos)
+    : `<option value="">(no tiene turnos ese mes)</option>`;
+});
 const modalElegirTipo   = document.getElementById("modal-elegir-tipo-cambio");
 const modalDejarVacante = document.getElementById("modal-dejar-vacante");
 
@@ -2596,10 +2612,11 @@ document.getElementById("btn-ir-cambio-persona").addEventListener("click", async
   }
   const misTurnos = await cargarMisTurnosDelMes();
   selTurno.innerHTML = opcionesDeTurnos(misTurnos);
-  selCobertura.innerHTML = (window.__personas || [])
+  selCobertura.innerHTML = `<option value="">Elegí...</option>` + (window.__personas || [])
     .filter(p => p.id !== personaActual.id)
     .map(p => `<option value="${p.id}">${nombreCompleto(p)}</option>`)
     .join("");
+  selTurnoRecibido.innerHTML = `<option value="">Elegí primero a quién te cubre...</option>`;
   modalElegirTipo.classList.remove("open");
   modalCambio.classList.add("open");
 });
@@ -2790,12 +2807,17 @@ document.getElementById("btn-cancelar-cambio").addEventListener("click", () => {
 document.getElementById("btn-enviar-cambio").addEventListener("click", async () => {
   const turnoId     = Number(selTurno.value);
   const coberturaId = selCobertura.value;
-  if (!turnoId || !coberturaId) return;
+  const turnoRecibidoId = Number(selTurnoRecibido.value);
+  if (!turnoId || !coberturaId || !turnoRecibidoId) {
+    alert("Elegí tu turno, a quién te cubre, y qué turno de esa persona recibís a cambio.");
+    return;
+  }
 
   const resultado = await sb(`rpc/solicitar_cambio`, {
     method: "POST",
     body: JSON.stringify({
       p_turno_id: turnoId,
+      p_turno_id_recibido: turnoRecibidoId,
       p_solicitante_id: personaActual.id,
       p_cobertura_id: coberturaId,
       p_pin: personaPin
@@ -2805,11 +2827,13 @@ document.getElementById("btn-enviar-cambio").addEventListener("click", async () 
   modalCambio.classList.remove("open");
   if (resultado === "ok") {
     const nombre = selCobertura.options[selCobertura.selectedIndex].text.split(",")[0];
-    alert(`Solicitud enviada. ${nombre} recibirá una notificación para aceptar o rechazar.`);
+    alert(`Solicitud enviada. ${nombre} recibirá una notificación para aceptar o rechazar el intercambio.`);
   } else if (resultado === "mes_no_publicado") {
     alert("No es posible modificar la convocatoria de este mes.");
   } else if (resultado === "ya_pendiente") {
-    alert("Ya tenés una solicitud pendiente para ese turno.");
+    alert("Ya hay una solicitud pendiente con alguno de estos turnos.");
+  } else if (resultado === "turno_recibido_invalido") {
+    alert("Ese turno ya no pertenece a esa persona, elegí de nuevo.");
   } else {
     alert("No se pudo enviar la solicitud.");
   }
