@@ -1511,8 +1511,9 @@ async function generarFormularioDesdeVacante(solicitudId) {
   const cruzaMedianoche = fh.hora_fin != null && fh.hora_inicio != null && fh.hora_fin <= fh.hora_inicio;
   const fechaDesde = formatearFechaCorta(t.fecha);
   const fechaHastaCorta = cruzaMedianoche ? sumarUnDia(t.fecha) : fechaDesde;
-  const desdeTxt = fh.hora_inicio != null ? `${fechaDesde} ${String(fh.hora_inicio).padStart(2,"0")}:00` : fechaDesde;
-  const alTxt = fh.hora_fin != null ? `${fechaHastaCorta} ${String(fh.hora_fin).padStart(2,"0")}:00` : fechaHastaCorta;
+  const minutosAHora = (m) => m == null ? null : `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;
+  const desdeTxt = fh.hora_inicio != null ? `${fechaDesde} ${minutosAHora(fh.hora_inicio)}` : fechaDesde;
+  const alTxt = fh.hora_fin != null ? `${fechaHastaCorta} ${minutosAHora(fh.hora_fin)}` : fechaHastaCorta;
 
   const datos = {
     tipo: it.causal === "Libre Particular" ? "LP" : "RC",
@@ -1528,7 +1529,6 @@ async function generarFormularioDesdeVacante(solicitudId) {
 
   const bytes = await generarFormularioPDF(datos);
   const nombreArchivo = (datos.tipo === "LP" ? "LIBRE_PARTICULAR_" : "RECHAZO_CONVOCATORIA_") + datos.ficha + "_" + t.fecha + ".pdf";
-  descargarPDF(bytes, nombreArchivo);
 
   if (sol.email) {
     const base64 = uint8ArrayABase64(bytes);
@@ -1539,6 +1539,7 @@ async function generarFormularioDesdeVacante(solicitudId) {
       body: JSON.stringify({ p_to: sol.email, p_subject: asunto, p_body: cuerpo, p_pdf_base64: base64, p_nombre_archivo: nombreArchivo })
     });
   } else {
+    descargarPDF(bytes, nombreArchivo);
     alert(`${datos.nombre} no tiene email cargado — el formulario se descargó localmente, hay que enviárselo a mano.`);
   }
 
