@@ -236,6 +236,11 @@
   </div>
 
   <div class="card">
+    <h2>Formularios pendientes de generar (Libre Particular / Rechazo de Convocatoria)</h2>
+    <div id="formularios-pendientes-lista" style="font-size:0.85rem;color:var(--ink-soft);">Cargando...</div>
+  </div>
+
+  <div class="card">
     <h2>No participará este mes</h2>
     <label>Persona</label>
     <select id="exc-persona"><option value="">Cargando...</option></select>
@@ -1439,6 +1444,85 @@ function descargarPDF(bytes, nombreArchivo) {
   a.download = nombreArchivo;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// ---------------------------------------------------------
+// Formularios pendientes de generar para el Flujo 1 (Dejar
+// vacante): solo Libre Particular / Rechazo de Convocatoria,
+// solo Espanola, solo una vez que ya hay cobertura asignada.
+// ---------------------------------------------------------
+async function cargarFormulariosPendientes() {
+  const cont = document.getElementById("formularios-pendientes-lista");
+  const items = await sbCoord(
+    `solicitudes_vacante?select=id,causal,turno_id,` +
+    `turnos(fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre)),perfiles(apellido,nombre,ficha)),` +
+    `perfiles(apellido,nombre,ficha,cargo,empresa)` +
+    `&causal=in.(Libre Particular,Rechazo de Convocatoria)&estado=eq.CUBIERTA&formulario_generado_en=is.null`
+  );
+
+  if (!items || !items.length) {
+    cont.innerHTML = `<div>No hay formularios pendientes.</div>`;
+    return;
+  }
+
+  const pendientesEspanola = items.filter(it => it.perfiles?.empresa === "ESPANOLA");
+  if (!pendientesEspanola.length) {
+    cont.innerHTML = `<div>No hay formularios pendientes.</div>`;
+    return;
+  }
+
+  cont.innerHTML = pendientesEspanola.map(it => {
+    const sol = it.perfiles;
+    const t = it.turnos;
+    return `<div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
+      <div>${sinTildes(sol.nombre||"")} ${sinTildes(sol.apellido||"")} — ${it.causal} — ${t.fecha} ${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}</div>
+      <button class="btn-primary" style="width:auto;padding:6px 12px;" onclick="generarFormularioDesdeVacante(${it.id})">Generar y descargar</button>
+    </div>`;
+  }).join("");
+
+  window.__formulariosVacantePendientes = pendientesEspanola;
+}
+
+async function generarFormularioDesdeVacante(solicitudId) {
+  const it = (window.__formulariosVacantePendientes || []).find(x => x.id === solicitudId);
+  if (!it) return;
+  const sol = it.perfiles;
+  const t = it.turnos;
+  const cob = t.perfiles;
+  const fh = t.franjas_horarias;
+
+  const cruzaMedianoche = fh.hora_fin != null && fh.hora_inicio != null && fh.hora_fin <= fh.hora_inicio;
+  const fechaDesde = formatearFechaCorta(t.fecha);
+  const fechaHastaCorta = cruzaMedianoche ? sumarUnDia(t.fecha) : fechaDesde;
+  const desdeTxt = fh.hora_inicio != null ? `${fechaDesde} ${String(fh.hora_inicio).padStart(2,"0")}:00` : fechaDesde;
+  const alTxt = fh.hora_fin != null ? `${fechaHastaCorta} ${String(fh.hora_fin).padStart(2,"0")}:00` : fechaHastaCorta;
+
+  const datos = {
+    tipo: it.causal === "Libre Particular" ? "LP" : "RC",
+    cubre: cob ? `${sinTildes(cob.nombre||"")} ${sinTildes(cob.apellido||"")}`.trim() + (cob.ficha != null ? ` (ficha ${cob.ficha})` : "") : "",
+    fecha: new Date().toLocaleDateString("es-UY"),
+    desde: desdeTxt,
+    al: alTxt,
+    actividad: `${fh.sectores.nombre} - ${fh.nombre}`,
+    ficha: sol.ficha != null ? String(sol.ficha) : "",
+    nombre: `${sinTildes(sol.nombre||"")} ${sinTildes(sol.apellido||"")}`.trim(),
+    cargo: sol.cargo || "Licenciado en Imagenología",
+  };
+
+  const bytes = await generarFormularioPDF(datos);
+  const nombreArchivo = (datos.tipo === "LP" ? "LIBRE_PARTICULAR_" : "RECHAZO_CONVOCATORIA_") + datos.ficha + "_" + t.fecha + ".pdf";
+  descargarPDF(bytes, nombreArchivo);
+
+  await sbCoord(`solicitudes_vacante?id=eq.${solicitudId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ formulario_generado_en: new Date().toISOString() })
+  });
+  cargarFormulariosPendientes();
+}
+
+if (document.getElementById("formularios-pendientes-lista")) {
+  cargarFormulariosPendientes();
+  setInterval(cargarFormulariosPendientes, 30000);
 }
 
 function b64ToBytesFormulario(b64) {
