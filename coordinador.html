@@ -1342,7 +1342,7 @@ let solicitudesPendientes = [];
 
 async function cargarSolicitudes() {
   const data = await sb(
-    `solicitudes_cambio_detalle?estado=eq.PENDIENTE`
+    `solicitudes_cambio_detalle?estado=eq.ESPERANDO_COORDINADOR`
   );
   solicitudesPendientes = data || [];
   const wrap = document.getElementById("solicitudes-wrap");
@@ -1352,9 +1352,12 @@ async function cargarSolicitudes() {
   }
   wrap.innerHTML = data.map(s => `
     <div style="border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;">
-      <div style="font-weight:700;">${sinTildes(s.solicitante_apellido)} → cede a ${sinTildes(s.cobertura_apellido)}</div>
+      <div style="font-weight:700;">${sinTildes(s.solicitante_apellido)} ⇄ ${sinTildes(s.cobertura_apellido)}</div>
       <div style="font-size:0.85rem;color:var(--ink-soft);">
-        ${s.fecha.slice(8,10)}/${s.fecha.slice(5,7)} — ${s.sector} ${s.franja}
+        ${sinTildes(s.solicitante_apellido)} da: ${s.fecha.slice(8,10)}/${s.fecha.slice(5,7)} — ${s.sector} ${s.franja}
+      </div>
+      <div style="font-size:0.85rem;color:var(--ink-soft);">
+        ${sinTildes(s.cobertura_apellido)} da: ${s.fecha_recibido ? s.fecha_recibido.slice(8,10)+'/'+s.fecha_recibido.slice(5,7) : '?'} — ${s.sector_recibido||''} ${s.franja_recibido||''}
       </div>
       <div style="display:flex;gap:8px;margin-top:10px;">
         <button onclick="resolverSolicitud(${s.id}, true)"
@@ -2093,6 +2096,7 @@ function planillaGenerarHojaVisual(worksheet, sector, anio, mes) {
         else if (v.result !== undefined) v = v.result;
         else v = String(v);
       }
+      if (typeof v === 'string') v = sinTildes(v);
       const bold = !!(cell.font && cell.font.bold);
       const bd = { b: false, l: false, r: false, t: false };
       if (cell.border) {
