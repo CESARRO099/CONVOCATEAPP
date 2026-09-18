@@ -952,6 +952,7 @@ async function cambiarMesActivo(mes) {
   sectorActual = null;
   document.getElementById("btn-mis-turnos")?.classList.remove("activo");
   grillaWrap.innerHTML = skeletonGrilla();
+  actualizarBotonesCambio();
   await cargarDatosConvocatoria();
 }
 
@@ -2840,7 +2841,7 @@ document.getElementById("btn-enviar-cambio").addEventListener("click", async () 
 });
 
 function actualizarBotonesCambio() {
-  if (personaActual) {
+  if (personaActual && mesActivo !== MES_CONVOCATORIA) {
     cambioWrap.style.display = "block";
     cargarSolicitudesPendientes();
   } else {
