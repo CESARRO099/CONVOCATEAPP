@@ -1374,19 +1374,11 @@ async function cargarSolicitudes() {
 }
 
 async function resolverSolicitud(id, aprobar) {
-  const solicitud = solicitudesPendientes.find(s => s.id === id);
   const ok = await sb(`rpc/resolver_solicitud_cambio`, {
     method: "POST",
     body: JSON.stringify({ p_solicitud_id: id, p_aprobar: aprobar, p_password_coordinador: coordPassword })
   });
   if (ok === true) {
-    if (aprobar && solicitud) {
-      try {
-        await generarYDescargarFormulario(solicitud);
-      } catch (e) {
-        alert("El cambio se aprobó bien, pero hubo un problema generando el formulario para imprimir: " + e.message);
-      }
-    }
     await cargarSolicitudes();
   } else {
     alert("Error al resolver la solicitud.");
@@ -1473,25 +1465,41 @@ function uint8ArrayABase64(bytes) {
 
 async function cargarFormulariosPendientes() {
   const cont = document.getElementById("formularios-pendientes-lista");
-  const items = await sbCoord(
+
+  const itemsVacante = await sbCoord(
     `solicitudes_vacante?select=id,causal,turno_id,` +
     `turnos(fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre)),perfiles(apellido,nombre,ficha)),` +
     `perfiles(apellido,nombre,ficha,cargo,empresa,email)` +
     `&causal=in.(Libre Particular,Rechazo de Convocatoria)&estado=eq.CUBIERTA&formulario_generado_en=is.null`
   );
+  const pendientesVacante = (itemsVacante || []).filter(it => it.perfiles?.empresa === "ESPANOLA");
 
-  if (!items || !items.length) {
+  const itemsCambio = await sbCoord(
+    `solicitudes_cambio?select=id,formulario_solicitante_generado_en,formulario_cobertura_generado_en,` +
+    `turno_dado:turnos!solicitudes_cambio_turno_id_fkey(fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre))),` +
+    `turno_recibido:turnos!solicitudes_cambio_turno_id_recibido_fkey(fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre))),` +
+    `solicitante:perfiles!solicitudes_cambio_solicitante_id_fkey(apellido,nombre,ficha,cargo,empresa,email),` +
+    `cobertura:perfiles!solicitudes_cambio_cobertura_id_fkey(apellido,nombre,ficha,cargo,empresa,email)` +
+    `&estado=eq.APROBADO`
+  );
+
+  const pendientesCambio = [];
+  for (const it of (itemsCambio || [])) {
+    if (it.solicitante?.empresa === "ESPANOLA" && !it.formulario_solicitante_generado_en) {
+      pendientesCambio.push({ cambio: it, lado: "solicitante" });
+    }
+    if (it.cobertura?.empresa === "ESPANOLA" && !it.formulario_cobertura_generado_en) {
+      pendientesCambio.push({ cambio: it, lado: "cobertura" });
+    }
+  }
+
+  if (!pendientesVacante.length && !pendientesCambio.length) {
     cont.innerHTML = `<div>No hay formularios pendientes.</div>`;
     return;
   }
 
-  const pendientesEspanola = items.filter(it => it.perfiles?.empresa === "ESPANOLA");
-  if (!pendientesEspanola.length) {
-    cont.innerHTML = `<div>No hay formularios pendientes.</div>`;
-    return;
-  }
-
-  cont.innerHTML = pendientesEspanola.map(it => {
+  let html = "";
+  html += pendientesVacante.map(it => {
     const sol = it.perfiles;
     const t = it.turnos;
     return `<div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
@@ -1500,7 +1508,70 @@ async function cargarFormulariosPendientes() {
     </div>`;
   }).join("");
 
-  window.__formulariosVacantePendientes = pendientesEspanola;
+  html += pendientesCambio.map((pc, idx) => {
+    const persona = pc.lado === "solicitante" ? pc.cambio.solicitante : pc.cambio.cobertura;
+    const cubre = pc.lado === "solicitante" ? pc.cambio.cobertura : pc.cambio.solicitante;
+    const t = pc.lado === "solicitante" ? pc.cambio.turno_dado : pc.cambio.turno_recibido;
+    return `<div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
+      <div>${sinTildes(persona.nombre||"")} ${sinTildes(persona.apellido||"")} — Rechazo de Convocatoria (intercambio, cubre ${sinTildes(cubre.nombre||"")} ${sinTildes(cubre.apellido||"")}) — ${t.fecha} ${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}</div>
+      <button class="btn-primary" style="width:auto;padding:6px 12px;" onclick="generarFormularioDesdeCambio(${pc.cambio.id}, '${pc.lado}')">Generar y descargar</button>
+    </div>`;
+  }).join("");
+
+  cont.innerHTML = html;
+  window.__formulariosVacantePendientes = pendientesVacante;
+  window.__formulariosCambioPendientes = pendientesCambio;
+}
+
+async function generarFormularioDesdeCambio(solicitudCambioId, lado) {
+  const pc = (window.__formulariosCambioPendientes || []).find(x => x.cambio.id === solicitudCambioId && x.lado === lado);
+  if (!pc) return;
+  const persona = lado === "solicitante" ? pc.cambio.solicitante : pc.cambio.cobertura;
+  const cubre = lado === "solicitante" ? pc.cambio.cobertura : pc.cambio.solicitante;
+  const t = lado === "solicitante" ? pc.cambio.turno_dado : pc.cambio.turno_recibido;
+  const fh = t.franjas_horarias;
+
+  const cruzaMedianoche = fh.hora_fin != null && fh.hora_inicio != null && fh.hora_fin <= fh.hora_inicio;
+  const fechaDesde = formatearFechaCorta(t.fecha);
+  const fechaHastaCorta = cruzaMedianoche ? sumarUnDia(t.fecha) : fechaDesde;
+  const minutosAHora = (m) => m == null ? null : `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;
+  const desdeTxt = fh.hora_inicio != null ? `${fechaDesde} ${minutosAHora(fh.hora_inicio)}` : fechaDesde;
+  const alTxt = fh.hora_fin != null ? `${fechaHastaCorta} ${minutosAHora(fh.hora_fin)}` : fechaHastaCorta;
+
+  const datos = {
+    tipo: "RC",
+    cubre: `${sinTildes(cubre.nombre||"")} ${sinTildes(cubre.apellido||"")}`.trim() + (cubre.ficha != null ? ` (ficha ${cubre.ficha})` : ""),
+    fecha: new Date().toLocaleDateString("es-UY"),
+    desde: desdeTxt,
+    al: alTxt,
+    actividad: nombreSectorLegible(fh.sectores.nombre, fh.nombre),
+    ficha: persona.ficha != null ? String(persona.ficha) : "",
+    nombre: `${sinTildes(persona.nombre||"")} ${sinTildes(persona.apellido||"")}`.trim(),
+    cargo: persona.cargo || "Licenciado en Imagenología",
+  };
+
+  const bytes = await generarFormularioPDF(datos);
+  const nombreArchivo = "RECHAZO_CONVOCATORIA_" + datos.ficha + "_" + t.fecha + ".pdf";
+
+  if (persona.email) {
+    const base64 = uint8ArrayABase64(bytes);
+    const asunto = "Rechazo de Convocatoria - " + datos.fecha;
+    const cuerpo = `Hola ${sinTildes(persona.nombre||"")}, adjuntamos tu formulario de Rechazo de Convocatoria ya completo (por el intercambio de turno). Por favor envialo vos directamente a Recursos Humanos.`;
+    await sbCoord(`rpc/enviar_correo_resend_con_adjunto`, {
+      method: "POST",
+      body: JSON.stringify({ p_to: persona.email, p_subject: asunto, p_body: cuerpo, p_pdf_base64: base64, p_nombre_archivo: nombreArchivo })
+    });
+  } else {
+    descargarPDF(bytes, nombreArchivo);
+    alert(`${datos.nombre} no tiene email cargado — el formulario se descargó localmente, hay que enviárselo a mano.`);
+  }
+
+  const campo = lado === "solicitante" ? "formulario_solicitante_generado_en" : "formulario_cobertura_generado_en";
+  await sbCoord(`solicitudes_cambio?id=eq.${solicitudCambioId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ [campo]: new Date().toISOString() })
+  });
+  cargarFormulariosPendientes();
 }
 
 function nombreSectorLegible(codigo, franjaNombre) {
