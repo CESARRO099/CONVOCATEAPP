@@ -2570,8 +2570,9 @@ document.getElementById("btn-buscar-actividades").addEventListener("click", asyn
     listaActividadesEncontradas.innerHTML = `<div style="color:var(--ink-soft);font-size:0.85rem;">No encontramos ninguna actividad tuya en ese período.</div>`;
   } else {
     listaActividadesEncontradas.innerHTML = turnosEncontradosVacante.map(t =>
-      `<div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:0.85rem;">` +
-      `${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}</div>`
+      `<div style="display:flex; align-items:center; gap:10px; border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:0.85rem;">` +
+      `<input type="checkbox" data-turno-id="${t.id}" checked style="width:20px;height:20px;flex-shrink:0;" />` +
+      `<div style="flex:1;">${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}</div></div>`
     ).join("");
   }
   pasoFechas.style.display = "none";
@@ -2637,11 +2638,20 @@ document.getElementById("btn-confirmar-actividades").addEventListener("click", a
     modalDejarVacante.classList.remove("open");
     return;
   }
+  const idsMarcados = new Set(
+    Array.from(listaActividadesEncontradas.querySelectorAll("input[type=checkbox]:checked"))
+      .map(chk => chk.dataset.turnoId)
+  );
+  const turnosASolicitar = turnosEncontradosVacante.filter(t => idsMarcados.has(String(t.id)));
+  if (!turnosASolicitar.length) {
+    alert("Marcá al menos una actividad para dejar vacante.");
+    return;
+  }
   const loteId = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID()
     : "lote-" + Date.now() + "-" + Math.random().toString(36).slice(2);
 
   let enviados = 0, yaPendientes = 0, mesNoPublicado = 0, errores = 0;
-  for (const t of turnosEncontradosVacante) {
+  for (const t of turnosASolicitar) {
     const resultado = await sb(`rpc/solicitar_dejar_turno_vacante`, {
       method: "POST",
       body: JSON.stringify({
