@@ -1261,10 +1261,20 @@ document.getElementById("coord-btn-asignar").addEventListener("click", async () 
 
   try {
     if (celdaSeleccionada.turnoId) {
-      await sbCoord(`rpc/coordinador_asignar_turno_existente`, {
+      let resultado = await sbCoord(`rpc/coordinador_asignar_turno_existente`, {
         method: "POST",
         body: JSON.stringify({ p_turno_id: celdaSeleccionada.turnoId, p_persona_id: personaId, p_password_coordinador: coordPassword })
       });
+      if (resultado === "superposicion") {
+        if (!confirm("Esa persona ya tiene actividad asignada ese día. ¿Asignar igual?")) return;
+        resultado = await sbCoord(`rpc/coordinador_asignar_turno_existente`, {
+          method: "POST",
+          body: JSON.stringify({ p_turno_id: celdaSeleccionada.turnoId, p_persona_id: personaId, p_password_coordinador: coordPassword, p_forzar: true })
+        });
+      }
+      if (resultado === "password_incorrecta") { alert("Contraseña de coordinador incorrecta."); return; }
+      if (resultado === "turno_no_existe") { alert("El turno ya no existe."); return; }
+      if (resultado !== "ok") { alert("No se pudo asignar la persona."); return; }
     } else {
       await sbCoord(`rpc/coordinador_activar_celda`, {
         method: "POST",
