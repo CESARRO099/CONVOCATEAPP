@@ -2264,7 +2264,12 @@ function planillaGenerarHojaVisual(worksheet, sector, anio, mes) {
     TRAUMA: [[1,2,3,4],4], UCAL: [[1,2,3,4],4],
   };
   const [columnasGrisesRaw, ultimaColRealRaw] = PLANILLA_VISUAL_CONST[sector];
-  const ultimaColReal = Math.min(ultimaColRealRaw, maxCol - 1);
+  // NUEVO (22 sep 2026, a pedido de Cesar): antes se truncaba la grilla al
+  // ancho fijo de la constante de arriba, así que columnas con texto real
+  // (ej. referencias a la derecha) que quedaban más allá de ese límite no
+  // se mostraban nunca en la app, aunque los datos sí se guardaban. Ahora
+  // se muestra siempre todo lo que tenga contenido real en la planilla.
+  const ultimaColReal = Math.max(ultimaColRealRaw, maxCol - 1);
   const columnasGrises = columnasGrisesRaw.filter(i => i < maxCol);
 
   return { cols, filas, merges, dia_col: 1, last_day_row: lastDayRow, first_day_row: firstDayRow, columnas_grises: columnasGrises, ultima_col_real: ultimaColReal };
