@@ -557,6 +557,23 @@
     .cvt-title span{ letter-spacing:.25em; }
   }
 
+  /* NUEVO (22 sep 2026, a pedido de Cesar): en el celular el margen del
+     "main" (16px) mas el padding de la tarjeta (16px) le comian 64px de
+     ancho a cada hoja antes de que arranque a scrollear, asi que se veian
+     2-3 columnas nomas. Con margenes negativos se cancela ese aire SOLO
+     alrededor de la tarjeta de la grilla (el resto de las tarjetas de la
+     app no se toca) para que entre la mayor cantidad de columnas posible
+     en pantalla, como se veia antes de los cambios de centrado. Es solo
+     margin/padding, no la tecnica de flex+100vw que causaba el problema
+     de scroll de POLI. */
+  @media (max-width:640px){
+    .card-grilla{
+      margin-left:-16px; margin-right:-16px;
+      padding-left:4px; padding-right:4px;
+      border-radius:0;
+    }
+  }
+
   /* Centra verticalmente la pantalla de "elegí tu nombre" mientras la
      grilla todavía no se muestra. En cuanto aparece la convocatoria
      (grilla, banner, etc.) un pequeño script la achica de nuevo a su
@@ -797,8 +814,8 @@
         <button id="btn-zoom-in" style="width:28px; height:28px; border:none; border-radius:50%; background:transparent; color:var(--ink-soft); font-size:0.95rem; cursor:pointer; line-height:1;">＋</button>
       </div>
     </div>
-    <div class="card" style="overflow-y:visible;">
-      <div id="grilla-wrap" style="overflow-x:auto;width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;"><div class="status-msg">Elegí un sector arriba</div></div>
+    <div class="card card-grilla" style="overflow-y:visible;">
+      <div id="grilla-wrap" style="overflow-x:auto;"><div class="status-msg">Elegí un sector arriba</div></div>
     </div>
   </div>
 
