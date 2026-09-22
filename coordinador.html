@@ -1019,6 +1019,14 @@ function renderGrillaCoord() {
             if (turnoG && turnoG.persona_id && turnoG.perfiles) {
               contenido = turnoG.perfiles.ficha != null ? String(turnoG.perfiles.ficha) : "";
               bg = "background:#E3F0E8;";
+            } else if (turnoG && (turnoG.nombre_externo === "SUISAS" || turnoG.nombre_externo === "SUISAS_DIRECTO")) {
+              // FIX (22 sep 2026, a pedido de Cesar): esta rama antes no miraba
+              // nombre_externo y mostraba "LIBRE" también para las celdas
+              // reservadas exclusivas de SUISAS, como si estuvieran disponibles
+              // para cualquiera. Ahora muestra "SUISAS" igual que en la grilla
+              // principal (línea ~981).
+              contenido = "SUISAS";
+              bg = "background:#DCEEFF;color:#0B5394;font-weight:normal;";
             } else if (turnoG) {
               contenido = "LIBRE";
               bg = "background:#FFF9C4;color:#7B6000;font-weight:700;";
@@ -1031,6 +1039,9 @@ function renderGrillaCoord() {
                 ? sinTildes(turnoG.perfiles.apellido||"").toUpperCase() + (turnoG.perfiles.empresa === "SUISAS" ? " (S)" : "")
                 : "ASIGNADO";
               bg = "background:#E3F0E8;";
+            } else if (turnoG.nombre_externo === "SUISAS" || turnoG.nombre_externo === "SUISAS_DIRECTO") {
+              contenido = "SUISAS";
+              bg = "background:#DCEEFF;color:#0B5394;font-weight:normal;";
             } else {
               contenido = "LIBRE";
               bg = "background:#FFF9C4;color:#7B6000;font-weight:700;";
