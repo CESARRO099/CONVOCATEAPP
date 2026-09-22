@@ -125,6 +125,7 @@
         <button class="btn-primary" id="coord-btn-asignar">Asignar</button>
       </div>
       <button id="coord-btn-desactivar" class="btn-warn" style="display:none;">✗ Desactivar / Quitar persona</button>
+      <button id="coord-btn-marcar-x" class="btn-warn">✗ Marcar con X (no requiere cobertura)</button>
       <button id="coord-btn-cerrar" style="background:var(--line);color:var(--ink);">Cerrar</button>
     </div>
   </div>
@@ -1321,6 +1322,55 @@ document.getElementById("coord-btn-desactivar").addEventListener("click", async 
     await recargarTurnos();
   } catch (e) {
     alert("No se pudo quitar la celda de la convocatoria: " + e.message);
+  }
+});
+
+document.getElementById("coord-btn-marcar-x").addEventListener("click", async () => {
+  if (!confirm("¿Marcar esta celda con X? No se va a convocar a nadie ahí.")) return;
+
+  try {
+    if (celdaSeleccionada.turnoId) {
+      await sbCoord(`rpc/coordinador_eliminar_turno`, {
+        method: "POST",
+        body: JSON.stringify({ p_turno_id: celdaSeleccionada.turnoId, p_password_coordinador: coordPassword })
+      });
+    }
+
+    const { filas, dia_col, first_day_row, last_day_row } = coordEstructura;
+    let fila = -1;
+    for (let r = first_day_row; r <= last_day_row; r++) {
+      if (filas[r][dia_col]?.v === celdaSeleccionada.dia) { fila = r; break; }
+    }
+    if (fila === -1) {
+      alert("No se pudo ubicar la fila de esta celda para editar el texto.");
+      document.getElementById("coord-modal").style.display = "none";
+      await recargarTurnos();
+      return;
+    }
+    const bd = filas[fila][celdaSeleccionada.col]?.bd;
+    const teniaBordes = !!(bd && bd.t && bd.b && bd.l && bd.r);
+
+    await sbCoord(`rpc/editar_texto_celda_excel`, {
+      method: "POST",
+      body: JSON.stringify({
+        p_sector: coordSectorActual,
+        p_fila: fila,
+        p_col: celdaSeleccionada.col,
+        p_nuevo_texto: "X",
+        p_bordes: teniaBordes,
+        p_password_coordinador: coordPassword,
+        p_mes: `${MES_COORD}-01`
+      })
+    });
+
+    const hojas = await sbCoord(`hojas_excel?select=estructura&sector=eq.${coordSectorActual}&mes=eq.${MES_COORD}-01`);
+    if (hojas && hojas.length) coordEstructura = hojas[0].estructura;
+
+    document.getElementById("coord-modal").style.display = "none";
+    await recargarTurnos();
+    renderGrillaCoord();
+  } catch (e) {
+    alert("No se pudo marcar la celda con X: " + e.message);
   }
 });
 
