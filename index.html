@@ -1754,21 +1754,29 @@ function mostrarDetalleTurnoDia(dia) {
   document.getElementById("modal-detalle-turno").classList.add("open");
 }
 
-function miGrupoHabilitadoAhora() {
-  // Devuelve el grupo (TC/RESO/RESTO) donde a esta persona le toca elegir
-  // AHORA, sea por España (procesosActivos) o porque es su turno específico
-  // en una ronda secuencial de SUISAS
-  const proc = procesosActivos.find(p => p.persona_actual_id === personaActual.id);
-  if (proc) return proc.grupo;
+function misGruposHabilitadosAhora() {
+  // Devuelve TODOS los grupos (TC/RESO_BSE/RESO_SEDE_CENTRAL/RESTO/etc.)
+  // donde a esta persona le toca elegir AHORA, sea por España o porque es
+  // su turno específico en una ronda secuencial de SUISAS.
+  // FIX (22 sep 2026, a pedido de Cesar): antes esto devolvía un solo grupo
+  // (el primero que encontraba con .find), pero por la "regla de oro" una
+  // persona puede estar activa en más de un proceso a la vez (ej. RESO_BSE
+  // y RESO_SEDE_CENTRAL simultáneamente) — con .find se perdía el segundo
+  // grupo y la persona solo podía elegir en el primero. Caso real: Romina
+  // Obiedo tenía su turno activo en los dos, pero solo podía elegir en BSE.
+  const grupos = new Set(
+    procesosActivos.filter(p => p.persona_actual_id === personaActual.id).map(p => p.grupo)
+  );
   const ronda = misParticipacionesSuisas[0];
-  return ronda ? ronda.grupo : null;
+  if (ronda) grupos.add(ronda.grupo);
+  return grupos;
 }
 
 // El grupo de prelación de España para RESO está dividido en dos procesos
 // independientes (RESO_BSE y RESO_SEDE_CENTRAL) según la sede física del
 // sector, mientras que sectores.grupo solo guarda 'RESO' genérico. Esta
 // función mapea el sector actual al nombre real del proceso para poder
-// comparar contra miGrupoHabilitadoAhora().
+// comparar contra misGruposHabilitadosAhora().
 function grupoProcesoDeSector(sectorNombre, grupoRawDelSector) {
   if (sectorNombre === "BSE") return "RESO_BSE";
   if (sectorNombre === "RESO") return "RESO_SEDE_CENTRAL";
@@ -1908,7 +1916,7 @@ async function renderGrilla() {
   }
 
   const info = sectoresPorNombre[sectorActual];
-  const grupoHabilitado = miGrupoHabilitadoAhora();
+  const misGruposHabilitados = misGruposHabilitadosAhora();
   // Habilitación cruzada: la persona tiene personal_sectores en un sector de
   // OTRO grupo (ej. Wagner de TC habilitado en DENSITO, que es de RESTO) sin
   // estar en la lista de prelación de ese grupo. Alcanza con que esté activa
@@ -1926,12 +1934,12 @@ async function renderGrilla() {
     : grupoProcesoDeSector(sectorActual, info?.grupo);
   // NUEVO (11 ago 2026): SOLY tiene ademas la franja 67 (TC Soly), que
   // pertenece al grupo especial TC_SOLY en vez de RESTO. Si a la persona le
-  // toca elegir ahi (grupoHabilitado === "TC_SOLY"), tambien se habilita la
-  // vista del sector SOLY.
+  // toca elegir ahi (misGruposHabilitados tiene "TC_SOLY"), tambien se
+  // habilita la vista del sector SOLY.
   const puedoElegirAca = info && (
-    grupoHabilitado === grupoProcesoEfectivo
+    misGruposHabilitados.has(grupoProcesoEfectivo)
     || habilitacionCruzada
-    || (sectorActual === "SOLY" && grupoHabilitado === "TC_SOLY")
+    || (sectorActual === "SOLY" && misGruposHabilitados.has("TC_SOLY"))
   );
 
   // Indexar turnos de este sector por (dia, col_excel) y también por id
