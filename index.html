@@ -2661,9 +2661,14 @@ document.getElementById("btn-ir-cambio-persona").addEventListener("click", async
   }
   const misTurnos = await cargarMisTurnosDelMes();
   selTurno.innerHTML = opcionesDeTurnos(misTurnos);
+  // FIX (30 sep 2026, a pedido de Cesar): esta lista no mostraba la
+  // etiqueta de empresa (SUISAS/ASESP) como casi todos los otros
+  // selectores de persona de la app. Con eso, a alguien que trabaja para
+  // las dos empresas (dos perfiles, mismo nombre) no se lo podia
+  // distinguir al elegir quien cubre un cambio de turno.
   selCobertura.innerHTML = `<option value="">Elegí...</option>` + (window.__personas || [])
     .filter(p => p.id !== personaActual.id)
-    .map(p => `<option value="${p.id}">${nombreCompleto(p)}</option>`)
+    .map(p => `<option value="${p.id}">${nombreCompleto(p)}${etiquetaEmpresaPersona(p)}</option>`)
     .join("");
   selTurnoRecibido.innerHTML = `<option value="">Elegí primero a quién te cubre...</option>`;
   modalElegirTipo.classList.remove("open");
