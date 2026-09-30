@@ -2595,11 +2595,32 @@ document.getElementById("btn-buscar-actividades").addEventListener("click", asyn
   if (!turnosEncontradosVacante.length) {
     listaActividadesEncontradas.innerHTML = `<div style="color:var(--ink-soft);font-size:0.85rem;">No encontramos ninguna actividad tuya en ese período.</div>`;
   } else {
-    listaActividadesEncontradas.innerHTML = turnosEncontradosVacante.map(t =>
-      `<div style="display:flex; align-items:center; gap:10px; border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:0.85rem;">` +
-      `<input type="checkbox" data-turno-id="${t.id}" checked style="width:20px;height:20px;flex-shrink:0;" />` +
-      `<div style="flex:1;">${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}</div></div>`
-    ).join("");
+    // FIX (30 sep 2026, a pedido de Cesar): antes TODAS las casillas venian
+    // "checked" por defecto. Si una persona tenia dos actividades el mismo
+    // dia (ej. una guardia de TC y un reten de BQ superpuestos) y pedia
+    // dejar vacante solo una, bastaba con no darse cuenta de que habia una
+    // segunda casilla tildada para que la app mandara las DOS a cubrir sin
+    // que la persona lo decidiera (caso real: Matias Basaisteguy, 17/10).
+    // Ahora: si un dia tiene una sola actividad, esa casilla arranca
+    // tildada como antes (no hay ambiguedad posible). Si un dia tiene DOS
+    // O MAS actividades, ninguna arranca tildada y se muestra una
+    // advertencia — la persona tiene que elegir a mano cual/cuales dejar
+    // vacante, asi no puede mandar las dos "sin querer".
+    const porFecha = {};
+    turnosEncontradosVacante.forEach(t => {
+      (porFecha[t.fecha] = porFecha[t.fecha] || []).push(t);
+    });
+
+    listaActividadesEncontradas.innerHTML = turnosEncontradosVacante.map(t => {
+      const hayVariasEseDia = porFecha[t.fecha].length > 1;
+      const marcada = hayVariasEseDia ? "" : "checked";
+      const avisoSuperposicion = hayVariasEseDia
+        ? `<div style="color:#7B6000;font-weight:700;font-size:0.78rem;margin-top:2px;">Tenés más de una actividad este día — elegí cuál(es) dejás libre.</div>`
+        : "";
+      return `<div style="display:flex; align-items:center; gap:10px; border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:0.85rem;">` +
+        `<input type="checkbox" data-turno-id="${t.id}" ${marcada} style="width:20px;height:20px;flex-shrink:0;" />` +
+        `<div style="flex:1;">${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}${avisoSuperposicion}</div></div>`;
+    }).join("");
   }
   pasoFechas.style.display = "none";
   pasoConfirmar.style.display = "block";
