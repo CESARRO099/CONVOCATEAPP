@@ -2178,7 +2178,14 @@ async function renderGrilla() {
           }
         } else if (t) {
           // Turno real vacante (nadie asignado todavía, por la razón que sea).
-          if (sectorActual === "FOTOG") {
+          if (String(celda.v || "").trim().toUpperCase() === "X") {
+            // FIX (3 oct 2026, a pedido de Cesar): el coordinador marcó esta
+            // celda con X a mano (la actividad no se cubre, por decisión
+            // propia, no por ausencia a convocar). Mostrar la X tal cual y
+            // nunca ofrecer "Elegir" acá, aunque técnicamente exista un
+            // turno vacante en la base.
+            contenido = "X";
+          } else if (sectorActual === "FOTOG") {
             // FOTOG nunca se cubre por convocatoria (regla de Cesar: la
             // hoja de fotógrafos es solo informativa, jamás se ofrece a
             // suplentes). Va primero y sin excepción: aunque sea el turno

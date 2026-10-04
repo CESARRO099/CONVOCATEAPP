@@ -981,6 +981,15 @@ function renderGrillaCoord() {
             if (turno.nombre_externo === "SUISAS_DIRECTO") {
               contenido = "SUISAS";
               bg = "background:#DCEEFF;color:#0B5394;font-weight:normal;";
+            } else if (String(celda.v || "").trim().toUpperCase() === "X") {
+              // FIX (3 oct 2026, a pedido de Cesar): si el turno quedo sin
+              // persona pero la celda de la planilla ya tiene una X puesta
+              // a mano (coordinador marco la actividad como que no se
+              // cubre), mostrar esa X en vez de "LIBRE" -- "LIBRE" implica
+              // que se puede convocar gente, y una celda marcada con X es
+              // justo lo contrario.
+              contenido = "X";
+              bg = "background:#fff;";
             } else {
               contenido = "LIBRE";
               bg = "background:#FFF9C4;color:#7B6000;font-weight:700;";
