@@ -2532,6 +2532,12 @@ function limpiarSeleccionMotivo() {
   pasoMotivo.style.display = "block";
   pasoFechas.style.display = "none";
   pasoConfirmar.style.display = "none";
+  // SUISAS: único motivo permitido = Rechazo de Convocatoria.
+  const esSuisasMotivo = personaActual?.empresa === "SUISAS";
+  btnMotivoLP.style.display = esSuisasMotivo ? "none" : "";
+  btnMotivoEnfermedad.style.display = esSuisasMotivo ? "none" : "";
+  btnMotivoOtra.style.display = esSuisasMotivo ? "none" : "";
+  if (esSuisasMotivo) elegirMotivoFijo("Rechazo de Convocatoria", btnMotivoRC);
 }
 
 function elegirMotivoFijo(valor, boton) {
