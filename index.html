@@ -171,8 +171,14 @@
     flex:0 0 auto; padding:6px 14px; border-radius:999px; font-size:0.72rem; font-weight:600;
     background: transparent; color: var(--ink-soft); border:1px solid var(--line);
     cursor:pointer; white-space:nowrap;
+    opacity:.45; filter:grayscale(.3);
+    transition: opacity .2s ease, filter .2s ease, background .2s ease, color .2s ease, border-color .2s ease;
   }
-  .mes-tab.active{ background: var(--accent); color:#17262B; border-color:var(--accent); }
+  .mes-tab:hover{ opacity:.75; }
+  .mes-tab.active{
+    background:#8BC53F; color:#000; border-color:#8BC53F;
+    opacity:1; filter:none; font-weight:700;
+  }
 
   table.grilla{
     border-collapse:collapse; font-size:0.78rem; table-layout:fixed; width:max-content;
@@ -922,7 +928,7 @@ async function cargarSelectorMeses() {
     const [anioFin, mesFin] = ultimo.fecha.slice(0, 7).split("-").map(Number);
     while (anio < anioFin || (anio === anioFin && mes <= mesFin)) {
       const mesStr = `${anio}-${String(mes).padStart(2, "0")}`;
-      if (mesStr !== MES_CONVOCATORIA) meses.push(mesStr);
+      meses.push(mesStr);
       mes++; if (mes > 12) { mes = 1; anio++; }
     }
     mesesPublicadosDisponibles = meses.slice(-3); // tope de seguridad, últimos 3
