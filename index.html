@@ -956,7 +956,9 @@ function renderSelectorMeses() {
   }).join("");
   // Si se está mirando otro mes (no la convocatoria en curso), se agrega
   // un botón aparte para volver.
-  if (mesActivo !== MES_CONVOCATORIA) {
+  // (Solo si el mes de convocatoria no figura ya entre las pestañas: si
+  // está, el botón sería redundante.)
+  if (mesActivo !== MES_CONVOCATORIA && !mesesPublicadosDisponibles.includes(MES_CONVOCATORIA)) {
     html += `<button class="mes-tab" id="btn-volver-convocatoria">◀ Convocatoria en curso</button>`;
   }
   wrap.innerHTML = html;
