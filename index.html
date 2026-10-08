@@ -2201,6 +2201,13 @@ async function renderGrilla() {
             // de la persona en la cola de RESTO, acá nunca se muestra
             // botón de Elegir, se deja vacío.
             contenido = "";
+          } else if (personaActual?.empresa === "SUISAS" && sectorActual === "BSE"
+                     && t.franjas_horarias
+                     && new Date(t.fecha + "T12:00:00").getDay() >= 1 && new Date(t.fecha + "T12:00:00").getDay() <= 6
+                     && t.franjas_horarias.hora_inicio >= 480 && t.franjas_horarias.hora_fin <= 960) {
+            // Regla (6 oct 2026, Cesar): BSE de 8 a 16 solo para la Española.
+            contenido = "LIBRE";
+            clases += " libre-texto";
           } else if (puedoElegirAca) {
             contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
           } else {
