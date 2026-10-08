@@ -65,6 +65,9 @@
     🔔 Activar avisos de coordinador
   </button>
   <div id="notif-coord-status" style="margin-top:6px; text-align:center; font-size:0.8rem; color:var(--ink-soft);"></div>
+  <button id="btn-olvidar-dispositivo" onclick="olvidarDispositivoCoord()" style="display:none; margin-top:8px; padding:4px 10px; border:1px solid var(--ink-soft); border-radius:6px; background:transparent; color:var(--ink-soft); font-family:inherit; font-size:0.72rem; cursor:pointer;">
+    🔒 Olvidar este dispositivo
+  </button>
 </header>
 
 <div id="login-gate">
@@ -304,9 +307,45 @@ const loginInputConfirmar = document.getElementById("login-input-confirmar");
 const loginBtn = document.getElementById("login-btn");
 const loginError = document.getElementById("login-error");
 
+// Dispositivo de confianza: tras un ingreso correcto la contraseña queda
+// guardada en este navegador y la próxima vez se entra sin pedirla.
+// "Olvidar este dispositivo" (botón del encabezado) la borra.
+const CLAVE_DISPOSITIVO_COORD = "convocate_coord_dispositivo";
+function recordarDispositivoCoord(pass) {
+  try { localStorage.setItem(CLAVE_DISPOSITIVO_COORD, pass); } catch (e) { /* sin almacenamiento: pedirá la contraseña cada vez */ }
+}
+function olvidarDispositivoCoord() {
+  try { localStorage.removeItem(CLAVE_DISPOSITIVO_COORD); } catch (e) {}
+  location.reload();
+}
+
 async function iniciarLoginCoordinador() {
   const tiene = await sb(`rpc/tiene_password_coordinador`, { method: "POST", body: JSON.stringify({}) });
   const modoRegistro = tiene !== true;
+
+  // Ingreso automático si este dispositivo ya fue autorizado. Se vuelve a
+  // verificar contra el servidor: si la contraseña cambió, se borra y se pide de nuevo.
+  if (!modoRegistro) {
+    let guardada = null;
+    try { guardada = localStorage.getItem(CLAVE_DISPOSITIVO_COORD); } catch (e) {}
+    if (guardada) {
+      try {
+        const okAuto = await sb(`rpc/verificar_password_coordinador`, {
+          method: "POST",
+          body: JSON.stringify({ p_password: guardada })
+        });
+        if (okAuto === true) {
+          coordPassword = guardada;
+          loginGate.style.display = "none";
+          document.querySelector("main").style.display = "";
+          document.getElementById("btn-olvidar-dispositivo").style.display = "inline-block";
+          iniciarApp();
+          return;
+        }
+        try { localStorage.removeItem(CLAVE_DISPOSITIVO_COORD); } catch (e) {}
+      } catch (e) { /* si falla la red, se muestra el formulario normal */ }
+    }
+  }
   loginTitulo.textContent = modoRegistro ? "Creá la contraseña de coordinador" : "Ingresá la contraseña de coordinador";
   loginTexto.textContent = modoRegistro
     ? "Todavía no hay contraseña creada. Elegí una de al menos 6 caracteres — la va a necesitar cualquiera que quiera usar este panel."
@@ -325,8 +364,10 @@ async function iniciarLoginCoordinador() {
       });
       if (ok === true) {
         coordPassword = pass;
+        recordarDispositivoCoord(pass);
         loginGate.style.display = "none";
         document.querySelector("main").style.display = "";
+        document.getElementById("btn-olvidar-dispositivo").style.display = "inline-block";
         iniciarApp();
       } else {
         loginError.textContent = "No se pudo crear la contraseña. Puede que ya exista una — recargá la página.";
@@ -338,8 +379,10 @@ async function iniciarLoginCoordinador() {
       });
       if (ok === true) {
         coordPassword = pass;
+        recordarDispositivoCoord(pass);
         loginGate.style.display = "none";
         document.querySelector("main").style.display = "";
+        document.getElementById("btn-olvidar-dispositivo").style.display = "inline-block";
         iniciarApp();
       } else {
         loginError.textContent = "Contraseña incorrecta.";
