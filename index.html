@@ -1515,14 +1515,24 @@ async function cargarDatosConvocatoria() {
     // número no le aplica. En vez de mostrar "X / 80 hs", se muestra el
     // progreso contra el cupo ofrecido en la ronda activa (lo que sí tiene
     // sentido para esa persona en este momento).
-    const participacionActiva = personaActual.empresa === "SUISAS"
-      ? misParticipacionesSuisas[0]?.participaciones_ronda_suisas?.[0]
-      : null;
+    // FIX (8 oct 2026): con dos rondas SUISAS activas a la vez (ej. TC y
+    // RESTO) se muestran las dos, y la barra suma el cupo y lo tomado de
+    // ambas. Con una sola ronda se ve igual que antes.
+    const participacionesActivas = personaActual.empresa === "SUISAS"
+      ? misParticipacionesSuisas
+          .map(r => ({ grupo: r.grupo, part: r.participaciones_ronda_suisas?.[0] }))
+          .filter(x => x.part)
+      : [];
+    const participacionActiva = participacionesActivas.length > 0;
 
     if (participacionActiva) {
-      const cupoRonda = Number(participacionActiva.cupo_ofrecido) || 0;
-      const tomadasRonda = Number(participacionActiva.horas_tomadas) || 0;
-      horasTexto.textContent = `${tomadasRonda.toFixed(0)} / ${cupoRonda.toFixed(0)} hs`;
+      const cupoRonda = participacionesActivas.reduce((a, x) => a + (Number(x.part.cupo_ofrecido) || 0), 0);
+      const tomadasRonda = participacionesActivas.reduce((a, x) => a + (Number(x.part.horas_tomadas) || 0), 0);
+      horasTexto.textContent = participacionesActivas.length > 1
+        ? participacionesActivas.map(x =>
+            `${x.grupo} ${(Number(x.part.horas_tomadas) || 0).toFixed(0)}/${(Number(x.part.cupo_ofrecido) || 0).toFixed(0)}`
+          ).join(" · ") + " hs"
+        : `${tomadasRonda.toFixed(0)} / ${cupoRonda.toFixed(0)} hs`;
       const pctRonda = cupoRonda > 0 ? Math.min(100, (tomadasRonda / cupoRonda) * 100) : 0;
       horasFill.style.width = pctRonda + "%";
       const rR = pctRonda < 50 ? 220 : Math.round(220 - (pctRonda - 50) * 3.6);
@@ -1549,6 +1559,8 @@ async function cargarDatosConvocatoria() {
     // sea esta persona, o le toca su turno específico en una ronda de SUISAS?
     const miProceso = procesosActivos.find(p => p.persona_actual_id === personaActual.id);
     const miRondaSuisas = misParticipacionesSuisas[0]; // ya viene filtrado por persona_actual_id=yo
+    // FIX (8 oct 2026): el banner lista TODAS las rondas SUISAS activas.
+    const horaDe = (iso) => new Date(iso).toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" });
 
     if (miProceso) {
       const vence = new Date(miProceso.turno_vence);
@@ -1558,12 +1570,13 @@ async function cargarDatosConvocatoria() {
         <button class="btn-confirmar" id="btn-confirmar-conv">Confirmar convocatoria</button></div>`;
       document.getElementById("btn-confirmar-conv").addEventListener("click", confirmarConvocatoria);
     } else if (miRondaSuisas) {
-      const part = miRondaSuisas.participaciones_ronda_suisas[0];
-      const restante = (part.cupo_ofrecido - part.horas_tomadas).toFixed(1);
-      const vence = new Date(miRondaSuisas.vence);
+      const detalleRondas = misParticipacionesSuisas.map(r => {
+        const part = r.participaciones_ronda_suisas[0];
+        const restante = (part.cupo_ofrecido - part.horas_tomadas).toFixed(1);
+        return `${r.grupo} (SUISAS) — ${restante} hs disponibles, hasta las ${horaDe(r.vence)}`;
+      });
       bannerWrap.innerHTML = `<div class="banner-turno"><span class="dot"></span>
-        Es tu turno en ${miRondaSuisas.grupo} (SUISAS) — tenés ${restante} hs disponibles,
-        podés elegir hasta las ${vence.toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" })}
+        Es tu turno en ${detalleRondas.join(" y en ")}
         <button class="btn-confirmar" id="btn-confirmar-conv">Confirmar convocatoria</button></div>`;
       document.getElementById("btn-confirmar-conv").addEventListener("click", confirmarConvocatoria);
     } else {
@@ -1776,8 +1789,14 @@ function misGruposHabilitadosAhora() {
   const grupos = new Set(
     procesosActivos.filter(p => p.persona_actual_id === personaActual.id).map(p => p.grupo)
   );
-  const ronda = misParticipacionesSuisas[0];
-  if (ronda) grupos.add(ronda.grupo);
+  // FIX (8 oct 2026): igual que arriba pero del lado SUISAS. Por la regla
+  // de oro de SUISAS una persona puede tener activas dos rondas a la vez
+  // (ej. TC y RESTO). Antes se tomaba solo misParticipacionesSuisas[0] y la
+  // otra ronda quedaba invisible. Caso real: Herguiz, activo en TC y RESTO,
+  // veía solo RESTO y no podía elegir en TC.
+  for (const ronda of misParticipacionesSuisas) {
+    if (ronda?.grupo) grupos.add(ronda.grupo);
+  }
   return grupos;
 }
 
