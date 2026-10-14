@@ -2500,10 +2500,29 @@ const bannerSolicitud = document.getElementById("banner-solicitud-wrap");
 selCobertura.addEventListener("change", async () => {
   const personaId = selCobertura.value;
   if (!personaId) { selTurnoRecibido.innerHTML = `<option value="">Elegí primero a quién te cubre...</option>`; return; }
-  const turnos = await sb(
-    `turnos?select=id,fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre))` +
-    `&persona_id=eq.${personaId}&fecha=gte.${mesActivo}-01&fecha=lte.${ultimoDiaMesStr(mesActivo)}&order=fecha.asc`
-  );
+  // NUEVO (14 oct 2026, a pedido de Cesar): entre dos personas de SUISAS el
+  // cambio puede ser con turnos de OTROS meses publicados (los topes de horas
+  // son un tema de la Española). Para el resto se mantiene el mismo mes.
+  const cobertura = (window.__personas || []).find(p => p.id === personaId);
+  const entreMeses = personaActual?.empresa === "SUISAS" && cobertura?.empresa === "SUISAS";
+  let turnos;
+  if (entreMeses) {
+    const publicados = await sb(`meses_publicados?select=mes`);
+    const setPub = new Set((publicados || []).map(m => String(m.mes).slice(0, 7)));
+    setPub.add(mesActivo);
+    const hoyMvd = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+    const desde = hoyMvd > `${mesActivo}-01` ? hoyMvd : `${mesActivo}-01`;
+    const todos = await sb(
+      `turnos?select=id,fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre))` +
+      `&persona_id=eq.${personaId}&fecha=gte.${desde}&order=fecha.asc`
+    );
+    turnos = (todos || []).filter(t => setPub.has(t.fecha.slice(0, 7)));
+  } else {
+    turnos = await sb(
+      `turnos?select=id,fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre))` +
+      `&persona_id=eq.${personaId}&fecha=gte.${mesActivo}-01&fecha=lte.${ultimoDiaMesStr(mesActivo)}&order=fecha.asc`
+    );
+  }
   selTurnoRecibido.innerHTML = (turnos && turnos.length) ? opcionesDeTurnos(turnos)
     : `<option value="">(no tiene turnos ese mes)</option>`;
 });
@@ -2960,6 +2979,8 @@ document.getElementById("btn-enviar-cambio").addEventListener("click", async () 
     alert("No es posible modificar la convocatoria de este mes.");
   } else if (resultado === "ya_pendiente") {
     alert("Ya hay una solicitud pendiente con alguno de estos turnos.");
+  } else if (resultado === "solo_suisas_entre_meses") {
+    alert("Los cambios con turnos de meses distintos solo se pueden hacer entre personal de SUISAS.");
   } else if (resultado === "turno_recibido_invalido") {
     alert("Ese turno ya no pertenece a esa persona, elegí de nuevo.");
   } else {
