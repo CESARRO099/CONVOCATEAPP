@@ -810,8 +810,8 @@ coordf1BtnOtra.addEventListener("click", () => {
   [coordf1BtnLP, coordf1BtnRC, coordf1BtnEnfermedad].forEach(b => b.classList.remove("activo"));
   coordf1BtnOtra.classList.add("activo");
   coordf1SelCausal.style.display = "block";
-  coordf1CausalElegida = "";
-  coordf1MotivoTexto.textContent = "";
+  coordf1CausalElegida = coordf1SelCausal.value || "";
+  coordf1MotivoTexto.textContent = coordf1CausalElegida ? "Motivo: " + coordf1CausalElegida : "";
 });
 
 coordf1SelCausal.addEventListener("change", () => {
@@ -823,6 +823,9 @@ document.getElementById("coordf1-btn-siguiente").addEventListener("click", () =>
   if (!coordf1SelPersona.value) {
     alert("Elegí una persona.");
     return;
+  }
+  if (!coordf1CausalElegida && coordf1SelCausal.style.display !== "none" && coordf1SelCausal.value) {
+    coordf1CausalElegida = coordf1SelCausal.value;
   }
   if (!coordf1CausalElegida) {
     alert("Elegí un motivo.");

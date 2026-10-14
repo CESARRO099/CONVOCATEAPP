@@ -2667,8 +2667,8 @@ btnMotivoOtra.addEventListener("click", () => {
   [btnMotivoLP, btnMotivoRC, btnMotivoEnfermedad].forEach(b => b.classList.remove("activo"));
   btnMotivoOtra.classList.add("activo");
   selCausalVacante.style.display = "block";
-  causalElegidaVacante = "";
-  motivoElegidoTexto.textContent = "";
+  causalElegidaVacante = selCausalVacante.value || "";
+  motivoElegidoTexto.textContent = causalElegidaVacante ? "Motivo: " + causalElegidaVacante : "";
 });
 
 selCausalVacante.addEventListener("change", () => {
@@ -2677,6 +2677,7 @@ selCausalVacante.addEventListener("change", () => {
 });
 
 document.getElementById("btn-motivo-siguiente").addEventListener("click", () => {
+  if (!causalElegidaVacante && selCausalVacante.style.display !== "none" && selCausalVacante.value) causalElegidaVacante = selCausalVacante.value;
   if (!causalElegidaVacante) { alert("Elegí un motivo antes de continuar."); return; }
   const config = CAUSALES_CONFIG[causalElegidaVacante];
   fechasFrase.textContent = config.frase;
