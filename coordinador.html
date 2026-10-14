@@ -252,6 +252,12 @@
     <div id="coordf1-msg" style="margin-top:8px;"></div>
   </div>
 
+  <div class="card" id="panel-control-card">
+    <h2>Panel de control</h2>
+    <div id="panel-control-contenido" style="font-size:0.85rem;color:var(--ink-soft);">Cargando…</div>
+    <button class="btn-primary" id="panel-control-actualizar" style="width:100%;margin-top:10px;">Actualizar panel</button>
+  </div>
+
   <div class="card">
     <h2>Formularios pendientes de generar (Libre Particular / Rechazo de Convocatoria)</h2>
     <div id="formularios-pendientes-lista" style="font-size:0.85rem;color:var(--ink-soft);">Cargando...</div>
@@ -572,6 +578,7 @@ document.getElementById("btn-zoom-reset-coord").addEventListener("click", () => 
 aplicarZoomCoord();
 
 async function iniciarApp() {
+  cargarPanelControl();
   await cargarFeriadosCoord();
   await cargarMesesDisponiblesCoord();
   renderSelectorMesCoord();
@@ -1855,6 +1862,39 @@ async function generarFormularioDesdeVacante(solicitudId) {
   });
   cargarFormulariosPendientes();
 }
+
+
+// ---------------------------------------------------------
+// Panel de control (solo lectura)
+// ---------------------------------------------------------
+function escPanel(x) { return String(x == null ? "" : x).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function fechaPanel(f) { return f ? String(f).slice(8,10) + "/" + String(f).slice(5,7) : ""; }
+async function cargarPanelControl() {
+  const cont = document.getElementById("panel-control-contenido");
+  if (!cont || !coordPassword) return;
+  try {
+    const d = await sbCoord("rpc/panel_control_coordinador", { method: "POST", body: JSON.stringify({ p_password_coordinador: coordPassword }) });
+    if (!d || d.error) { cont.textContent = "No se pudo cargar el panel."; return; }
+    const bloque = (titulo, items, vacio) =>
+      `<div style="font-weight:700;color:var(--ink);margin:10px 0 4px;">${titulo} (${items.length})</div>` +
+      (items.length ? items.map(i => `<div style="border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin-bottom:4px;">${i}</div>`).join("")
+                    : `<div style="font-size:0.8rem;">${vacio}</div>`);
+    const vac = (d.vacantes_sin_cubrir || []).map(v => `${fechaPanel(v.fecha)} — ${escPanel(v.sector)} ${escPanel(v.franja)}`);
+    const pend = (d.solicitudes_pendientes || []).map(p => {
+      const est = p.oferta === "ABIERTA" ? "oferta abierta" + (p.cierra_en ? " (cierra " + new Date(p.cierra_en).toLocaleString("es-UY", { timeZone: "America/Montevideo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + ")" : "")
+        : p.oferta === "CERRADA" ? "oferta cerrada, sin cubrir" : "sin oferta";
+      return `${fechaPanel(p.fecha)} — ${escPanel(p.sector)} ${escPanel(p.franja)} · ${escPanel(p.solicitante)} · ${escPanel(p.causal || "")} · ${est} · ${p.postulantes} postulante(s)`;
+    });
+    const sup = (d.superposiciones || []).map(x => `${fechaPanel(x.fecha)} — ${escPanel(x.persona)}: ${escPanel(x.a)} y ${escPanel(x.b)}`);
+    cont.innerHTML =
+      bloque("Actividades sin cubrir", vac, "No hay actividades sin cubrir.") +
+      bloque("Solicitudes de vacante pendientes", pend, "No hay solicitudes pendientes.") +
+      bloque("Superposiciones entre perfiles", sup, "No hay superposiciones.");
+  } catch (e) {
+    cont.textContent = "No se pudo cargar el panel.";
+  }
+}
+document.getElementById("panel-control-actualizar")?.addEventListener("click", cargarPanelControl);
 
 if (document.getElementById("formularios-pendientes-lista")) {
   cargarFormulariosPendientes();
