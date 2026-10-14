@@ -908,6 +908,11 @@ document.getElementById("coordf1-btn-volver-fechas").addEventListener("click", (
 });
 
 document.getElementById("coordf1-btn-confirmar").addEventListener("click", async () => {
+  if (window.__enCurso_vacCoord) return; window.__enCurso_vacCoord = true;
+  const __btn_vacCoord = document.getElementById("coordf1-btn-confirmar"); if (__btn_vacCoord) __btn_vacCoord.disabled = true;
+  try { await __inner_vacCoord(); } finally { window.__enCurso_vacCoord = false; if (__btn_vacCoord) __btn_vacCoord.disabled = false; }
+});
+async function __inner_vacCoord() {
   if (!coordf1TurnosEncontrados.length) {
     coordf1PasoConfirmar.style.display = "none";
     coordf1PasoMotivo.style.display = "block";
@@ -954,7 +959,7 @@ document.getElementById("coordf1-btn-confirmar").addEventListener("click", async
   coordf1Msg.innerHTML = `<div class="msg-ok">✓ Se registraron ${enviados} actividad(es)` +
     (enviados > 0 ? `, se avisó a los habilitados del sector.` : `.`) +
     (errores ? ` (${errores} no se pudieron registrar).` : ``) + `</div>`;
-});
+}
 
 async function mostrarResumenVacantes() {
   document.getElementById("coord-sector").value = "";

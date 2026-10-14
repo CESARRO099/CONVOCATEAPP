@@ -2843,6 +2843,11 @@ document.getElementById("btn-cancelar-dejar-vacante").addEventListener("click", 
 });
 
 document.getElementById("btn-confirmar-actividades").addEventListener("click", async () => {
+  if (window.__enCurso_vacIdx) return; window.__enCurso_vacIdx = true;
+  const __btn_vacIdx = document.getElementById("btn-confirmar-actividades"); if (__btn_vacIdx) __btn_vacIdx.disabled = true;
+  try { await __inner_vacIdx(); } finally { window.__enCurso_vacIdx = false; if (__btn_vacIdx) __btn_vacIdx.disabled = false; }
+});
+async function __inner_vacIdx() {
   if (!turnosEncontradosVacante.length) {
     modalDejarVacante.classList.remove("open");
     return;
@@ -2884,7 +2889,7 @@ document.getElementById("btn-confirmar-actividades").addEventListener("click", a
   if (yaPendientes) mensaje += ` ${yaPendientes} ya tenían un pedido pendiente.`;
   if (errores) mensaje += ` ${errores} no se pudieron enviar.`;
   alert(mensaje);
-});
+}
 
 // --- Pantalla "Actividades para postularme" ---
 const postulacionWrap  = document.getElementById("postulacion-wrap");
