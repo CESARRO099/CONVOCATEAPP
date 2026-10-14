@@ -222,6 +222,18 @@
         <label>Día</label>
         <input type="date" id="coordf1-fecha-unica" />
       </div>
+      <div id="coordf1-fechas-nacimiento" style="display:none;">
+        <label style="font-size:0.85rem;font-weight:600;">Tipo de licencia</label>
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <button type="button" class="btn-motivo" id="coordf1-btn-nac-maternidad" style="flex:1;">Maternidad (1 año)</button>
+          <button type="button" class="btn-motivo" id="coordf1-btn-nac-paternidad" style="flex:1;">Paternidad (20 días)</button>
+        </div>
+        <label style="font-size:0.85rem;font-weight:600;">Fecha de nacimiento</label>
+        <input type="date" id="coordf1-fecha-nacimiento" />
+        <label style="font-size:0.85rem;font-weight:600;">Fin de la certificación</label>
+        <input type="date" id="coordf1-fecha-fin-cert" />
+        <div id="coordf1-nac-aviso" style="font-size:0.78rem;color:var(--ink-soft);margin:4px 0 8px;"></div>
+      </div>
       <div id="coordf1-fechas-hora" style="display:none;">
         <label>Hora de la citación</label>
         <input type="time" id="coordf1-hora-citacion" />
@@ -701,7 +713,7 @@ const COORDF1_CAUSALES_CONFIG = {
   "Citación del Poder Judicial como testigo": { tipo: "un_dia_hora", frase: "Día y hora de la citación" },
   "Días por participación a congreso": { tipo: "rango", frase: "Días de congreso" },
   "Días por casamiento": { tipo: "un_dia", frase: "¿Qué día se casa?" },
-  "Licencia por paternidad/maternidad": { tipo: "un_dia", frase: "¿Qué día llegó el bebé?", expandeA: null },
+  "Licencia por paternidad/maternidad": { tipo: "nacimiento", frase: "Datos del nacimiento", expandeA: null },
 };
 
 let coordf1CausalElegida = "";
@@ -728,6 +740,58 @@ const coordf1FechaUnica = document.getElementById("coordf1-fecha-unica");
 const coordf1HoraInput = document.getElementById("coordf1-hora-citacion");
 const coordf1Lista = document.getElementById("coordf1-lista");
 const coordf1Msg = document.getElementById("coordf1-msg");
+
+
+// NUEVO (14 oct 2026, a pedido de Cesar): Licencia por paternidad/maternidad con
+// fecha de nacimiento + fin de la certificacion. Maternidad: 1 anio desde el
+// nacimiento (fijo). Paternidad: 20 dias corridos desde el nacimiento (el dia
+// del nacimiento cuenta como el 1), editable por si la certificacion dice otra cosa.
+function nacSumarDiasISO(iso, dias) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + dias)).toISOString().slice(0, 10);
+}
+function nacFinLicencia(tipo, nacISO) {
+  if (!nacISO) return "";
+  if (tipo === "maternidad") {
+    const [y, m, d] = nacISO.split("-").map(Number);
+    return new Date(Date.UTC(y + 1, m - 1, d - 1)).toISOString().slice(0, 10);
+  }
+  return nacSumarDiasISO(nacISO, 19);
+}
+function nacFechaCorta(iso) { return iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4) : ""; }
+
+function turnoYaRealizado(t) {
+  const fr = t.franjas_horarias;
+  if (!t.fecha || !fr || typeof fr.hora_fin !== "number" || typeof fr.hora_inicio !== "number") return false;
+  const [y, m, d] = t.fecha.split("-").map(Number);
+  let finMs = Date.UTC(y, m - 1, d) + fr.hora_fin * 60000;
+  if (fr.hora_fin <= fr.hora_inicio) finMs += 24 * 3600 * 1000;
+  return finMs <= Date.now() - 3 * 3600 * 1000;
+}
+
+let coordf1TipoNac = null; // "maternidad" | "paternidad"
+const coordf1NacWrap = document.getElementById("coordf1-fechas-nacimiento");
+const coordf1BtnNacM = document.getElementById("coordf1-btn-nac-maternidad");
+const coordf1BtnNacP = document.getElementById("coordf1-btn-nac-paternidad");
+const coordf1FechaNac = document.getElementById("coordf1-fecha-nacimiento");
+const coordf1FechaFinCert = document.getElementById("coordf1-fecha-fin-cert");
+const coordf1NacAviso = document.getElementById("coordf1-nac-aviso");
+function coordf1RecalcNac() {
+  coordf1BtnNacM.classList.toggle("activo", coordf1TipoNac === "maternidad");
+  coordf1BtnNacP.classList.toggle("activo", coordf1TipoNac === "paternidad");
+  // Maternidad: el fin queda fijo (1 anio). Paternidad: se propone el fin y se puede ajustar.
+  coordf1FechaFinCert.disabled = coordf1TipoNac === "maternidad";
+  if (coordf1TipoNac && coordf1FechaNac.value) {
+    coordf1FechaFinCert.value = nacFinLicencia(coordf1TipoNac, coordf1FechaNac.value);
+  }
+  coordf1NacAviso.textContent = (coordf1TipoNac && coordf1FechaFinCert.value)
+    ? "Se buscan tus actividades desde el " + nacFechaCorta(coordf1FechaNac.value) + " hasta el " + nacFechaCorta(coordf1FechaFinCert.value) + " (solo las que todavía no se realizaron)."
+    : "";
+}
+coordf1BtnNacM.addEventListener("click", () => { coordf1TipoNac = "maternidad"; coordf1RecalcNac(); });
+coordf1BtnNacP.addEventListener("click", () => { coordf1TipoNac = "paternidad"; coordf1RecalcNac(); });
+coordf1FechaNac.addEventListener("change", coordf1RecalcNac);
+coordf1FechaFinCert.addEventListener("change", () => { coordf1RecalcNac(); });
 
 function coordf1ElegirMotivoFijo(valor, boton) {
   coordf1CausalElegida = valor;
@@ -766,6 +830,12 @@ document.getElementById("coordf1-btn-siguiente").addEventListener("click", () =>
   const config = COORDF1_CAUSALES_CONFIG[coordf1CausalElegida];
   coordf1FechasFrase.textContent = config.frase;
   coordf1FechasRango.style.display = config.tipo === "rango" ? "block" : "none";
+  coordf1NacWrap.style.display = config.tipo === "nacimiento" ? "block" : "none";
+  if (config.tipo === "nacimiento") {
+    coordf1TipoNac = null;
+    coordf1FechaNac.value = ""; coordf1FechaFinCert.value = "";
+    coordf1RecalcNac();
+  }
   coordf1FechasUnDia.style.display = (config.tipo === "un_dia" || config.tipo === "un_dia_hora") ? "block" : "none";
   coordf1FechasHora.style.display = config.tipo === "un_dia_hora" ? "block" : "none";
   coordf1PasoMotivo.style.display = "none";
@@ -781,7 +851,14 @@ document.getElementById("coordf1-btn-buscar").addEventListener("click", async ()
   const config = COORDF1_CAUSALES_CONFIG[coordf1CausalElegida];
   let fechaDesde, fechaHasta;
 
-  if (config.tipo === "rango") {
+  if (config.tipo === "nacimiento") {
+    if (!coordf1TipoNac) { alert("Elegí si es licencia por maternidad o por paternidad."); return; }
+    fechaDesde = coordf1FechaNac.value;
+    fechaHasta = coordf1FechaFinCert.value;
+    if (!fechaDesde) { alert("Elegí la fecha de nacimiento."); return; }
+    if (!fechaHasta) { alert("Elegí la fecha de fin de la certificación."); return; }
+    if (fechaHasta < fechaDesde) { alert("El fin de la certificación no puede ser anterior al nacimiento."); return; }
+  } else if (config.tipo === "rango") {
     fechaDesde = coordf1FechaDesde.value;
     fechaHasta = coordf1FechaHasta.value;
     if (!fechaDesde || !fechaHasta) { alert("Elegí las dos fechas."); return; }
@@ -800,10 +877,12 @@ document.getElementById("coordf1-btn-buscar").addEventListener("click", async ()
 
   const personaId = coordf1SelPersona.value;
   coordf1TurnosEncontrados = await sbCoord(
-    `turnos?select=id,fecha,franjas_horarias(nombre,sectores(nombre))` +
+    `turnos?select=id,fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre))` +
     `&persona_id=eq.${personaId}` +
     `&fecha=gte.${fechaDesde}&fecha=lte.${fechaHasta}&order=fecha.asc`
   );
+  // Licencia por nacimiento: lo que ya se realizo no se puede cubrir.
+  if (config.tipo === "nacimiento") coordf1TurnosEncontrados = coordf1TurnosEncontrados.filter(t => !turnoYaRealizado(t));
 
   if (!coordf1TurnosEncontrados.length) {
     coordf1Lista.innerHTML = `<div style="color:var(--ink-soft);font-size:0.85rem;">No se encontró ninguna actividad de esta persona en ese período.</div>`;

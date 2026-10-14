@@ -790,6 +790,18 @@
             <label style="font-size:0.85rem;font-weight:600;">Día</label>
             <input type="date" id="input-fecha-unica" />
           </div>
+          <div id="fechas-nacimiento" style="display:none;">
+            <label style="font-size:0.85rem;font-weight:600;">Tipo de licencia</label>
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+              <button type="button" class="btn-motivo" id="btn-nac-maternidad" style="flex:1;">Maternidad (1 año)</button>
+              <button type="button" class="btn-motivo" id="btn-nac-paternidad" style="flex:1;">Paternidad (20 días)</button>
+            </div>
+            <label style="font-size:0.85rem;font-weight:600;">Fecha de nacimiento</label>
+            <input type="date" id="fecha-nacimiento" />
+            <label style="font-size:0.85rem;font-weight:600;">Fin de la certificación</label>
+            <input type="date" id="fecha-fin-cert" />
+            <div id="nac-aviso" style="font-size:0.78rem;color:var(--ink-soft);margin:4px 0 8px;"></div>
+      </div>
           <div id="fechas-hora" style="display:none;">
             <label style="font-size:0.85rem;font-weight:600;">Hora de la citación</label>
             <input type="time" id="input-hora-citacion" />
@@ -1113,7 +1125,7 @@ function nombreAsignado(p) {
 // ---------------------------------------------------------
 async function cargarPersonas() {
   try {
-    const personas = await sb("perfiles?select=id,ficha,ficha_suisas,apellido,nombre,empresa,tope_horas_mensual,email&order=apellido.asc");
+    const personas = await sb("perfiles?select=id,ficha,ficha_suisas,apellido,nombre,empresa,tope_horas_mensual,email,es_femenino&order=apellido.asc");
     personaSelect.innerHTML = `<option value="">Seleccioná...</option>` +
       personas.map(p => {
         return `<option value="${p.id}">${nombreCompleto(p)}${etiquetaEmpresaPersona(p)}</option>`;
@@ -2543,8 +2555,51 @@ const CAUSALES_CONFIG = {
   "Citación del Poder Judicial como testigo": { tipo: "un_dia_hora", frase: "Dinos qué día y hora te citaron" },
   "Días por participación a congreso": { tipo: "rango", frase: "Elegí los días que estarás de congreso" },
   "Días por casamiento": { tipo: "un_dia", frase: "¿Qué día te casás?" },
-  "Licencia por paternidad/maternidad": { tipo: "un_dia", frase: "¿Qué día llegó ese bebé?", expandeA: null },
+  "Licencia por paternidad/maternidad": { tipo: "nacimiento", frase: "Datos del nacimiento", expandeA: null },
 };
+
+
+// NUEVO (14 oct 2026, a pedido de Cesar): Licencia por paternidad/maternidad con
+// fecha de nacimiento + fin de la certificacion. Maternidad: 1 anio desde el
+// nacimiento (fijo). Paternidad: 20 dias corridos desde el nacimiento (el dia
+// del nacimiento cuenta como el 1), editable por si la certificacion dice otra cosa.
+function nacSumarDiasISO(iso, dias) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + dias)).toISOString().slice(0, 10);
+}
+function nacFinLicencia(tipo, nacISO) {
+  if (!nacISO) return "";
+  if (tipo === "maternidad") {
+    const [y, m, d] = nacISO.split("-").map(Number);
+    return new Date(Date.UTC(y + 1, m - 1, d - 1)).toISOString().slice(0, 10);
+  }
+  return nacSumarDiasISO(nacISO, 19);
+}
+function nacFechaCorta(iso) { return iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4) : ""; }
+
+let tipoNacimiento = null; // "maternidad" | "paternidad"
+const fechasNacWrap = document.getElementById("fechas-nacimiento");
+const btnNacMaternidad = document.getElementById("btn-nac-maternidad");
+const btnNacPaternidad = document.getElementById("btn-nac-paternidad");
+const inputFechaNac = document.getElementById("fecha-nacimiento");
+const inputFechaFinCert = document.getElementById("fecha-fin-cert");
+const nacAviso = document.getElementById("nac-aviso");
+function recalcularLicenciaNac() {
+  btnNacMaternidad.classList.toggle("activo", tipoNacimiento === "maternidad");
+  btnNacPaternidad.classList.toggle("activo", tipoNacimiento === "paternidad");
+  // Maternidad: el fin queda fijo (1 anio). Paternidad: se propone el fin y se puede ajustar.
+  inputFechaFinCert.disabled = tipoNacimiento === "maternidad";
+  if (tipoNacimiento && inputFechaNac.value) {
+    inputFechaFinCert.value = nacFinLicencia(tipoNacimiento, inputFechaNac.value);
+  }
+  nacAviso.textContent = (tipoNacimiento && inputFechaFinCert.value)
+    ? "Se buscan tus actividades desde el " + nacFechaCorta(inputFechaNac.value) + " hasta el " + nacFechaCorta(inputFechaFinCert.value) + " (solo las que todavía no se realizaron)."
+    : "";
+}
+btnNacMaternidad.addEventListener("click", () => { tipoNacimiento = "maternidad"; recalcularLicenciaNac(); });
+btnNacPaternidad.addEventListener("click", () => { tipoNacimiento = "paternidad"; recalcularLicenciaNac(); });
+inputFechaNac.addEventListener("change", recalcularLicenciaNac);
+inputFechaFinCert.addEventListener("change", () => { recalcularLicenciaNac(); });
 
 const selCausalVacante    = document.getElementById("sel-causal-vacante");
 const btnMotivoLP         = document.getElementById("btn-motivo-lp");
@@ -2625,6 +2680,13 @@ document.getElementById("btn-motivo-siguiente").addEventListener("click", () => 
   const config = CAUSALES_CONFIG[causalElegidaVacante];
   fechasFrase.textContent = config.frase;
   fechasRangoWrap.style.display = config.tipo === "rango" ? "block" : "none";
+  fechasNacWrap.style.display = config.tipo === "nacimiento" ? "block" : "none";
+  if (config.tipo === "nacimiento") {
+    // Preseleccion segun el perfil (si el dato esta cargado); siempre se puede cambiar a mano.
+    tipoNacimiento = personaActual?.es_femenino === true ? "maternidad" : (personaActual?.es_femenino === false ? "paternidad" : null);
+    inputFechaNac.value = ""; inputFechaFinCert.value = "";
+    recalcularLicenciaNac();
+  }
   fechasUnDiaWrap.style.display = (config.tipo === "un_dia" || config.tipo === "un_dia_hora") ? "block" : "none";
   fechasHoraWrap.style.display = config.tipo === "un_dia_hora" ? "block" : "none";
   pasoMotivo.style.display = "none";
@@ -2639,7 +2701,14 @@ document.getElementById("btn-fechas-volver").addEventListener("click", () => {
 document.getElementById("btn-buscar-actividades").addEventListener("click", async () => {
   const config = CAUSALES_CONFIG[causalElegidaVacante];
   let fechaDesde, fechaHasta;
-  if (config.tipo === "rango") {
+  if (config.tipo === "nacimiento") {
+    if (!tipoNacimiento) { alert("Elegí si es licencia por maternidad o por paternidad."); return; }
+    fechaDesde = inputFechaNac.value;
+    fechaHasta = inputFechaFinCert.value;
+    if (!fechaDesde) { alert("Elegí la fecha de nacimiento."); return; }
+    if (!fechaHasta) { alert("Elegí la fecha de fin de la certificación."); return; }
+    if (fechaHasta < fechaDesde) { alert("El fin de la certificación no puede ser anterior al nacimiento."); return; }
+  } else if (config.tipo === "rango") {
     fechaDesde = inputFechaDesde.value;
     fechaHasta = inputFechaHasta.value;
     if (!fechaDesde || !fechaHasta) { alert("Elegí las dos fechas (desde y hasta)."); return; }
@@ -2656,11 +2725,13 @@ document.getElementById("btn-buscar-actividades").addEventListener("click", asyn
   }
 
   const turnos = await sb(
-    `turnos?select=id,fecha,franjas_horarias(nombre,sectores(nombre))` +
+    `turnos?select=id,fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre))` +
     `&persona_id=eq.${personaActual.id}` +
     `&fecha=gte.${fechaDesde}&fecha=lte.${fechaHasta}&order=fecha.asc`
   );
   turnosEncontradosVacante = turnos || [];
+  // Licencia por nacimiento: lo que ya se realizo no se puede cubrir.
+  if (config.tipo === "nacimiento") turnosEncontradosVacante = turnosEncontradosVacante.filter(t => !turnoYaRealizado(t));
 
   if (!turnosEncontradosVacante.length) {
     listaActividadesEncontradas.innerHTML = `<div style="color:var(--ink-soft);font-size:0.85rem;">No encontramos ninguna actividad tuya en ese período.</div>`;
