@@ -1096,6 +1096,7 @@ function nombreEmpresa(e) { return e === "ESPANOLA" ? "ASESP" : e; }
 function etiquetaEmpresaPersona(p) {
   return p.empresa === "SUISAS" ? " (SUISAS)" : " (ASESP)";
 }
+function franjaVisible(n) { return String(n==null?"":n).replace(/\s*\([A-Z]{1,2}\)\s*$/, "").trim(); }
 function sinTildes(s) {
   return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
@@ -2463,7 +2464,7 @@ async function elegirTurno(turnoId, btn = null) {
     if (conflicto && conflicto.hay_conflicto) {
       const confirma = confirm(
         `Cuidado: al elegir este turno estás superponiendo las horas con las de tu turno de ` +
-        `${conflicto.sector} (${conflicto.franja}) del ${conflicto.fecha.slice(8,10)}/${conflicto.fecha.slice(5,7)}. ` +
+        `${conflicto.sector} (${franjaVisible(conflicto.franja)}) del ${conflicto.fecha.slice(8,10)}/${conflicto.fecha.slice(5,7)}. ` +
         `Esas horas quedarán libres para que las elija otro suplente. ¿Confirmás?`
       );
       if (!confirma) { restaurarBoton(btn, textoOriginal); return; }
@@ -2760,7 +2761,7 @@ document.getElementById("btn-buscar-actividades").addEventListener("click", asyn
         : "";
       return `<div style="display:flex; align-items:center; gap:10px; border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:0.85rem;">` +
         `<input type="checkbox" data-turno-id="${t.id}" ${marcada} style="width:20px;height:20px;flex-shrink:0;" />` +
-        `<div style="flex:1;">${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}${avisoSuperposicion}</div></div>`;
+        `<div style="flex:1;">${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ${t.franjas_horarias.sectores.nombre} ${franjaVisible(t.franjas_horarias.nombre)}${avisoSuperposicion}</div></div>`;
     }).join("");
   }
   pasoFechas.style.display = "none";
@@ -2796,7 +2797,7 @@ function opcionesDeTurnos(misTurnos) {
   if (!misTurnos.length) return `<option value="">(no hay actividades pendientes)</option>`;
   return misTurnos.map(t =>
     `<option value="${t.id}">${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ` +
-    `${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}</option>`
+    `${t.franjas_horarias.sectores.nombre} ${franjaVisible(t.franjas_horarias.nombre)}</option>`
   ).join("");
 }
 
@@ -2925,7 +2926,7 @@ btnAbrirPostulacion.addEventListener("click", async () => {
       <div style="display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin-bottom:6px;">
         <input type="checkbox" data-solicitud-id="${a.solicitud_id}" ${a.ya_postulado ? "checked disabled" : ""} style="width:20px;height:20px;flex-shrink:0;" />
         <div style="flex:1;">
-          <div style="font-size:0.85rem;font-weight:600;">${a.fecha.slice(8,10)}/${a.fecha.slice(5,7)} — ${a.sector} ${a.franja}</div>
+          <div style="font-size:0.85rem;font-weight:600;">${a.fecha.slice(8,10)}/${a.fecha.slice(5,7)} — ${a.sector} ${franjaVisible(a.franja)}</div>
           <div style="font-size:0.75rem;color:${a.ya_postulado ? "var(--ok)" : "var(--warn)"};" ${a.ya_postulado ? "" : `data-cierra="${a.cierra_en}"`}>
             ${a.ya_postulado ? "Ya te postulaste" : formatearRestante(a.cierra_en)}
           </div>
@@ -2980,7 +2981,7 @@ async function cargarSolicitudesPendientes() {
         ${sinTildes(s.solicitante_apellido)} quiere cederte un turno
       </div>
       <div style="font-size:0.85rem;color:#555;margin:4px 0;">
-        ${s.fecha.slice(8,10)}/${s.fecha.slice(5,7)} — ${s.sector} ${s.franja}
+        ${s.fecha.slice(8,10)}/${s.fecha.slice(5,7)} — ${s.sector} ${franjaVisible(s.franja)}
       </div>
       <div style="display:flex;gap:8px;margin-top:8px;">
         <button onclick="responderSolicitud(${s.id}, true)"
