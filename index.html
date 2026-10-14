@@ -2501,7 +2501,7 @@ selCobertura.addEventListener("change", async () => {
   const personaId = selCobertura.value;
   if (!personaId) { selTurnoRecibido.innerHTML = `<option value="">Elegí primero a quién te cubre...</option>`; return; }
   const turnos = await sb(
-    `turnos?select=id,fecha,franjas_horarias(nombre,sectores(nombre))` +
+    `turnos?select=id,fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre))` +
     `&persona_id=eq.${personaId}&fecha=gte.${mesActivo}-01&fecha=lte.${ultimoDiaMesStr(mesActivo)}&order=fecha.asc`
   );
   selTurnoRecibido.innerHTML = (turnos && turnos.length) ? opcionesDeTurnos(turnos)
@@ -2684,12 +2684,26 @@ document.getElementById("btn-confirmar-volver").addEventListener("click", () => 
 
 async function cargarMisTurnosDelMes() {
   return await sb(
-    `turnos?select=id,fecha,franjas_horarias(nombre,sectores(nombre))` +
+    `turnos?select=id,fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre))` +
     `&persona_id=eq.${personaActual.id}` +
     `&fecha=gte.${mesActivo}-01&fecha=lte.${ultimoDiaMesStr(mesActivo)}&order=fecha.asc`
   );
 }
+// FIX (14 oct 2026, a pedido de Cesar): en "Cambiar mi turno con alguien" se
+// listaban tambien actividades que ya se realizaron. Solo deben aparecer las
+// que todavia no terminaron (hora de Montevideo, UTC-3 fijo).
+function turnoYaRealizado(t) {
+  const fr = t.franjas_horarias;
+  if (!t.fecha || !fr || typeof fr.hora_fin !== "number" || typeof fr.hora_inicio !== "number") return false; // sin datos: no ocultar
+  const [y, m, d] = t.fecha.split("-").map(Number);
+  let finMs = Date.UTC(y, m - 1, d) + fr.hora_fin * 60000;
+  if (fr.hora_fin <= fr.hora_inicio) finMs += 24 * 3600 * 1000; // termina al dia siguiente
+  const ahoraMvdMs = Date.now() - 3 * 3600 * 1000;
+  return finMs <= ahoraMvdMs;
+}
 function opcionesDeTurnos(misTurnos) {
+  misTurnos = (misTurnos || []).filter(t => !turnoYaRealizado(t));
+  if (!misTurnos.length) return `<option value="">(no hay actividades pendientes)</option>`;
   return misTurnos.map(t =>
     `<option value="${t.id}">${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ` +
     `${t.franjas_horarias.sectores.nombre} ${t.franjas_horarias.nombre}</option>`
