@@ -824,6 +824,7 @@
     <div class="horas-wrap">
       <div class="horas-row"><span>Horas este mes</span><span id="horas-texto">0 / 80 hs</span></div>
       <div class="horas-bar"><div class="horas-fill" id="horas-fill" style="width:0%"></div></div>
+      <div id="horas-restantes" style="font-size:0.72rem; color:var(--ink-soft); margin-top:4px; min-height:1em;"></div>
     </div>
     <div class="tabs" id="tabs-wrap"></div>
     <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
@@ -1563,6 +1564,15 @@ async function cargarDatosConvocatoria() {
       const g = pct < 50 ? Math.round(pct * 3.6) : 180;
       const b = 40;
       horasFill.style.background = `rgb(${r},${g},${b})`;
+      const horasRestEl = document.getElementById("horas-restantes");
+      if (horasRestEl) {
+        const faltan = tope - horasMostradas;
+        horasRestEl.textContent = faltan > 0.05 ? `Te quedan ${faltan.toFixed(1)} hs hasta tu tope del mes.` : "Llegaste a tu tope del mes.";
+      }
+    }
+    if (personaActual.empresa === "SUISAS") {
+      const horasRestEl2 = document.getElementById("horas-restantes");
+      if (horasRestEl2) horasRestEl2.textContent = "";
     }
 
     // Banner de turno: ¿hay algún proceso de España donde persona_actual_id
@@ -3093,6 +3103,13 @@ function actualizarBotonNotif(personaId) {
   if (!personaId || !("serviceWorker" in navigator) || !("PushManager" in window)) {
     btnNotif.style.display = "none";
     notifStatus.textContent = "";
+    if (personaId) {
+      // Este navegador no permite notificaciones: se explica como activarlas.
+      const esIOS = /iphone|ipad|ipod/i.test(navigator.userAgent || "");
+      notifStatus.textContent = esIOS
+        ? "Para recibir avisos en tu iPhone: tocá el botón Compartir de Safari, elegí \"Agregar a pantalla de inicio\", abrí ConvocaTE desde ese ícono y activá las notificaciones."
+        : "Este navegador no permite notificaciones. Abrí ConvocaTE desde Chrome (o instalala desde el menú ⋮ → \"Instalar app\") para recibir avisos.";
+    }
     return;
   }
   if (Notification.permission === "granted") {
