@@ -637,6 +637,49 @@
   }
   .cvt-ics-btn:active{ opacity:.8; }
   [data-theme="dark"] .cvt-ics-btn{ color:var(--ink); border-color:var(--ink-soft); }
+
+  /* =====================================================
+     Avisos, instalación, compartir y feriados (oct 2026) — aditivo
+     ===================================================== */
+  #cvt-avisos{
+    position:fixed; left:0; right:0; bottom:0; z-index:40;
+    display:flex; flex-direction:column; gap:8px; align-items:center;
+    padding:0 12px calc(12px + env(safe-area-inset-bottom, 0px));
+    pointer-events:none;
+  }
+  #cvt-avisos > *{ pointer-events:auto; }
+  .cvt-aviso-red{
+    width:100%; max-width:520px; box-sizing:border-box; text-align:center;
+    padding:9px 14px; border-radius:10px; font-size:0.8rem; font-weight:600;
+    color:#fff; background:#3b3b3b; box-shadow:0 4px 14px rgba(0,0,0,.25);
+  }
+  .cvt-aviso-red.cvt-ok{ background:#2e7d32; }
+  .cvt-install{
+    width:100%; max-width:520px; box-sizing:border-box;
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:14px;
+    background:var(--surface); color:var(--ink); border:1px solid var(--line);
+    box-shadow:0 6px 20px rgba(0,0,0,.2); font-size:0.82rem;
+  }
+  .cvt-install img{ width:38px; height:38px; flex:0 0 auto; }
+  .cvt-install .cvt-install-txt{ flex:1 1 auto; line-height:1.3; }
+  .cvt-install button{
+    flex:0 0 auto; font-family:inherit; font-size:0.78rem; font-weight:700;
+    border-radius:8px; padding:7px 12px; cursor:pointer;
+  }
+  .cvt-install .cvt-install-si{ background:var(--primary); color:#fff; border:1px solid var(--primary); }
+  .cvt-install .cvt-install-no{ background:transparent; color:var(--ink-soft); border:none; padding:7px 6px; font-weight:600; }
+
+  .calendario-celda.cvt-feriado .num-dia{ color:#D32F2F; text-decoration:underline; text-decoration-thickness:2px; }
+  .cvt-leyenda-feriado{ margin-top:8px; font-size:0.72rem; color:var(--ink-soft); }
+  .cvt-leyenda-feriado b{ color:#D32F2F; text-decoration:underline; text-decoration-thickness:2px; }
+
+  .cvt-wa-btn{
+    display:block; width:100%; margin-top:10px; padding:11px 14px;
+    border-radius:10px; border:1.5px solid #1fa855; background:transparent;
+    color:#1fa855; font-family:inherit; font-size:0.85rem; font-weight:600; cursor:pointer;
+  }
+  .cvt-wa-btn:active{ opacity:.8; }
 </style>
 </head>
 
@@ -3411,6 +3454,177 @@ cargarPersonas().then(intentarAutoLogin);
       } catch (e) { /* sin botón, "Mis turnos" sigue igual */ }
     }
     new MutationObserver(agregarBoton).observe(grilla, { childList:true });
+  } catch (e) { /* sin mejora, la app sigue igual */ }
+})();
+</script>
+
+<script>
+// (d) Aviso de "sin conexión" + invitación a instalar la app. Se dibujan
+// en un contenedor propio al pie; no tocan ningún elemento de la app.
+(function(){
+  try {
+    var cont = document.createElement('div');
+    cont.id = 'cvt-avisos';
+    document.body.appendChild(cont);
+
+    // --- Sin conexión ---
+    var barra = null, timer = null;
+    function quitarBarra(){ if (barra && barra.parentNode) barra.parentNode.removeChild(barra); barra = null; }
+    function estado(){
+      clearTimeout(timer);
+      if (navigator.onLine === false) {
+        if (!barra) { barra = document.createElement('div'); cont.insertBefore(barra, cont.firstChild); }
+        barra.className = 'cvt-aviso-red';
+        barra.textContent = 'Sin conexión · lo que ves puede no estar actualizado';
+      } else if (barra) {
+        barra.className = 'cvt-aviso-red cvt-ok';
+        barra.textContent = 'Conexión recuperada';
+        timer = setTimeout(quitarBarra, 2500);
+      }
+    }
+    window.addEventListener('offline', estado);
+    window.addEventListener('online', estado);
+    if (navigator.onLine === false) estado();
+
+    // --- Invitación a instalar ---
+    var CLAVE = 'cvt_install_no';
+    var diferido = null, tarjeta = null;
+    function instalada(){
+      try { return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; }
+      catch (e) { return false; }
+    }
+    function descartada(){
+      try { var t = Number(localStorage.getItem(CLAVE)); return !!t && (Date.now() - t) < 14 * 86400000; }
+      catch (e) { return false; }
+    }
+    function recordarNo(){ try { localStorage.setItem(CLAVE, String(Date.now())); } catch (e) {} }
+    function esIOSSafari(){
+      var ua = navigator.userAgent || '';
+      return /iphone|ipad|ipod/i.test(ua) && /safari/i.test(ua) && !/crios|fxios|edgios|opios/i.test(ua);
+    }
+    function cerrar(){ if (tarjeta && tarjeta.parentNode) tarjeta.parentNode.removeChild(tarjeta); tarjeta = null; }
+    function mostrar(){
+      if (tarjeta || instalada() || descartada()) return;
+      var conPrompt = !!diferido, ios = esIOSSafari();
+      if (!conPrompt && !ios) return;
+      tarjeta = document.createElement('div');
+      tarjeta.className = 'cvt-install';
+      var img = document.createElement('img');
+      img.src = './icon.png'; img.alt = '';
+      var txt = document.createElement('div');
+      txt.className = 'cvt-install-txt';
+      txt.textContent = conPrompt
+        ? 'Instalá ConvocaTE en tu celular para abrirla más rápido.'
+        : 'Para instalar la app: tocá Compartir y elegí «Agregar a pantalla de inicio».';
+      tarjeta.appendChild(img);
+      tarjeta.appendChild(txt);
+      if (conPrompt) {
+        var si = document.createElement('button');
+        si.type = 'button'; si.className = 'cvt-install-si'; si.textContent = 'Instalar';
+        si.addEventListener('click', function(){
+          var ev = diferido; diferido = null;
+          cerrar();
+          try { ev.prompt(); ev.userChoice.then(function(r){ if (!r || r.outcome !== 'accepted') recordarNo(); }); } catch (e) {}
+        });
+        tarjeta.appendChild(si);
+      }
+      var no = document.createElement('button');
+      no.type = 'button'; no.className = 'cvt-install-no'; no.textContent = 'Ahora no';
+      no.addEventListener('click', function(){ recordarNo(); cerrar(); });
+      tarjeta.appendChild(no);
+      cont.appendChild(tarjeta);
+    }
+    function intentar(){
+      var conv = document.getElementById('convocatoria-wrap');
+      if (conv && conv.style.display !== 'none') setTimeout(mostrar, 3000);
+    }
+    window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); diferido = e; intentar(); });
+    window.addEventListener('appinstalled', function(){ diferido = null; cerrar(); });
+    var conv = document.getElementById('convocatoria-wrap');
+    if (conv) new MutationObserver(intentar).observe(conv, { attributes:true, attributeFilter:['style'] });
+  } catch (e) { /* sin estas mejoras, la app sigue igual */ }
+})();
+</script>
+
+<script>
+// (e) En "Mis turnos": feriados marcados en el calendario + botón para
+// compartir por WhatsApp. (f) Vibración corta al tocar Elegir/Confirmar.
+// Solo LEEN datos que la app ya cargó; no modifican nada.
+(function(){
+  try {
+    var grilla = document.getElementById('grilla-wrap');
+    if (!grilla) return;
+    function pad(n){ return String(n).padStart(2, '0'); }
+    function hhmm(m){ return Math.floor(m / 60) % 24 + ':' + pad(m % 60); }
+
+    function marcarFeriados(){
+      try {
+        var cuadro = grilla.querySelector('.calendario-grid');
+        if (!cuadro || typeof feriadosSet === 'undefined') return;
+        var hubo = false;
+        cuadro.querySelectorAll('.calendario-celda:not(.vacia)').forEach(function(celda){
+          var n = celda.querySelector('.num-dia');
+          if (!n) return;
+          if (feriadosSet.has(mesActivo + '-' + pad(Number(n.textContent)))) { celda.classList.add('cvt-feriado'); hubo = true; }
+        });
+        if (hubo && !document.getElementById('cvt-leyenda-feriado')) {
+          var l = document.createElement('div');
+          l.id = 'cvt-leyenda-feriado';
+          l.className = 'cvt-leyenda-feriado';
+          l.innerHTML = '<b>12</b> = feriado';
+          cuadro.parentNode.insertBefore(l, cuadro.nextSibling);
+        }
+      } catch (e) {}
+    }
+
+    function textoTurnos(){
+      var ids = idsVinculadosPersona(personaActual);
+      var lista = turnosDelMes.filter(function(t){ return ids.has(t.persona_id); });
+      lista.sort(function(a, b){
+        var fa = a.fecha + pad(((a.franjas_horarias || {}).hora_inicio) || 0);
+        var fb = b.fecha + pad(((b.franjas_horarias || {}).hora_inicio) || 0);
+        return fa < fb ? -1 : fa > fb ? 1 : 0;
+      });
+      if (!lista.length) return '';
+      var nombreMes = (typeof nombreMesEsCapitalizado === 'function') ? nombreMesEsCapitalizado(mesActivo) : mesActivo;
+      var anio = mesActivo.slice(0, 4);
+      var lineas = ['Mis turnos de ' + nombreMes + (String(nombreMes).indexOf(anio) === -1 ? ' ' + anio : '') + ':'];
+      lista.forEach(function(t){
+        var f = t.franjas_horarias || {};
+        var d = new Date(t.fecha + 'T12:00:00');
+        var dia = d.toLocaleDateString('es-UY', { weekday:'short' }).replace('.', '');
+        var sector = (f.sectores && f.sectores.nombre) || 'Turno';
+        var hora = (f.hora_inicio != null && f.hora_fin != null) ? ' ' + hhmm(f.hora_inicio) + ' a ' + hhmm(f.hora_fin) : '';
+        lineas.push('• ' + dia + ' ' + Number(t.fecha.slice(8, 10)) + ': ' + sector + hora + (f.es_reten ? ' (retén)' : ''));
+      });
+      return lineas.join('\n');
+    }
+    function agregarWhatsApp(){
+      try {
+        if (!grilla.querySelector('.calendario-grid')) return;
+        if (document.getElementById('cvt-wa-btn')) return;
+        if (!textoTurnos()) return;
+        var b = document.createElement('button');
+        b.type = 'button'; b.id = 'cvt-wa-btn'; b.className = 'cvt-wa-btn';
+        b.textContent = '💬 Compartir mis turnos por WhatsApp';
+        b.addEventListener('click', function(){
+          try {
+            var t = textoTurnos();
+            if (t) window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank');
+          } catch (e) {}
+        });
+        grilla.appendChild(b);
+      } catch (e) {}
+    }
+    function alCambiar(){ marcarFeriados(); agregarWhatsApp(); }
+    new MutationObserver(alCambiar).observe(grilla, { childList:true });
+
+    // Vibración corta (solo celulares que la soportan)
+    document.addEventListener('click', function(e){
+      try {
+        if (navigator.vibrate && e.target && e.target.closest && e.target.closest('.btn-elegir, .btn-confirmar')) navigator.vibrate(18);
+      } catch (x) {}
+    }, true);
   } catch (e) { /* sin mejora, la app sigue igual */ }
 })();
 </script>
