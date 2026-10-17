@@ -8,6 +8,7 @@
 <link rel="manifest" href="./manifest.json" />
 <link rel="icon" href="./icon.png" type="image/png" />
 <link rel="apple-touch-icon" href="./icon.png" />
+<link rel="preconnect" href="https://lcnvdgjedxikpqxxyzqr.supabase.co" crossorigin />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -766,6 +767,7 @@
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
         <label class="field-label" for="persona-search" style="margin-bottom:0;"></label>
         <button id="btn-cambiar-usuario" style="display:none; background:transparent; border:none; color:var(--ink-soft); font-family:inherit; font-size:0.7rem; text-decoration:underline; cursor:pointer;">Cambiar de usuario</button>
+        <button id="btn-olvidar-dispositivo" style="display:none; background:transparent; border:none; color:var(--ink-soft); font-family:inherit; font-size:0.7rem; text-decoration:underline; cursor:pointer;">Olvidar este dispositivo</button>
       </div>
       <div id="persona-combo-wrap" style="position:relative;">
         <input type="text" id="persona-search" autocomplete="off" placeholder="Buscá tu nombre y empresa"
@@ -1426,13 +1428,60 @@ function pedirPin(personaId, modoRegistro) {
 
 // Verifica (o pide crear) el PIN de una persona. Devuelve true si
 // quedó habilitado para continuar, false si canceló o falló.
+// DISPOSITIVO RECORDADO (17 oct 2026): tras un ingreso correcto el PIN queda
+// guardado en este dispositivo y no se vuelve a pedir. "Olvidar este
+// dispositivo" (o "Cambiar de usuario") lo borra.
+const CLAVE_PIN_DISPOSITIVO = "convocate_pin_dispositivo";
+function leerPinDispositivo(personaId) {
+  try {
+    const o = JSON.parse(localStorage.getItem(CLAVE_PIN_DISPOSITIVO) || "null");
+    if (o && o.id === personaId && /^[0-9]{4}$/.test(o.pin || "")) return o.pin;
+  } catch (e) {}
+  return null;
+}
+function guardarPinDispositivo(personaId, pin) {
+  try { localStorage.setItem(CLAVE_PIN_DISPOSITIVO, JSON.stringify({ id: personaId, pin })); } catch (e) {}
+}
+function olvidarPinDispositivo() {
+  try { localStorage.removeItem(CLAVE_PIN_DISPOSITIVO); } catch (e) {}
+}
+
 async function asegurarPin(personaId) {
   if (personaIdConPin === personaId && personaPin) return true;
-  const tiene = await sb(`rpc/tiene_pin`, {
-    method: "POST",
-    body: JSON.stringify({ p_persona_id: personaId })
-  });
-  return await pedirPin(personaId, tiene !== true);
+  const guardado = leerPinDispositivo(personaId);
+  if (guardado) {
+    // Entra directo; el PIN se revalida en segundo plano. Si ya no sirve
+    // (lo cambiaron), se borra y se pide de nuevo.
+    personaPin = guardado;
+    personaIdConPin = personaId;
+    sb(`rpc/verificar_pin`, {
+      method: "POST",
+      body: JSON.stringify({ p_persona_id: personaId, p_pin: guardado })
+    }).then(async (ok) => {
+      if (ok === false) {
+        olvidarPinDispositivo();
+        personaPin = null;
+        personaIdConPin = null;
+        if (await pedirPin(personaId, false)) guardarPinDispositivo(personaId, personaPin);
+        else window.location.reload();
+      }
+    }).catch(() => {});
+    return true;
+  }
+  let tiene = null;
+  if (window.__pinPrefetch && window.__pinPrefetch.id === personaId) {
+    try { tiene = await window.__pinPrefetch.p; } catch (e) { tiene = null; }
+    window.__pinPrefetch = null;
+  }
+  if (tiene !== true && tiene !== false) {
+    tiene = await sb(`rpc/tiene_pin`, {
+      method: "POST",
+      body: JSON.stringify({ p_persona_id: personaId })
+    });
+  }
+  const okPin = await pedirPin(personaId, tiene !== true);
+  if (okPin && personaPin) guardarPinDispositivo(personaId, personaPin);
+  return okPin;
 }
 
 
@@ -1478,6 +1527,13 @@ personaSelect.addEventListener("change", async (e) => {
     const btnCambiar = document.getElementById("btn-cambiar-usuario");
     btnCambiar.style.display = "";
     btnCambiar.onclick = cambiarUsuario;
+    const btnOlvidar = document.getElementById("btn-olvidar-dispositivo");
+    btnOlvidar.style.display = "";
+    btnOlvidar.onclick = () => {
+      if (confirm("¿Olvidar este dispositivo? La próxima vez vas a tener que elegir tu nombre e ingresar el PIN.")) {
+        cambiarUsuario();
+      }
+    };
     // NUEVO (11 ago 2026): "Mis turnos" se movió de una pestaña de sector
     // al lado opuesto del pill de ficha/empresa, en la misma fila.
     const btnMisTurnos = document.getElementById("btn-mis-turnos");
@@ -1558,6 +1614,9 @@ function cambiarUsuario() {
   detenerChequeoAutomatico();
   miTurnoAnterior = false;
   localStorage.removeItem(CLAVE_ULTIMA_PERSONA);
+  olvidarPinDispositivo();
+  personaPin = null;
+  personaIdConPin = null;
   personaActual = null;
   personaSelect.value = "";
   personaSearch.value = "";
@@ -1565,6 +1624,7 @@ function cambiarUsuario() {
   convocatoriaWrap.style.display = "none";
   document.getElementById("header-top").style.display = "none";
   document.getElementById("btn-cambiar-usuario").style.display = "none";
+  document.getElementById("btn-olvidar-dispositivo").style.display = "none";
   document.getElementById("btn-mis-turnos").style.display = "none";
   document.getElementById("btn-mis-turnos").classList.remove("activo");
   sectorActual = null;
@@ -2597,6 +2657,7 @@ async function elegirTurno(turnoId, btn = null) {
       alert("PIN incorrecto. Volvé a seleccionar tu nombre para ingresarlo de nuevo.");
       personaPin = null;
       personaIdConPin = null;
+      olvidarPinDispositivo();
     } else {
       alert("No es tu turno para elegir.");
       await cargarDatosConvocatoria();
@@ -3309,6 +3370,18 @@ async function intentarAutoLogin() {
   personaSelect.value = personaId;
   personaSelect.dispatchEvent(new Event("change"));
 }
+
+// VELOCIDAD (17 oct 2026): si no hay PIN guardado, adelantar la consulta
+// "tiene PIN" en paralelo con la carga de la lista de nombres.
+try {
+  const _ultimaPersona = localStorage.getItem(CLAVE_ULTIMA_PERSONA);
+  if (_ultimaPersona && !leerPinDispositivo(_ultimaPersona)) {
+    window.__pinPrefetch = {
+      id: _ultimaPersona,
+      p: sb(`rpc/tiene_pin`, { method: "POST", body: JSON.stringify({ p_persona_id: _ultimaPersona }) }).catch(() => null)
+    };
+  }
+} catch (e) { window.__pinPrefetch = null; }
 
 cargarPersonas().then(intentarAutoLogin);
 </script>
