@@ -680,6 +680,16 @@
     color:#1fa855; font-family:inherit; font-size:0.85rem; font-weight:600; cursor:pointer;
   }
   .cvt-wa-btn:active{ opacity:.8; }
+
+  /* Modo oscuro: el halo del botón "Informar un cambio" era azul marino
+     sobre fondo oscuro y no se veía; acá se usa un celeste visible.
+     Solo cambia el nombre de la animación; duración y ritmo son los mismos. */
+  @keyframes cvtPulsoOscuro {
+    0%   { box-shadow: 0 0 0 0 rgba(143,198,223,0.65); }
+    60%  { box-shadow: 0 0 0 9px rgba(143,198,223,0); }
+    100% { box-shadow: 0 0 0 0 rgba(143,198,223,0); }
+  }
+  [data-theme="dark"] .btn-cambio{ animation-name: cvtPulsoOscuro; }
 </style>
 </head>
 
