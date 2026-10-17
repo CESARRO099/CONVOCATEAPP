@@ -8,10 +8,13 @@
 <link rel="manifest" href="./manifest.json" />
 <link rel="icon" href="./icon.png" type="image/png" />
 <link rel="apple-touch-icon" href="./icon.png" />
+<link rel="preconnect" href="https://lcnvdgjedxikpqxxyzqr.supabase.co" crossorigin />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Jost:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+<noscript><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" /></noscript>
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Jost:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+<noscript><link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Jost:wght@400;500;600&display=swap" rel="stylesheet" /></noscript>
 <style>
   :root{
     --bg: #FFFFFF;
@@ -594,102 +597,6 @@
     min-height:0;
     display:block;
   }
-
-  /* =====================================================
-     MEJORAS VISUALES Y FUNCIONALES (oct 2026) — todo aditivo,
-     prefijo cvt-, no pisa ninguna regla existente.
-     ===================================================== */
-
-  /* Logo en la pantalla de bienvenida */
-  .cvt-logo{
-    display:block; margin:0 auto 20px;
-    width:clamp(72px,15vh,118px); height:auto; aspect-ratio:1/1;
-    opacity:0;
-    filter:drop-shadow(0 6px 22px rgba(191,227,240,.28)) drop-shadow(0 0 14px rgba(201,162,39,.22));
-    animation:cvtLogoIn 1.1s cubic-bezier(.2,.8,.2,1) .9s forwards;
-  }
-  @keyframes cvtLogoIn{
-    from{ opacity:0; transform:translateY(12px) scale(.86); }
-    to{ opacity:1; transform:translateY(0) scale(1); }
-  }
-
-  /* Punto de color por sector en las pestañas (el color lo pone un
-     script chico según el nombre del sector; sin él, el punto no se ve) */
-  .tab[data-sector]::before{
-    content:""; display:inline-block; width:8px; height:8px; border-radius:50%;
-    margin-right:7px; vertical-align:1px;
-    background:var(--cvt-sec, transparent);
-  }
-  .tab.active[data-sector]::before{ box-shadow:0 0 0 2px rgba(255,255,255,.9); }
-
-  /* Transición suave al cambiar de sector o de mes */
-  @keyframes cvtFadeGrilla{ from{ opacity:.25; } to{ opacity:1; } }
-  @media (prefers-reduced-motion: no-preference){
-    #grilla-wrap.cvt-fade{ animation:cvtFadeGrilla .32s ease-out; }
-  }
-
-  /* Botón "Agregar a mi calendario" (Mis turnos) */
-  .cvt-ics-btn{
-    display:block; width:100%; margin-top:14px; padding:11px 14px;
-    border-radius:10px; border:1.5px solid var(--primary); background:transparent;
-    color:var(--primary); font-family:inherit; font-size:0.85rem; font-weight:600;
-    cursor:pointer;
-  }
-  .cvt-ics-btn:active{ opacity:.8; }
-  [data-theme="dark"] .cvt-ics-btn{ color:var(--ink); border-color:var(--ink-soft); }
-
-  /* =====================================================
-     Avisos, instalación, compartir y feriados (oct 2026) — aditivo
-     ===================================================== */
-  #cvt-avisos{
-    position:fixed; left:0; right:0; bottom:0; z-index:40;
-    display:flex; flex-direction:column; gap:8px; align-items:center;
-    padding:0 12px calc(12px + env(safe-area-inset-bottom, 0px));
-    pointer-events:none;
-  }
-  #cvt-avisos > *{ pointer-events:auto; }
-  .cvt-aviso-red{
-    width:100%; max-width:520px; box-sizing:border-box; text-align:center;
-    padding:9px 14px; border-radius:10px; font-size:0.8rem; font-weight:600;
-    color:#fff; background:#3b3b3b; box-shadow:0 4px 14px rgba(0,0,0,.25);
-  }
-  .cvt-aviso-red.cvt-ok{ background:#2e7d32; }
-  .cvt-install{
-    width:100%; max-width:520px; box-sizing:border-box;
-    display:flex; align-items:center; gap:10px;
-    padding:10px 12px; border-radius:14px;
-    background:var(--surface); color:var(--ink); border:1px solid var(--line);
-    box-shadow:0 6px 20px rgba(0,0,0,.2); font-size:0.82rem;
-  }
-  .cvt-install img{ width:38px; height:38px; flex:0 0 auto; }
-  .cvt-install .cvt-install-txt{ flex:1 1 auto; line-height:1.3; }
-  .cvt-install button{
-    flex:0 0 auto; font-family:inherit; font-size:0.78rem; font-weight:700;
-    border-radius:8px; padding:7px 12px; cursor:pointer;
-  }
-  .cvt-install .cvt-install-si{ background:var(--primary); color:#fff; border:1px solid var(--primary); }
-  .cvt-install .cvt-install-no{ background:transparent; color:var(--ink-soft); border:none; padding:7px 6px; font-weight:600; }
-
-  .calendario-celda.cvt-feriado .num-dia{ color:#D32F2F; text-decoration:underline; text-decoration-thickness:2px; }
-  .cvt-leyenda-feriado{ margin-top:8px; font-size:0.72rem; color:var(--ink-soft); }
-  .cvt-leyenda-feriado b{ color:#D32F2F; text-decoration:underline; text-decoration-thickness:2px; }
-
-  .cvt-wa-btn{
-    display:block; width:100%; margin-top:10px; padding:11px 14px;
-    border-radius:10px; border:1.5px solid #1fa855; background:transparent;
-    color:#1fa855; font-family:inherit; font-size:0.85rem; font-weight:600; cursor:pointer;
-  }
-  .cvt-wa-btn:active{ opacity:.8; }
-
-  /* Modo oscuro: el halo del botón "Informar un cambio" era azul marino
-     sobre fondo oscuro y no se veía; acá se usa un celeste visible.
-     Solo cambia el nombre de la animación; duración y ritmo son los mismos. */
-  @keyframes cvtPulsoOscuro {
-    0%   { box-shadow: 0 0 0 0 rgba(143,198,223,0.65); }
-    60%  { box-shadow: 0 0 0 9px rgba(143,198,223,0); }
-    100% { box-shadow: 0 0 0 0 rgba(143,198,223,0); }
-  }
-  [data-theme="dark"] .btn-cambio{ animation-name: cvtPulsoOscuro; }
 </style>
 </head>
 
@@ -710,7 +617,6 @@
   <div class="cvt-grain"></div>
   <div class="cvt-glow"></div>
   <div class="cvt-content" id="cvt-content">
-    <img class="cvt-logo" src="./icon.png" alt="" width="120" height="120" decoding="async">
     <p class="cvt-eyebrow">Servicio de Imagenología</p>
     <h1 class="cvt-title" id="cvt-title"></h1>
     <div class="cvt-divider"></div>
@@ -1428,10 +1334,19 @@ function pedirPin(personaId, modoRegistro) {
 // quedó habilitado para continuar, false si canceló o falló.
 async function asegurarPin(personaId) {
   if (personaIdConPin === personaId && personaPin) return true;
-  const tiene = await sb(`rpc/tiene_pin`, {
-    method: "POST",
-    body: JSON.stringify({ p_persona_id: personaId })
-  });
+  // VELOCIDAD (17 oct 2026): si el celular ya recordaba a esta persona, la
+  // consulta "tiene PIN" se lanzo en paralelo con la carga de la lista.
+  let tiene = null;
+  if (window.__pinPrefetch && window.__pinPrefetch.id === personaId) {
+    try { tiene = await window.__pinPrefetch.p; } catch (e) { tiene = null; }
+    window.__pinPrefetch = null;
+  }
+  if (tiene !== true && tiene !== false) {
+    tiene = await sb(`rpc/tiene_pin`, {
+      method: "POST",
+      body: JSON.stringify({ p_persona_id: personaId })
+    });
+  }
   return await pedirPin(personaId, tiene !== true);
 }
 
@@ -3310,6 +3225,17 @@ async function intentarAutoLogin() {
   personaSelect.dispatchEvent(new Event("change"));
 }
 
+// VELOCIDAD (17 oct 2026): adelantar la consulta "tiene PIN" de la persona
+// recordada, en paralelo con la carga de la lista de nombres.
+try {
+  const _ultimaPersona = localStorage.getItem(CLAVE_ULTIMA_PERSONA);
+  if (_ultimaPersona) {
+    window.__pinPrefetch = {
+      id: _ultimaPersona,
+      p: sb(`rpc/tiene_pin`, { method: "POST", body: JSON.stringify({ p_persona_id: _ultimaPersona }) }).catch(() => null)
+    };
+  }
+} catch (e) { window.__pinPrefetch = null; }
 cargarPersonas().then(intentarAutoLogin);
 </script>
 
@@ -3332,323 +3258,5 @@ cargarPersonas().then(intentarAutoLogin);
 })();
 </script>
 
-
-<!-- ===================================================================
-     Mejoras oct 2026 (script independiente, no modifica ninguna función
-     de la app). Cada bloque va en try/catch: si algo falla, simplemente
-     no se aplica esa mejora y la app sigue funcionando igual.
-     =================================================================== -->
-<script>
-// (a) Color por sector en las pestañas + (b) transición al cambiar sector/mes
-(function(){
-  try {
-    var tabs = document.getElementById('tabs-wrap');
-    var meses = document.getElementById('mes-selector-wrap');
-    var grilla = document.getElementById('grilla-wrap');
-
-    var PALETA = ['#2E7DD1','#E4572E','#2FA66A','#8E5BD9','#D9A21B','#16A3B8','#D6477F','#6C7A89','#7CB518','#C2571A'];
-    function colorDe(nombre){
-      var h = 0, s = String(nombre || '');
-      for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-      return PALETA[h % PALETA.length];
-    }
-    function pintarTabs(){
-      if (!tabs) return;
-      tabs.querySelectorAll('.tab[data-sector]').forEach(function(b){
-        b.style.setProperty('--cvt-sec', colorDe(b.getAttribute('data-sector')));
-      });
-    }
-    if (tabs) {
-      pintarTabs();
-      new MutationObserver(pintarTabs).observe(tabs, { childList:true });
-    }
-
-    function fade(){
-      if (!grilla) return;
-      grilla.classList.remove('cvt-fade');
-      void grilla.offsetWidth;
-      grilla.classList.add('cvt-fade');
-    }
-    function alClick(e){
-      if (e.target && e.target.closest && e.target.closest('.tab, .mes-tab')) fade();
-    }
-    if (tabs)  tabs.addEventListener('click', alClick, true);
-    if (meses) meses.addEventListener('click', alClick, true);
-  } catch (e) { /* sin mejora visual, la app sigue igual */ }
-})();
-</script>
-
-<script>
-// (c) Botón "Agregar a mi calendario" dentro de "Mis turnos": genera un
-// archivo .ics con los turnos del mes que ya está mirando la persona.
-// Solo LEE datos que la app ya cargó (turnosDelMes, personaActual); no
-// hace consultas nuevas ni modifica nada.
-(function(){
-  try {
-    var grilla = document.getElementById('grilla-wrap');
-    if (!grilla) return;
-
-    function pad(n){ return String(n).padStart(2, '0'); }
-    function fmt(fechaISO, minutos){
-      var y = +fechaISO.slice(0,4), m = +fechaISO.slice(5,7), d = +fechaISO.slice(8,10);
-      var t = new Date(Date.UTC(y, m - 1, d) + minutos * 60000);
-      return t.getUTCFullYear() + pad(t.getUTCMonth()+1) + pad(t.getUTCDate()) +
-             'T' + pad(t.getUTCHours()) + pad(t.getUTCMinutes()) + '00';
-    }
-    function dia(fechaISO, extra){
-      var y = +fechaISO.slice(0,4), m = +fechaISO.slice(5,7), d = +fechaISO.slice(8,10);
-      var t = new Date(Date.UTC(y, m - 1, d + (extra || 0)));
-      return t.getUTCFullYear() + pad(t.getUTCMonth()+1) + pad(t.getUTCDate());
-    }
-    function esc(s){
-      return String(s == null ? '' : s).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
-    }
-    function misTurnos(){
-      var ids = idsVinculadosPersona(personaActual);
-      return turnosDelMes.filter(function(t){ return ids.has(t.persona_id); });
-    }
-    function construirICS(lista){
-      var ahora = new Date();
-      var stamp = ahora.getUTCFullYear() + pad(ahora.getUTCMonth()+1) + pad(ahora.getUTCDate()) +
-                  'T' + pad(ahora.getUTCHours()) + pad(ahora.getUTCMinutes()) + pad(ahora.getUTCSeconds()) + 'Z';
-      var L = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//ConvocaTE//Mis turnos//ES','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Mis turnos ConvocaTE'];
-      lista.forEach(function(t){
-        var f = t.franjas_horarias || {};
-        var sector = (f.sectores && f.sectores.nombre) || 'Turno';
-        var emp = (t.perfiles && t.perfiles.empresa === 'SUISAS') ? 'SUISAS' : 'Española';
-        var desc = emp + (f.es_reten ? ' · Retén' : '');
-        L.push('BEGIN:VEVENT');
-        L.push('UID:turno-' + t.id + '@convocate');
-        L.push('DTSTAMP:' + stamp);
-        if (f.hora_inicio != null && f.hora_fin != null) {
-          var fin = f.hora_fin <= f.hora_inicio ? f.hora_fin + 1440 : f.hora_fin;
-          L.push('DTSTART:' + fmt(t.fecha, f.hora_inicio));
-          L.push('DTEND:' + fmt(t.fecha, fin));
-        } else {
-          L.push('DTSTART;VALUE=DATE:' + dia(t.fecha, 0));
-          L.push('DTEND;VALUE=DATE:' + dia(t.fecha, 1));
-        }
-        L.push('SUMMARY:' + esc('Turno ' + sector));
-        L.push('DESCRIPTION:' + esc(desc));
-        L.push('END:VEVENT');
-      });
-      L.push('END:VCALENDAR');
-      return L.join('\r\n') + '\r\n';
-    }
-    function descargar(){
-      try {
-        var lista = misTurnos();
-        if (!lista.length) return;
-        var blob = new Blob([construirICS(lista)], { type:'text/calendar;charset=utf-8' });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url;
-        a.download = 'mis-turnos-' + mesActivo + '.ics';
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
-      } catch (e) { alert('No se pudo generar el archivo de calendario.'); }
-    }
-    function agregarBoton(){
-      try {
-        if (!grilla.querySelector('.calendario-grid')) return;
-        if (document.getElementById('cvt-ics-btn')) return;
-        if (!misTurnos().length) return;
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.id = 'cvt-ics-btn';
-        b.className = 'cvt-ics-btn';
-        b.textContent = '📅 Agregar mis turnos a mi calendario';
-        b.addEventListener('click', descargar);
-        grilla.appendChild(b);
-      } catch (e) { /* sin botón, "Mis turnos" sigue igual */ }
-    }
-    new MutationObserver(agregarBoton).observe(grilla, { childList:true });
-  } catch (e) { /* sin mejora, la app sigue igual */ }
-})();
-</script>
-
-<script>
-// (d) Aviso de "sin conexión" + invitación a instalar la app. Se dibujan
-// en un contenedor propio al pie; no tocan ningún elemento de la app.
-(function(){
-  try {
-    var cont = document.createElement('div');
-    cont.id = 'cvt-avisos';
-    document.body.appendChild(cont);
-
-    // --- Sin conexión ---
-    var barra = null, timer = null;
-    function quitarBarra(){ if (barra && barra.parentNode) barra.parentNode.removeChild(barra); barra = null; }
-    function estado(){
-      clearTimeout(timer);
-      if (navigator.onLine === false) {
-        if (!barra) { barra = document.createElement('div'); cont.insertBefore(barra, cont.firstChild); }
-        barra.className = 'cvt-aviso-red';
-        barra.textContent = 'Sin conexión · lo que ves puede no estar actualizado';
-      } else if (barra) {
-        barra.className = 'cvt-aviso-red cvt-ok';
-        barra.textContent = 'Conexión recuperada';
-        timer = setTimeout(quitarBarra, 2500);
-      }
-    }
-    window.addEventListener('offline', estado);
-    window.addEventListener('online', estado);
-    if (navigator.onLine === false) estado();
-
-    // --- Invitación a instalar ---
-    var CLAVE = 'cvt_install_no';
-    var diferido = null, tarjeta = null;
-    function instalada(){
-      try { return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; }
-      catch (e) { return false; }
-    }
-    function descartada(){
-      try { var t = Number(localStorage.getItem(CLAVE)); return !!t && (Date.now() - t) < 14 * 86400000; }
-      catch (e) { return false; }
-    }
-    function recordarNo(){ try { localStorage.setItem(CLAVE, String(Date.now())); } catch (e) {} }
-    function esIOSSafari(){
-      var ua = navigator.userAgent || '';
-      return /iphone|ipad|ipod/i.test(ua) && /safari/i.test(ua) && !/crios|fxios|edgios|opios/i.test(ua);
-    }
-    function cerrar(){ if (tarjeta && tarjeta.parentNode) tarjeta.parentNode.removeChild(tarjeta); tarjeta = null; }
-    function mostrar(){
-      if (tarjeta || instalada() || descartada()) return;
-      var conPrompt = !!diferido, ios = esIOSSafari();
-      if (!conPrompt && !ios) return;
-      tarjeta = document.createElement('div');
-      tarjeta.className = 'cvt-install';
-      var img = document.createElement('img');
-      img.src = './icon.png'; img.alt = '';
-      var txt = document.createElement('div');
-      txt.className = 'cvt-install-txt';
-      txt.textContent = conPrompt
-        ? 'Instalá ConvocaTE en tu celular para abrirla más rápido.'
-        : 'Para instalar la app: tocá Compartir y elegí «Agregar a pantalla de inicio».';
-      tarjeta.appendChild(img);
-      tarjeta.appendChild(txt);
-      if (conPrompt) {
-        var si = document.createElement('button');
-        si.type = 'button'; si.className = 'cvt-install-si'; si.textContent = 'Instalar';
-        si.addEventListener('click', function(){
-          var ev = diferido; diferido = null;
-          cerrar();
-          try { ev.prompt(); ev.userChoice.then(function(r){ if (!r || r.outcome !== 'accepted') recordarNo(); }); } catch (e) {}
-        });
-        tarjeta.appendChild(si);
-      }
-      var no = document.createElement('button');
-      no.type = 'button'; no.className = 'cvt-install-no'; no.textContent = 'Ahora no';
-      no.addEventListener('click', function(){ recordarNo(); cerrar(); });
-      tarjeta.appendChild(no);
-      cont.appendChild(tarjeta);
-    }
-    function intentar(){
-      var conv = document.getElementById('convocatoria-wrap');
-      if (conv && conv.style.display !== 'none') setTimeout(mostrar, 3000);
-    }
-    window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); diferido = e; intentar(); });
-    window.addEventListener('appinstalled', function(){ diferido = null; cerrar(); });
-    var conv = document.getElementById('convocatoria-wrap');
-    if (conv) new MutationObserver(intentar).observe(conv, { attributes:true, attributeFilter:['style'] });
-  } catch (e) { /* sin estas mejoras, la app sigue igual */ }
-})();
-</script>
-
-<script>
-// (e) En "Mis turnos": feriados marcados en el calendario + botón para
-// compartir por WhatsApp. (f) Vibración corta al tocar Elegir/Confirmar.
-// Solo LEEN datos que la app ya cargó; no modifican nada.
-(function(){
-  try {
-    var grilla = document.getElementById('grilla-wrap');
-    if (!grilla) return;
-    function pad(n){ return String(n).padStart(2, '0'); }
-    function hhmm(m){ return Math.floor(m / 60) % 24 + ':' + pad(m % 60); }
-
-    function marcarFeriados(){
-      try {
-        var cuadro = grilla.querySelector('.calendario-grid');
-        if (!cuadro || typeof feriadosSet === 'undefined') return;
-        var dias = [];
-        cuadro.querySelectorAll('.calendario-celda:not(.vacia)').forEach(function(celda){
-          var n = celda.querySelector('.num-dia');
-          if (!n) return;
-          var d = Number(n.textContent);
-          if (feriadosSet.has(mesActivo + '-' + pad(d))) { celda.classList.add('cvt-feriado'); dias.push(d); }
-        });
-        // Solo se toca el DOM si la leyenda cambió: así el observador no se
-        // dispara a sí mismo en un bucle.
-        var texto = dias.length ? (dias.length === 1 ? 'Feriado este mes: ' : 'Feriados este mes: ') + dias.join(', ') : '';
-        var vieja = document.getElementById('cvt-leyenda-feriado');
-        if (vieja && vieja.getAttribute('data-txt') === texto) return;
-        if (vieja && vieja.parentNode) vieja.parentNode.removeChild(vieja);
-        if (texto) {
-          var l = document.createElement('div');
-          l.id = 'cvt-leyenda-feriado';
-          l.className = 'cvt-leyenda-feriado';
-          l.setAttribute('data-txt', texto);
-          var partes = texto.split(': ');
-          l.appendChild(document.createTextNode(partes[0] + ': '));
-          var bb = document.createElement('b');
-          bb.textContent = partes[1];
-          l.appendChild(bb);
-          cuadro.parentNode.insertBefore(l, cuadro.nextSibling);
-        }
-      } catch (e) {}
-    }
-
-    function textoTurnos(){
-      var ids = idsVinculadosPersona(personaActual);
-      var lista = turnosDelMes.filter(function(t){ return ids.has(t.persona_id); });
-      lista.sort(function(a, b){
-        var fa = a.fecha + pad(((a.franjas_horarias || {}).hora_inicio) || 0);
-        var fb = b.fecha + pad(((b.franjas_horarias || {}).hora_inicio) || 0);
-        return fa < fb ? -1 : fa > fb ? 1 : 0;
-      });
-      if (!lista.length) return '';
-      var nombreMes = (typeof nombreMesEsCapitalizado === 'function') ? nombreMesEsCapitalizado(mesActivo) : mesActivo;
-      var anio = mesActivo.slice(0, 4);
-      var lineas = ['Mis turnos de ' + nombreMes + (String(nombreMes).indexOf(anio) === -1 ? ' ' + anio : '') + ':'];
-      lista.forEach(function(t){
-        var f = t.franjas_horarias || {};
-        var d = new Date(t.fecha + 'T12:00:00');
-        var dia = d.toLocaleDateString('es-UY', { weekday:'short' }).replace('.', '');
-        var sector = (f.sectores && f.sectores.nombre) || 'Turno';
-        var hora = (f.hora_inicio != null && f.hora_fin != null) ? ' ' + hhmm(f.hora_inicio) + ' a ' + hhmm(f.hora_fin) : '';
-        lineas.push('• ' + dia + ' ' + Number(t.fecha.slice(8, 10)) + ': ' + sector + hora + (f.es_reten ? ' (retén)' : ''));
-      });
-      return lineas.join('\n');
-    }
-    function agregarWhatsApp(){
-      try {
-        if (!grilla.querySelector('.calendario-grid')) return;
-        if (document.getElementById('cvt-wa-btn')) return;
-        if (!textoTurnos()) return;
-        var b = document.createElement('button');
-        b.type = 'button'; b.id = 'cvt-wa-btn'; b.className = 'cvt-wa-btn';
-        b.textContent = '💬 Compartir mis turnos por WhatsApp';
-        b.addEventListener('click', function(){
-          try {
-            var t = textoTurnos();
-            if (t) window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank');
-          } catch (e) {}
-        });
-        grilla.appendChild(b);
-      } catch (e) {}
-    }
-    function alCambiar(){ marcarFeriados(); agregarWhatsApp(); }
-    new MutationObserver(alCambiar).observe(grilla, { childList:true });
-
-    // Vibración corta (solo celulares que la soportan)
-    document.addEventListener('click', function(e){
-      try {
-        if (navigator.vibrate && e.target && e.target.closest && e.target.closest('.btn-elegir, .btn-confirmar')) navigator.vibrate(18);
-      } catch (x) {}
-    }, true);
-  } catch (e) { /* sin mejora, la app sigue igual */ }
-})();
-</script>
 </body>
 </html>
