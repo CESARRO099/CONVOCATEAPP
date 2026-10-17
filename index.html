@@ -3561,17 +3561,29 @@ cargarPersonas().then(intentarAutoLogin);
       try {
         var cuadro = grilla.querySelector('.calendario-grid');
         if (!cuadro || typeof feriadosSet === 'undefined') return;
-        var hubo = false;
+        var dias = [];
         cuadro.querySelectorAll('.calendario-celda:not(.vacia)').forEach(function(celda){
           var n = celda.querySelector('.num-dia');
           if (!n) return;
-          if (feriadosSet.has(mesActivo + '-' + pad(Number(n.textContent)))) { celda.classList.add('cvt-feriado'); hubo = true; }
+          var d = Number(n.textContent);
+          if (feriadosSet.has(mesActivo + '-' + pad(d))) { celda.classList.add('cvt-feriado'); dias.push(d); }
         });
-        if (hubo && !document.getElementById('cvt-leyenda-feriado')) {
+        // Solo se toca el DOM si la leyenda cambió: así el observador no se
+        // dispara a sí mismo en un bucle.
+        var texto = dias.length ? (dias.length === 1 ? 'Feriado este mes: ' : 'Feriados este mes: ') + dias.join(', ') : '';
+        var vieja = document.getElementById('cvt-leyenda-feriado');
+        if (vieja && vieja.getAttribute('data-txt') === texto) return;
+        if (vieja && vieja.parentNode) vieja.parentNode.removeChild(vieja);
+        if (texto) {
           var l = document.createElement('div');
           l.id = 'cvt-leyenda-feriado';
           l.className = 'cvt-leyenda-feriado';
-          l.innerHTML = '<b>12</b> = feriado';
+          l.setAttribute('data-txt', texto);
+          var partes = texto.split(': ');
+          l.appendChild(document.createTextNode(partes[0] + ': '));
+          var bb = document.createElement('b');
+          bb.textContent = partes[1];
+          l.appendChild(bb);
           cuadro.parentNode.insertBefore(l, cuadro.nextSibling);
         }
       } catch (e) {}
