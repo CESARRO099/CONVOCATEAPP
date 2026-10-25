@@ -192,6 +192,9 @@
         <button type="button" class="btn-motivo" id="coordf1-btn-enfermedad" style="flex:1;">Licencia por Enfermedad</button>
         <button type="button" class="btn-motivo" id="coordf1-btn-otra" style="flex:1;">Otra causa</button>
       </div>
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <button type="button" class="btn-motivo" id="coordf1-btn-suspension" style="flex:1;">Suspensión</button>
+      </div>
       <select id="coordf1-sel-causal" style="display:none;">
         <option value="" disabled selected>-- Seleccioná la causa --</option>
         <option value="Falta con aviso">Falta con aviso</option>
@@ -711,6 +714,7 @@ const COORDF1_CAUSALES_CONFIG = {
   "Libre Particular": { tipo: "rango", frase: "Elegí los días que va a estar ausente." },
   "Rechazo de Convocatoria": { tipo: "rango", frase: "Elegí los días que va a estar ausente." },
   "Licencia por Enfermedad": { tipo: "rango", frase: "Fechas de la certificación" },
+  "Suspensión": { tipo: "rango", frase: "Elegí los días de la suspensión. La persona suspendida no recibe ningún aviso." },
   "Falta con aviso": { tipo: "rango", frase: "Elegí los días que va a faltar" },
   "Día por PAP": { tipo: "un_dia", frase: "¿Qué día tiene el estudio?" },
   "Día por mamografía": { tipo: "un_dia", frase: "¿Qué día tiene el estudio?" },
@@ -733,6 +737,7 @@ const coordf1SelCausal = document.getElementById("coordf1-sel-causal");
 const coordf1BtnLP = document.getElementById("coordf1-btn-lp");
 const coordf1BtnRC = document.getElementById("coordf1-btn-rc");
 const coordf1BtnEnfermedad = document.getElementById("coordf1-btn-enfermedad");
+const coordf1BtnSuspension = document.getElementById("coordf1-btn-suspension");
 const coordf1BtnOtra = document.getElementById("coordf1-btn-otra");
 const coordf1MotivoTexto = document.getElementById("coordf1-motivo-texto");
 const coordf1PasoMotivo = document.getElementById("coordf1-paso-motivo");
@@ -803,7 +808,7 @@ coordf1FechaFinCert.addEventListener("change", () => { coordf1RecalcNac(); });
 
 function coordf1ElegirMotivoFijo(valor, boton) {
   coordf1CausalElegida = valor;
-  [coordf1BtnLP, coordf1BtnRC, coordf1BtnEnfermedad, coordf1BtnOtra].forEach(b => b.classList.remove("activo"));
+  [coordf1BtnLP, coordf1BtnRC, coordf1BtnEnfermedad, coordf1BtnOtra, coordf1BtnSuspension].forEach(b => b.classList.remove("activo"));
   boton.classList.add("activo");
   coordf1SelCausal.style.display = "none";
   coordf1MotivoTexto.textContent = "Motivo: " + valor;
@@ -812,9 +817,10 @@ function coordf1ElegirMotivoFijo(valor, boton) {
 coordf1BtnLP.addEventListener("click", () => coordf1ElegirMotivoFijo("Libre Particular", coordf1BtnLP));
 coordf1BtnRC.addEventListener("click", () => coordf1ElegirMotivoFijo("Rechazo de Convocatoria", coordf1BtnRC));
 coordf1BtnEnfermedad.addEventListener("click", () => coordf1ElegirMotivoFijo("Licencia por Enfermedad", coordf1BtnEnfermedad));
+coordf1BtnSuspension.addEventListener("click", () => coordf1ElegirMotivoFijo("Suspensión", coordf1BtnSuspension));
 
 coordf1BtnOtra.addEventListener("click", () => {
-  [coordf1BtnLP, coordf1BtnRC, coordf1BtnEnfermedad].forEach(b => b.classList.remove("activo"));
+  [coordf1BtnLP, coordf1BtnRC, coordf1BtnEnfermedad, coordf1BtnSuspension].forEach(b => b.classList.remove("activo"));
   coordf1BtnOtra.classList.add("activo");
   coordf1SelCausal.style.display = "block";
   coordf1CausalElegida = coordf1SelCausal.value || "";
@@ -929,6 +935,7 @@ async function __inner_vacCoord() {
   const personaId = coordf1SelPersona.value;
   const loteId = crypto.randomUUID();
   let enviados = 0, errores = 0;
+  const causalUsada = coordf1CausalElegida;
 
   for (const t of coordf1TurnosEncontrados) {
     try {
@@ -959,12 +966,13 @@ async function __inner_vacCoord() {
   coordf1PasoConfirmar.style.display = "none";
   coordf1PasoMotivo.style.display = "block";
   coordf1SelCausal.value = "";
-  [coordf1BtnLP, coordf1BtnRC, coordf1BtnEnfermedad, coordf1BtnOtra].forEach(b => b.classList.remove("activo"));
+  [coordf1BtnLP, coordf1BtnRC, coordf1BtnEnfermedad, coordf1BtnOtra, coordf1BtnSuspension].forEach(b => b.classList.remove("activo"));
   coordf1MotivoTexto.textContent = "";
   coordf1CausalElegida = "";
 
   coordf1Msg.innerHTML = `<div class="msg-ok">✓ Se registraron ${enviados} actividad(es)` +
     (enviados > 0 ? `, se avisó a los habilitados del sector.` : `.`) +
+    (enviados > 0 && causalUsada === "Suspensión" ? ` (Suspensión: la persona suspendida no recibe ningún aviso.)` : ``) +
     (errores ? ` (${errores} no se pudieron registrar).` : ``) + `</div>`;
 }
 
