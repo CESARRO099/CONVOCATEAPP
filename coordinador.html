@@ -1817,10 +1817,9 @@ async function generarFormularioDesdeCambio(solicitudCambioId, lado) {
     alert(`${datos.nombre} no tiene email cargado — el formulario se descargó localmente, hay que enviárselo a mano.`);
   }
 
-  const campo = lado === "solicitante" ? "formulario_solicitante_generado_en" : "formulario_cobertura_generado_en";
-  await sbCoord(`solicitudes_cambio?id=eq.${solicitudCambioId}`, {
-    method: "PATCH",
-    body: JSON.stringify({ [campo]: new Date().toISOString() })
+  await sbCoord(`rpc/marcar_formulario_generado`, {
+    method: "POST",
+    body: JSON.stringify({ p_tipo: "cambio", p_id: solicitudCambioId, p_lado: lado === "solicitante" ? "solicitante" : "cobertura", p_password_coordinador: coordPassword })
   });
   cargarFormulariosPendientes();
 }
@@ -1888,9 +1887,9 @@ async function generarFormularioDesdeVacante(solicitudId) {
     alert(`${datos.nombre} no tiene email cargado — el formulario se descargó localmente, hay que enviárselo a mano.`);
   }
 
-  await sbCoord(`solicitudes_vacante?id=eq.${solicitudId}`, {
-    method: "PATCH",
-    body: JSON.stringify({ formulario_generado_en: new Date().toISOString() })
+  await sbCoord(`rpc/marcar_formulario_generado`, {
+    method: "POST",
+    body: JSON.stringify({ p_tipo: "vacante", p_id: solicitudId, p_lado: "", p_password_coordinador: coordPassword })
   });
   cargarFormulariosPendientes();
 }
