@@ -86,6 +86,7 @@
     <h2>Gestión de planilla</h2>
     <label>Mes</label>
     <div id="coord-mes-selector" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;"></div>
+    <div id="coord-mes-conv" style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:12px;"></div>
     <button id="btn-descargar-planilla" class="btn-primary" style="width:100%;margin-bottom:12px;">📥 Descargar planilla pública en Excel (16 hojas)</button>
     <div id="descarga-planilla-msg" style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:8px;"></div>
     <label>Sector</label>
@@ -255,6 +256,11 @@
     <div id="coordf1-msg" style="margin-top:8px;"></div>
   </div>
 
+  <div class="card" id="pins-bloqueados-card">
+    <h2>PIN bloqueados</h2>
+    <div id="pins-bloqueados-contenido" style="font-size:0.85rem;color:var(--ink-soft);">Cargando…</div>
+  </div>
+
   <div class="card" id="panel-control-card">
     <h2>Panel de control</h2>
     <div id="panel-control-contenido" style="font-size:0.85rem;color:var(--ink-soft);">Cargando…</div>
@@ -296,6 +302,7 @@ const SUPABASE_URL = "https://lcnvdgjedxikpqxxyzqr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_HAAHgNldQ3_wJH0EDrq3DA_u04xA7Yd";
 let MES = "2026-12-01";
 let MES_COORD = "2026-12";
+let MES_CONV_COORD = "2026-12"; // mes de la convocatoria en curso (el que ven los suplentes)
 
 function ultimoDiaMesStrCoord(mesYYYYMM) {
   const [anio, mes] = mesYYYYMM.split("-").map(Number);
@@ -596,6 +603,7 @@ async function cargarMesConvocatoriaCoord() {
     const m = await sb(`rpc/mes_convocatoria`, { method: "POST", body: "{}" });
     if (typeof m === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(m)) {
       MES_COORD = m;
+      MES_CONV_COORD = m;
       MES = m + "-01";
     }
   } catch (e) { /* se usa el valor de respaldo */ }
@@ -604,6 +612,7 @@ async function cargarMesConvocatoriaCoord() {
 async function iniciarApp() {
   await cargarMesConvocatoriaCoord();
   cargarPanelControl();
+  cargarPinsBloqueados();
   if (swRegistrationCoord) actualizarBotonNotifCoord(); // ahora que hay contraseña, registra el aviso del coordinador
   await cargarFeriadosCoord();
   await cargarMesesDisponiblesCoord();
@@ -667,6 +676,56 @@ function renderSelectorMesCoord() {
   });
   const header = document.getElementById("header-mes-coord");
   if (header) header.textContent = `Panel del coordinador · ${nombreMesEsCoord(MES_COORD)}`;
+  renderMesConvCoord();
+}
+
+// Muestra cuál es el mes de la convocatoria en curso (el que ven los
+// suplentes) y, si estás mirando otro mes, deja fijarlo como el en curso.
+function renderMesConvCoord() {
+  const el = document.getElementById("coord-mes-conv");
+  if (!el) return;
+  let html = `Convocatoria en curso (lo que ven los suplentes): <b>${escHtml(nombreMesEsCoord(MES_CONV_COORD))}</b>`;
+  if (MES_COORD !== MES_CONV_COORD) {
+    html += `<br><button id="btn-fijar-mes-conv" class="btn-primary" style="margin-top:6px;">Fijar ${escHtml(nombreMesEsCoord(MES_COORD))} como convocatoria en curso</button>`;
+  }
+  el.innerHTML = html;
+  const btn = document.getElementById("btn-fijar-mes-conv");
+  if (btn) btn.addEventListener("click", fijarMesConvocatoriaCoord);
+}
+
+async function fijarMesConvocatoriaCoord() {
+  const mes = MES_COORD;
+  if (!confirm(`¿Fijar ${nombreMesEsCoord(mes)} como la convocatoria en curso? Es el mes que van a ver todos los suplentes al abrir la app.`)) return;
+  try {
+    const r = await sbCoord("rpc/coordinador_fijar_mes_convocatoria", { method: "POST", body: JSON.stringify({ p_password_coordinador: coordPassword, p_mes: mes }) });
+    if (r === "ok") { MES_CONV_COORD = mes; renderMesConvCoord(); }
+    else if (r === "password_incorrecta") alert("Contraseña de coordinador incorrecta.");
+    else alert("No se pudo cambiar el mes.");
+  } catch (e) { alert("No se pudo cambiar el mes: " + e.message); }
+}
+
+async function cargarPinsBloqueados() {
+  const cont = document.getElementById("pins-bloqueados-contenido");
+  if (!cont || !coordPassword) return;
+  try {
+    const lista = await sbCoord("rpc/coordinador_pins_bloqueados", { method: "POST", body: JSON.stringify({ p_password_coordinador: coordPassword }) });
+    if (!Array.isArray(lista)) { cont.textContent = "No se pudo cargar."; return; }
+    if (!lista.length) { cont.textContent = "Nadie tiene el PIN bloqueado."; return; }
+    cont.innerHTML = lista.map(x => {
+      const hasta = new Date(x.bloqueado_hasta).toLocaleTimeString("es-UY", { timeZone: "America/Montevideo", hour: "2-digit", minute: "2-digit" });
+      return `<div style="border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <span>${escHtml(x.apellido)}, ${escHtml(x.nombre)} <span style="font-size:0.75rem;">(hasta las ${hasta})</span></span>
+        <button class="btn-primary" data-desbloquear="${escHtml(x.persona_id)}">Desbloquear</button></div>`;
+    }).join("");
+    cont.querySelectorAll("button[data-desbloquear]").forEach(b => b.addEventListener("click", async () => {
+      b.disabled = true;
+      try {
+        const r = await sbCoord("rpc/coordinador_desbloquear_pin", { method: "POST", body: JSON.stringify({ p_persona_id: b.dataset.desbloquear, p_password_coordinador: coordPassword }) });
+        if (r === "password_incorrecta") alert("Contraseña de coordinador incorrecta.");
+      } catch (e) { alert("No se pudo desbloquear: " + e.message); }
+      cargarPinsBloqueados();
+    }));
+  } catch (e) { cont.textContent = "No se pudo cargar."; }
 }
 
 async function cambiarMesCoord(mes) {
