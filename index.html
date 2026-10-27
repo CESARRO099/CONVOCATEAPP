@@ -2650,6 +2650,9 @@ async function elegirTurno(turnoId, btn = null) {
     } else if (resultado === 'superposicion') {
       alert("Ya tenés un turno en ese mismo horario ese día.");
       await cargarDatosConvocatoria();
+    } else if (resultado === 'licencia') {
+      alert("No podés elegir este turno porque estás de licencia ese día.");
+      await cargarDatosConvocatoria();
     } else if (resultado === 'ya_tomado') {
       alert("Este turno ya fue tomado por otro.");
       await cargarDatosConvocatoria();
@@ -3122,18 +3125,18 @@ document.getElementById("btn-cerrar-postulacion").addEventListener("click", () =
 document.getElementById("btn-confirmar-postulacion").addEventListener("click", async () => {
   const checks = postulacionLista.querySelectorAll("input[type=checkbox]:checked:not(:disabled)");
   if (!checks.length) { alert("Marcá al menos una actividad para postularte."); return; }
-  let enviadas = 0, errores = 0;
+  let enviadas = 0, errores = 0, porLicencia = 0;
   for (const chk of checks) {
     const resultado = await sb(`rpc/postularse_actividad`, {
       method: "POST",
       body: JSON.stringify({ p_solicitud_vacante_id: Number(chk.dataset.solicitudId), p_persona_id: personaActual.id, p_pin: personaPin })
     });
-    if (resultado === "ok") enviadas++; else errores++;
+    if (resultado === "ok") enviadas++; else if (resultado === "licencia") porLicencia++; else errores++;
   }
   clearInterval(intervaloContadorPostulacion);
   modalPostulacion.classList.remove("open");
   actualizarBotonPostulacion();
-  alert(`Te postulaste a ${enviadas} actividad(es).` + (errores ? ` ${errores} no se pudieron enviar.` : ""));
+  alert(`Te postulaste a ${enviadas} actividad(es).` + (porLicencia ? ` No te postulaste a ${porLicencia} actividad(es) porque estás de licencia ese día.` : "") + (errores ? ` ${errores} no se pudieron enviar.` : ""));
 });
 if (!window.__intervaloPostulacion) window.__intervaloPostulacion = setInterval(actualizarBotonPostulacion, 30000);
 
@@ -3227,6 +3230,10 @@ document.getElementById("btn-enviar-cambio").addEventListener("click", async () 
     alert("Ya hay una solicitud pendiente con alguno de estos turnos.");
   } else if (resultado === "solo_suisas_entre_meses") {
     alert("Los cambios con turnos de meses distintos solo se pueden hacer entre personal de SUISAS.");
+  } else if (resultado === "licencia_solicitante") {
+    alert("No podés pedir ese turno porque estás de licencia ese día.");
+  } else if (resultado === "licencia_cobertura") {
+    alert("Esa persona está de licencia el día de tu turno, elegí otro cambio.");
   } else if (resultado === "turno_recibido_invalido") {
     alert("Ese turno ya no pertenece a esa persona, elegí de nuevo.");
   } else {
