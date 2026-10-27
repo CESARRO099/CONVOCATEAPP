@@ -591,7 +591,18 @@ document.getElementById("btn-zoom-reset-coord").addEventListener("click", () => 
 });
 aplicarZoomCoord();
 
+async function cargarMesConvocatoriaCoord() {
+  try {
+    const m = await sb(`rpc/mes_convocatoria`, { method: "POST", body: "{}" });
+    if (typeof m === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(m)) {
+      MES_COORD = m;
+      MES = m + "-01";
+    }
+  } catch (e) { /* se usa el valor de respaldo */ }
+}
+
 async function iniciarApp() {
+  await cargarMesConvocatoriaCoord();
   cargarPanelControl();
   if (swRegistrationCoord) actualizarBotonNotifCoord(); // ahora que hay contraseña, registra el aviso del coordinador
   await cargarFeriadosCoord();
@@ -631,6 +642,7 @@ async function cargarMesesDisponiblesCoord() {
       m++; if (m > 12) { m = 1; a++; }
     }
     if (meses.length) MESES_DISPONIBLES_COORD = meses;
+    if (!MESES_DISPONIBLES_COORD.includes(MES_COORD)) MESES_DISPONIBLES_COORD.push(MES_COORD);
   } catch (e) { /* si falla, se queda con el default */ }
 }
 
