@@ -268,11 +268,6 @@
   </div>
 
   <div class="card">
-    <h2>Formularios pendientes de generar (Libre Particular / Rechazo de Convocatoria)</h2>
-    <div id="formularios-pendientes-lista" style="font-size:0.85rem;color:var(--ink-soft);">Cargando...</div>
-  </div>
-
-  <div class="card">
     <h2>No participará este mes</h2>
     <label>Persona</label>
     <select id="exc-persona"><option value="">Cargando...</option></select>
@@ -2001,11 +1996,8 @@ async function cargarPanelControl() {
 }
 document.getElementById("panel-control-actualizar")?.addEventListener("click", cargarPanelControl);
 
-if (document.getElementById("formularios-pendientes-lista")) {
-  const _cfp = () => cargarFormulariosPendientes().catch(e => console.warn('Formularios pendientes:', e));
-  _cfp();
-  setInterval(_cfp, 30000);
-}
+// RRHH ya no pide el formulario de Libre Particular / Rechazo de Convocatoria (27 oct 2026):
+// se quitó la tarjeta "Formularios pendientes" y su carga automática.
 
 function b64ToBytesFormulario(b64) {
   const bin = atob(b64);
