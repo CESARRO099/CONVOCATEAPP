@@ -593,6 +593,7 @@ aplicarZoomCoord();
 
 async function iniciarApp() {
   cargarPanelControl();
+  if (swRegistrationCoord) actualizarBotonNotifCoord(); // ahora que hay contraseña, registra el aviso del coordinador
   await cargarFeriadosCoord();
   await cargarMesesDisponiblesCoord();
   renderSelectorMesCoord();
@@ -2189,18 +2190,14 @@ async function sincronizarSuscripcionCoord(opts = {}) {
       });
     }
     const subJson = sub.toJSON();
-    await fetch(`${SUPABASE_URL}/rest/v1/coordinador_push_subscriptions`, {
+    if (!coordPassword) return; // sin contraseña de coordinador no se registra (se reintenta al volver a entrar)
+    await sb(`rpc/registrar_push_coordinador`, {
       method: "POST",
-      headers: {
-        "apikey": SUPABASE_ANON_KEY,
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-        "Content-Type": "application/json",
-        "Prefer": "resolution=merge-duplicates"
-      },
       body: JSON.stringify({
-        endpoint: subJson.endpoint,
-        p256dh: subJson.keys.p256dh,
-        auth: subJson.keys.auth
+        p_endpoint: subJson.endpoint,
+        p_p256dh: subJson.keys.p256dh,
+        p_auth: subJson.keys.auth,
+        p_password_coordinador: coordPassword
       })
     });
     if (!silencioso) {
