@@ -3178,15 +3178,26 @@ async function cargarSolicitudesPendientes() {
 }
 
 async function responderSolicitud(id, aceptar) {
-  const ok = await sb(`rpc/responder_solicitud_cambio`, {
-    method: "POST",
-    body: JSON.stringify({
-      p_solicitud_id: id,
-      p_cobertura_id: personaActual.id,
-      p_aceptar: aceptar,
-      p_pin: personaPin
-    })
-  });
+  let ok;
+  try {
+    ok = await sb(`rpc/responder_solicitud_cambio`, {
+      method: "POST",
+      body: JSON.stringify({
+        p_solicitud_id: id,
+        p_cobertura_id: personaActual.id,
+        p_aceptar: aceptar,
+        p_pin: personaPin
+      })
+    });
+  } catch (e) {
+    // sb() lanza excepción cuando la base rechaza (RAISE EXCEPTION): detectar "licencia" en cualquier parte del mensaje
+    if (String((e && e.message) || e).toLowerCase().indexOf("licencia") !== -1) {
+      alert("No se pudo aceptar: alguna de las personas está de licencia el día del turno.");
+      await cargarSolicitudesPendientes();
+      return;
+    }
+    throw e;
+  }
   if (ok === true) {
     await cargarSolicitudesPendientes();
     if (aceptar) {
@@ -3194,9 +3205,6 @@ async function responderSolicitud(id, aceptar) {
     } else {
       alert("Rechazaste la solicitud.");
     }
-  } else if (typeof ok === "string" && ok.indexOf("licencia") === 0) {
-    alert("No se pudo aceptar: alguna de las personas está de licencia el día del turno.");
-    await cargarSolicitudesPendientes();
   } else {
     alert("Error al responder la solicitud.");
   }
