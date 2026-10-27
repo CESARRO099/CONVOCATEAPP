@@ -2865,5 +2865,19 @@ function exportarHojaSector(wb, sectorNombre, estructura, turnos) {
 }
 
 </script>
+<script>
+// Aviso chico cuando el teléfono se queda sin internet (solo se ve en ese caso).
+(function(){
+  var bar;
+  function mostrar(){
+    if(!navigator.onLine){
+      if(!bar){bar=document.createElement("div");bar.setAttribute("role","status");bar.textContent="Sin conexión a internet";
+        bar.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#7a1f1f;color:#fff;text-align:center;padding:8px;font:600 0.85rem sans-serif;";
+        document.body.appendChild(bar);}
+    } else if(bar){bar.remove();bar=null;}
+  }
+  window.addEventListener("online",mostrar);window.addEventListener("offline",mostrar);mostrar();
+})();
+</script>
 </body>
 </html>
