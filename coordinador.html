@@ -457,7 +457,12 @@ async function cargarProcesos() {
   wrap.querySelectorAll("button[data-accion]").forEach(btn => {
     btn.addEventListener("click", async () => {
       const fn = btn.dataset.accion === "pausar" ? "pausar_proceso" : "reanudar_proceso";
-      await sb(`rpc/${fn}`, { method: "POST", body: JSON.stringify({ p_mes: MES, p_grupo: btn.dataset.grupo, p_tipo: btn.dataset.tipo }) });
+      try {
+        const r = await sb(`rpc/${fn}`, { method: "POST", body: JSON.stringify({ p_mes: MES, p_grupo: btn.dataset.grupo, p_tipo: btn.dataset.tipo, p_password_coordinador: coordPassword }) });
+        if (r === "password_incorrecta") alert("Contraseña de coordinador incorrecta. Volvé a ingresar.");
+      } catch (e) {
+        alert("No se pudo completar la acción: " + e.message);
+      }
       cargarProcesos();
     });
   });
@@ -500,7 +505,12 @@ async function cargarProcesosSuisas() {
   wrap.querySelectorAll("button[data-accion-suisas]").forEach(btn => {
     btn.addEventListener("click", async () => {
       const fn = btn.dataset.accionSuisas === "pausar" ? "pausar_ronda_suisas" : "reanudar_ronda_suisas";
-      await sb(`rpc/${fn}`, { method: "POST", body: JSON.stringify({ p_mes: MES, p_grupo: btn.dataset.grupo }) });
+      try {
+        const r = await sb(`rpc/${fn}`, { method: "POST", body: JSON.stringify({ p_mes: MES, p_grupo: btn.dataset.grupo, p_password_coordinador: coordPassword }) });
+        if (r === "password_incorrecta") alert("Contraseña de coordinador incorrecta. Volvé a ingresar.");
+      } catch (e) {
+        alert("No se pudo completar la acción: " + e.message);
+      }
       cargarProcesosSuisas();
     });
   });
@@ -1797,10 +1807,11 @@ async function generarFormularioDesdeCambio(solicitudCambioId, lado) {
     const base64 = uint8ArrayABase64(bytes);
     const asunto = "Rechazo de Convocatoria - " + datos.fecha;
     const cuerpo = `Hola ${sinTildes(persona.nombre||"")}, adjuntamos tu formulario de Rechazo de Convocatoria ya completo (por el intercambio de turno). Por favor envialo vos directamente a Recursos Humanos.`;
-    await sbCoord(`rpc/enviar_correo_resend_con_adjunto`, {
+    const _envio = await sbCoord(`rpc/enviar_correo_resend_con_adjunto`, {
       method: "POST",
-      body: JSON.stringify({ p_to: persona.email, p_subject: asunto, p_body: cuerpo, p_pdf_base64: base64, p_nombre_archivo: nombreArchivo })
+      body: JSON.stringify({ p_to: persona.email, p_subject: asunto, p_body: cuerpo, p_pdf_base64: base64, p_nombre_archivo: nombreArchivo, p_password_coordinador: coordPassword })
     });
+    if (_envio === "password_incorrecta") throw new Error("Contraseña de coordinador incorrecta");
   } else {
     descargarPDF(bytes, nombreArchivo);
     alert(`${datos.nombre} no tiene email cargado — el formulario se descargó localmente, hay que enviárselo a mano.`);
@@ -1867,10 +1878,11 @@ async function generarFormularioDesdeVacante(solicitudId) {
     const base64 = uint8ArrayABase64(bytes);
     const asunto = (datos.tipo === "LP" ? "Libre Particular" : "Rechazo de Convocatoria") + " - " + datos.fecha;
     const cuerpo = `Hola ${sinTildes(sol.nombre||"")}, adjuntamos tu formulario de ${datos.tipo === "LP" ? "Libre Particular" : "Rechazo de Convocatoria"} ya completo. Por favor envialo vos directamente a Recursos Humanos.`;
-    await sbCoord(`rpc/enviar_correo_resend_con_adjunto`, {
+    const _envio = await sbCoord(`rpc/enviar_correo_resend_con_adjunto`, {
       method: "POST",
-      body: JSON.stringify({ p_to: sol.email, p_subject: asunto, p_body: cuerpo, p_pdf_base64: base64, p_nombre_archivo: nombreArchivo })
+      body: JSON.stringify({ p_to: sol.email, p_subject: asunto, p_body: cuerpo, p_pdf_base64: base64, p_nombre_archivo: nombreArchivo, p_password_coordinador: coordPassword })
     });
+    if (_envio === "password_incorrecta") throw new Error("Contraseña de coordinador incorrecta");
   } else {
     descargarPDF(bytes, nombreArchivo);
     alert(`${datos.nombre} no tiene email cargado — el formulario se descargó localmente, hay que enviárselo a mano.`);
