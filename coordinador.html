@@ -1720,7 +1720,7 @@ async function cargarFormulariosPendientes() {
   const itemsVacante = await sbCoord(
     `solicitudes_vacante?select=id,causal,turno_id,` +
     `turnos(fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre)),perfiles(apellido,nombre,ficha)),` +
-    `perfiles(apellido,nombre,ficha,cargo,empresa,email)` +
+    `perfiles(id,apellido,nombre,ficha,cargo,empresa)` +
     `&causal=in.(Libre Particular,Rechazo de Convocatoria)&estado=eq.CUBIERTA&formulario_generado_en=is.null`
   );
   const pendientesVacante = (itemsVacante || []).filter(it => it.perfiles?.empresa === "ESPANOLA");
@@ -1729,8 +1729,8 @@ async function cargarFormulariosPendientes() {
     `solicitudes_cambio?select=id,formulario_solicitante_generado_en,formulario_cobertura_generado_en,` +
     `turno_dado:turnos!solicitudes_cambio_turno_id_fkey(fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre))),` +
     `turno_recibido:turnos!solicitudes_cambio_turno_id_recibido_fkey(fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre))),` +
-    `solicitante:perfiles!solicitudes_cambio_solicitante_id_fkey(apellido,nombre,ficha,cargo,empresa,email),` +
-    `cobertura:perfiles!solicitudes_cambio_cobertura_id_fkey(apellido,nombre,ficha,cargo,empresa,email)` +
+    `solicitante:perfiles!solicitudes_cambio_solicitante_id_fkey(id,apellido,nombre,ficha,cargo,empresa),` +
+    `cobertura:perfiles!solicitudes_cambio_cobertura_id_fkey(id,apellido,nombre,ficha,cargo,empresa)` +
     `&estado=eq.APROBADO`
   );
 
@@ -1804,13 +1804,14 @@ async function generarFormularioDesdeCambio(solicitudCambioId, lado) {
   const bytes = await generarFormularioPDF(datos);
   const nombreArchivo = "RECHAZO_CONVOCATORIA_" + datos.ficha + "_" + t.fecha + ".pdf";
 
-  if (persona.email) {
+  const emailPersona = await sbCoord(`rpc/coordinador_email_de_perfil`, { method: "POST", body: JSON.stringify({ p_persona_id: persona.id, p_password_coordinador: coordPassword }) });
+  if (emailPersona) {
     const base64 = uint8ArrayABase64(bytes);
     const asunto = "Rechazo de Convocatoria - " + datos.fecha;
     const cuerpo = `Hola ${sinTildes(persona.nombre||"")}, adjuntamos tu formulario de Rechazo de Convocatoria ya completo (por el intercambio de turno). Por favor envialo vos directamente a Recursos Humanos.`;
     const _envio = await sbCoord(`rpc/enviar_correo_resend_con_adjunto`, {
       method: "POST",
-      body: JSON.stringify({ p_to: persona.email, p_subject: asunto, p_body: cuerpo, p_pdf_base64: base64, p_nombre_archivo: nombreArchivo, p_password_coordinador: coordPassword })
+      body: JSON.stringify({ p_to: emailPersona, p_subject: asunto, p_body: cuerpo, p_pdf_base64: base64, p_nombre_archivo: nombreArchivo, p_password_coordinador: coordPassword })
     });
     if (_envio === "password_incorrecta") throw new Error("Contraseña de coordinador incorrecta");
   } else {
@@ -1874,13 +1875,14 @@ async function generarFormularioDesdeVacante(solicitudId) {
   const bytes = await generarFormularioPDF(datos);
   const nombreArchivo = (datos.tipo === "LP" ? "LIBRE_PARTICULAR_" : "RECHAZO_CONVOCATORIA_") + datos.ficha + "_" + t.fecha + ".pdf";
 
-  if (sol.email) {
+  const emailSol = await sbCoord(`rpc/coordinador_email_de_perfil`, { method: "POST", body: JSON.stringify({ p_persona_id: sol.id, p_password_coordinador: coordPassword }) });
+  if (emailSol) {
     const base64 = uint8ArrayABase64(bytes);
     const asunto = (datos.tipo === "LP" ? "Libre Particular" : "Rechazo de Convocatoria") + " - " + datos.fecha;
     const cuerpo = `Hola ${sinTildes(sol.nombre||"")}, adjuntamos tu formulario de ${datos.tipo === "LP" ? "Libre Particular" : "Rechazo de Convocatoria"} ya completo. Por favor envialo vos directamente a Recursos Humanos.`;
     const _envio = await sbCoord(`rpc/enviar_correo_resend_con_adjunto`, {
       method: "POST",
-      body: JSON.stringify({ p_to: sol.email, p_subject: asunto, p_body: cuerpo, p_pdf_base64: base64, p_nombre_archivo: nombreArchivo, p_password_coordinador: coordPassword })
+      body: JSON.stringify({ p_to: emailSol, p_subject: asunto, p_body: cuerpo, p_pdf_base64: base64, p_nombre_archivo: nombreArchivo, p_password_coordinador: coordPassword })
     });
     if (_envio === "password_incorrecta") throw new Error("Contraseña de coordinador incorrecta");
   } else {

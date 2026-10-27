@@ -1227,7 +1227,7 @@ function nombreAsignado(p) {
 // ---------------------------------------------------------
 async function cargarPersonas() {
   try {
-    const personas = await sb("perfiles?select=id,ficha,ficha_suisas,apellido,nombre,empresa,tope_horas_mensual,email,es_femenino&order=apellido.asc");
+    const personas = await sb("perfiles?select=id,ficha,ficha_suisas,apellido,nombre,empresa,tope_horas_mensual,vinculo_persona,es_femenino&order=apellido.asc");
     personaSelect.innerHTML = `<option value="">Seleccioná...</option>` +
       personas.map(p => {
         return `<option value="${p.id}">${nombreCompleto(p)}${etiquetaEmpresaPersona(p)}</option>`;
@@ -1851,10 +1851,10 @@ let porDiaMisTurnos = {}; // ultimo calendario armado, para poder abrir el detal
 // dos usuarios haya iniciado sesión.
 function idsVinculadosPersona(persona) {
   const ids = new Set([persona.id]);
-  const email = (persona.email || "").trim().toLowerCase();
-  if (email) {
+  const vinculo = persona.vinculo_persona || "";
+  if (vinculo) {
     for (const p of (window.__personas || [])) {
-      if (p.id !== persona.id && (p.email || "").trim().toLowerCase() === email) {
+      if (p.id !== persona.id && (p.vinculo_persona || "") === vinculo) {
         ids.add(p.id);
       }
     }
