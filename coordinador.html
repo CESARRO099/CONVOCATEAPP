@@ -121,7 +121,6 @@
       <div style="font-weight:700;font-size:0.95rem;" id="coord-modal-titulo"></div>
       <button id="coord-btn-activar" class="btn-ok" style="display:none;">✓ Activar para convocatoria</button>
       <button id="coord-btn-vacante" class="btn-ok" style="display:none;">◯ Dejar como vacante (LIBRE)</button>
-      <button id="coord-btn-vacante-suisas" class="btn-ok" style="display:none;">◯ Dejar vacante — exclusiva SUISAS (ya mismo)</button>
       <button id="coord-btn-quitar-suisas" class="btn-warn" style="display:none;">↩ Volver a modo normal (Española + SUISAS)</button>
       <div id="coord-asignar-wrap" style="display:none;">
         <label>Asignar a</label>
@@ -1363,14 +1362,12 @@ function abrirModalCelda(td) {
 
   const btnActivar       = document.getElementById("coord-btn-activar");
   const btnVacante       = document.getElementById("coord-btn-vacante");
-  const btnVacanteSuisas = document.getElementById("coord-btn-vacante-suisas");
   const btnQuitarSuisas  = document.getElementById("coord-btn-quitar-suisas");
   const wrapAsignar      = document.getElementById("coord-asignar-wrap");
   const btnDesactivar    = document.getElementById("coord-btn-desactivar");
 
   btnActivar.style.display = "none";
   btnVacante.style.display = "none";
-  btnVacanteSuisas.style.display = "none";
   btnQuitarSuisas.style.display = "none";
   wrapAsignar.style.display = "none";
   btnDesactivar.style.display = "none";
@@ -1393,13 +1390,10 @@ function abrirModalCelda(td) {
     btnDesactivar.textContent = "✗ Quitar de convocatoria";
     if (turno.nombre_externo === "SUISAS_DIRECTO") {
       btnQuitarSuisas.style.display = "block";
-    } else {
-      btnVacanteSuisas.style.display = "block";
     }
   } else {
     btnActivar.style.display = "none";
     btnVacante.style.display = "block";
-    btnVacanteSuisas.style.display = "block";
     wrapAsignar.style.display = "block";
     btnDesactivar.style.display = "block";
     btnDesactivar.textContent = "✗ Dejar sin convocatoria";
@@ -1437,28 +1431,6 @@ document.getElementById("coord-btn-vacante").addEventListener("click", async () 
     await recargarTurnos();
   } catch (e) {
     alert("No se pudo dejar la celda vacante: " + e.message);
-  }
-});
-
-document.getElementById("coord-btn-vacante-suisas").addEventListener("click", async () => {
-  if (!celdaSeleccionada.turnoId) {
-    alert("No se pudo identificar el turno de esta celda.");
-    return;
-  }
-  try {
-    await sbCoord(`rpc/coordinador_vacante_turno_existente`, {
-      method: "POST",
-      body: JSON.stringify({
-        p_turno_id: celdaSeleccionada.turnoId,
-        p_origen: "coordinador",
-        p_nombre_externo: "SUISAS_DIRECTO",
-        p_password_coordinador: coordPassword
-      })
-    });
-    document.getElementById("coord-modal").style.display = "none";
-    await recargarTurnos();
-  } catch (e) {
-    alert("No se pudo dejar la celda como exclusiva de SUISAS: " + e.message);
   }
 });
 
