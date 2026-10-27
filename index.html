@@ -984,7 +984,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_HAAHgNldQ3_wJH0EDrq3DA_u04xA7Yd";
 // esté o no publicado ni tenga o no procesos activos en
 // procesos_convocatoria. "Publicado" (ver mas_publicados abajo) no
 // controla esto, solo controla el boton de pedir cambios.
-const MES_CONVOCATORIA = "2026-12"; // formato YYYY-MM
+let MES_CONVOCATORIA = "2026-12"; // formato YYYY-MM. Valor de respaldo: al abrir la app se reemplaza por el que está en la base (ajuste "mes_convocatoria")
 // =========================================================
 
 const personaSelect = document.getElementById("persona-select");
@@ -3403,7 +3403,18 @@ try {
   }
 } catch (e) { window.__pinPrefetch = null; }
 
-cargarPersonas().then(intentarAutoLogin);
+// Lee el mes de la convocatoria desde la base (así no hay que tocar el
+// código cada mes). Si falla, se queda con el valor de respaldo de arriba.
+async function cargarMesConvocatoria() {
+  try {
+    const m = await sb(`rpc/mes_convocatoria`, { method: "POST", body: "{}" });
+    if (typeof m === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(m)) {
+      MES_CONVOCATORIA = m;
+      mesActivo = m;
+    }
+  } catch (e) { /* se usa el valor de respaldo */ }
+}
+cargarMesConvocatoria().then(() => cargarPersonas()).then(intentarAutoLogin);
 </script>
 
 <!-- Script chiquito, independiente del de arriba: solo achica el
