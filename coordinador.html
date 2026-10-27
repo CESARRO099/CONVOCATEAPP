@@ -1608,6 +1608,9 @@ async function resolverSolicitud(id, aprobar) {
   });
   if (ok === true) {
     await cargarSolicitudes();
+  } else if (typeof ok === "string" && ok.indexOf("licencia") === 0) {
+    alert("No se puede aprobar: alguna de las personas está de licencia el día del turno.");
+    await cargarSolicitudes();
   } else {
     alert("Error al resolver la solicitud.");
   }

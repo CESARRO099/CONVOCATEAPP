@@ -2656,6 +2656,9 @@ async function elegirTurno(turnoId, btn = null) {
     } else if (resultado === 'ya_tomado') {
       alert("Este turno ya fue tomado por otro.");
       await cargarDatosConvocatoria();
+    } else if (resultado === 'sector_no_disponible') {
+      alert("Este sector no está disponible para elegir.");
+      await cargarDatosConvocatoria();
     } else if (resultado === 'pin_incorrecto') {
       alert("PIN incorrecto. Volvé a seleccionar tu nombre para ingresarlo de nuevo.");
       personaPin = null;
@@ -3191,6 +3194,9 @@ async function responderSolicitud(id, aceptar) {
     } else {
       alert("Rechazaste la solicitud.");
     }
+  } else if (typeof ok === "string" && ok.indexOf("licencia") === 0) {
+    alert("No se pudo aceptar: alguna de las personas está de licencia el día del turno.");
+    await cargarSolicitudesPendientes();
   } else {
     alert("Error al responder la solicitud.");
   }
@@ -3236,6 +3242,8 @@ document.getElementById("btn-enviar-cambio").addEventListener("click", async () 
     alert("Esa persona está de licencia el día de tu turno, elegí otro cambio.");
   } else if (resultado === "turno_recibido_invalido") {
     alert("Ese turno ya no pertenece a esa persona, elegí de nuevo.");
+  } else if (resultado === "bloqueado") {
+    alert("Este cambio no está permitido en este momento. Consultá con la coordinación.");
   } else {
     alert("No se pudo enviar la solicitud.");
   }
