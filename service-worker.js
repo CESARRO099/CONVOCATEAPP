@@ -1,4 +1,4 @@
-const CACHE_NAME = "convocate-v4";
+const CACHE_NAME = "convocate-v5";
 const ASSETS = ["./manifest.json", "./icon.png"];
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -29,11 +29,19 @@ self.addEventListener("fetch", (event) => {
       (async () => {
         try {
           const response = await fetch(event.request, { cache: "no-store" });
+          // Guardamos una copia de la pantalla para poder abrirla sin conexión.
+          if (response.ok && response.status === 200 && !response.redirected && event.request.method === "GET") {
+            const copia = response.clone();
+            event.waitUntil(caches.open(CACHE_NAME).then((c) => c.put(event.request, copia)).catch(() => {}));
+          }
           return response;
         } catch (e) {
-          const cached = await caches.match(event.request);
+          const cached = await caches.match(event.request, { ignoreSearch: true });
           if (cached) return cached;
-          throw e;
+          return new Response(
+            "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><title>Sin conexión</title><body style='font-family:sans-serif;text-align:center;padding:40px 20px'><h2>Sin conexión</h2><p>No hay internet en este momento. Cuando vuelva la señal, abrí la app de nuevo.</p></body>",
+            { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } }
+          );
         }
       })()
     );
@@ -61,6 +69,14 @@ self.addEventListener("fetch", (event) => {
 // ---------------------------------------------------------
 // Notificaciones push
 // ---------------------------------------------------------
+// Solo se abren enlaces de esta misma app; cualquier otro se cambia por la pantalla principal.
+function urlSegura(u) {
+  try {
+    const abs = new URL(u || "./index.html", self.registration.scope);
+    if (abs.origin === self.location.origin) return abs.href;
+  } catch (e) {}
+  return new URL("./index.html", self.registration.scope).href;
+}
 self.addEventListener("push", (event) => {
   let data = { title: "Convocate", body: "Tenés una novedad." };
   try { data = event.data.json(); } catch (e) {}
@@ -69,13 +85,13 @@ self.addEventListener("push", (event) => {
       body: data.body || "",
       icon: "./icon.png",
       badge: "./icon.png",
-      data: { url: data.url || "./index.html" }
+      data: { url: urlSegura(data.url) }
     })
   );
 });
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "./index.html";
+  const url = urlSegura(event.notification.data?.url);
   event.waitUntil(
     clients.matchAll({ type: "window" }).then((all) => {
       for (const c of all) if (c.url.includes(url) && "focus" in c) return c.focus();
