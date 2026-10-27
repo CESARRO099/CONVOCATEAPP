@@ -291,6 +291,7 @@
 </main>
 
 <script>
+function escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 const SUPABASE_URL = "https://lcnvdgjedxikpqxxyzqr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_HAAHgNldQ3_wJH0EDrq3DA_u04xA7Yd";
 let MES = "2026-12-01";
@@ -519,7 +520,7 @@ document.getElementById("btn-habilitar").addEventListener("click", async () => {
     msg.innerHTML = `<div class="msg-ok">✓ Habilitada en ${nombreMesEsCoord(MES_COORD)}, se le mandó la notificación.</div>`;
     cargarProcesos();
   } catch (e) {
-    msg.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
+    msg.innerHTML = `<div class="msg-error">Error: ${escHtml(e.message)}</div>`;
   }
 });
 
@@ -535,7 +536,7 @@ document.getElementById("btn-excluir-todas").addEventListener("click", async () 
     msg.innerHTML = `<div class="msg-ok">✓ Excluida de ${nombreMesEsCoord(MES_COORD)} en: ${listas.join(", ")}. Si le tocaba el turno ahora en alguna, ya se la salteó.</div>`;
     cargarProcesos();
   } catch (e) {
-    msg.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
+    msg.innerHTML = `<div class="msg-error">Error: ${escHtml(e.message)}</div>`;
   }
 });
 
@@ -552,7 +553,7 @@ document.getElementById("btn-excluir").addEventListener("click", async () => {
     msg.innerHTML = `<div class="msg-ok">✓ Excluida de ${nombreMesEsCoord(MES_COORD)} en la lista ${grupo}. Si estaba habilitada ahora, ya se la salteó.</div>`;
     cargarProcesos();
   } catch (e) {
-    msg.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
+    msg.innerHTML = `<div class="msg-error">Error: ${escHtml(e.message)}</div>`;
   }
 });
 
@@ -1153,7 +1154,7 @@ function renderGrillaCoord() {
         } else if (celda.v && !celda.g) {
           contenido = String(celda.v);
           cursor = "cursor:pointer;";
-          dataAttr = ` data-dia="${dia}" data-col="${c}" data-turno-id="" data-valor="${String(celda.v)}"`;
+          dataAttr = ` data-dia="${dia}" data-col="${c}" data-turno-id="" data-valor="${escHtml(celda.v)}"`;
         } else if (!celda.g) {
           cursor = "cursor:pointer;";
           dataAttr = ` data-dia="${dia}" data-col="${c}" data-turno-id=""`;
@@ -1215,7 +1216,7 @@ function renderGrillaCoord() {
       if (esGrisFinde && !esGuardiaTCEspecial && setGrises && setGrises.has(c)) bg = "background:#A6A6A6;";
       const tieneBordes = bd.t && bd.b && bd.l && bd.r ? "1" : "0";
       const dataEditar = ` data-editar-sector="${coordSectorActual}" data-editar-fila="${r}" data-editar-col="${c}" data-editar-bordes="${tieneBordes}"`;
-      html += `<td${attrs}${dataAttr}${dataEditar} style="padding:3px 5px;text-align:center;vertical-align:middle;${borde}${bg}${bold}${cursor}height:22px;">${contenido}</td>`;
+      html += `<td${attrs}${dataAttr}${dataEditar} style="padding:3px 5px;text-align:center;vertical-align:middle;${borde}${bg}${bold}${cursor}height:22px;">${escHtml(contenido)}</td>`;
     }
     html += `</tr>`;
   }
@@ -1916,8 +1917,9 @@ async function cargarPanelControl() {
 document.getElementById("panel-control-actualizar")?.addEventListener("click", cargarPanelControl);
 
 if (document.getElementById("formularios-pendientes-lista")) {
-  cargarFormulariosPendientes();
-  setInterval(cargarFormulariosPendientes, 30000);
+  const _cfp = () => cargarFormulariosPendientes().catch(e => console.warn('Formularios pendientes:', e));
+  _cfp();
+  setInterval(_cfp, 30000);
 }
 
 function b64ToBytesFormulario(b64) {
@@ -2565,7 +2567,7 @@ async function planillaProcesarArchivo(file) {
 
     planillaPendiente = { turnosPorSector, hojasPorSector, anio, mes };
   } catch (e) {
-    resumenEl.innerHTML = `<span style="color:#d9534f;">Error procesando el archivo: ${e.message}</span>`;
+    resumenEl.innerHTML = `<span style="color:#d9534f;">Error procesando el archivo: ${escHtml(e.message)}</span>`;
     btnConfirmar.disabled = true;
     planillaPendiente = null;
   }
@@ -2604,7 +2606,7 @@ async function planillaConfirmarCarga() {
       location.reload();
     }, 1200);
   } catch (e) {
-    resumenEl.innerHTML += `<br><span style="color:#d9534f;">Error cargando a la base: ${e.message}</span>`;
+    resumenEl.innerHTML += `<br><span style="color:#d9534f;">Error cargando a la base: ${escHtml(e.message)}</span>`;
     btnConfirmar.disabled = false;
   }
 }

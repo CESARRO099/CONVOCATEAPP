@@ -972,6 +972,7 @@
 <footer class="hint" id="footer-hint">datos en vivo desde Supabase</footer>
 
 <script>
+function escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 // =========================================================
 // CONFIGURACIÓN
 // =========================================================
@@ -1234,7 +1235,7 @@ async function cargarPersonas() {
     window.__personas = personas;
   } catch (e) {
     personaSelect.innerHTML = `<option value="">Error de conexión</option>`;
-    resultadoDiv.innerHTML = `<div class="status-msg">No se pudo conectar a Supabase: ${e.message}</div>`;
+    resultadoDiv.innerHTML = `<div class="status-msg">No se pudo conectar a Supabase: ${escHtml(e.message)}</div>`;
   }
 }
 
@@ -1810,7 +1811,7 @@ async function cargarDatosConvocatoria() {
 
     renderTabs();
   } catch (e) {
-    grillaWrap.innerHTML = `<div class="status-msg">Error cargando datos: ${e.message}</div>`;
+    grillaWrap.innerHTML = `<div class="status-msg">Error cargando datos: ${escHtml(e.message)}</div>`;
   }
 }
 
