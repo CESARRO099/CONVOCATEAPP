@@ -3333,19 +3333,15 @@ async function sincronizarSuscripcion(personaId, opts = {}) {
       });
     }
     const subJson = sub.toJSON();
-    await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions`, {
+    if (!personaPin) return; // sin PIN verificado no se registra (se reintenta al volver a entrar)
+    await sb(`rpc/registrar_push_suscripcion`, {
       method: "POST",
-      headers: {
-        "apikey": SUPABASE_ANON_KEY,
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-        "Content-Type": "application/json",
-        "Prefer": "resolution=merge-duplicates"
-      },
       body: JSON.stringify({
-        persona_id: personaId,
-        endpoint: subJson.endpoint,
-        p256dh: subJson.keys.p256dh,
-        auth: subJson.keys.auth
+        p_persona_id: personaId,
+        p_pin: personaPin,
+        p_endpoint: subJson.endpoint,
+        p_p256dh: subJson.keys.p256dh,
+        p_auth: subJson.keys.auth
       })
     });
     if (!silencioso) {
