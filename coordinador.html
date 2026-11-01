@@ -2213,8 +2213,8 @@ document.getElementById("btn-descargar-planilla").addEventListener("click", asyn
       let desde = 0;
       while (true) {
         const pag = await sbCoord(
-          `turnos?select=id,fecha,col_excel,persona_id,nombre_externo,` +
-          `franjas_horarias!inner(nombre,sector_id),perfiles!turnos_persona_id_fkey(apellido,nombre,empresa)` +
+          `turnos?select=id,fecha,col_excel,persona_id,nombre_externo,franja_horaria_id,` +
+          `franjas_horarias!inner(nombre,sector_id),perfiles!turnos_persona_id_fkey(apellido,nombre,empresa,ficha,ficha_suisas)` +
           `&franjas_horarias.sector_id=eq.${sectorId}` +
           `&fecha=gte.${mesExport}-01&fecha=lte.${ultimoDiaMesStrCoord(mesExport)}&order=id.asc`,
           { headers: { "Range-Unit": "items", Range: `${desde}-${desde+999}` } }
@@ -2253,9 +2253,15 @@ function exportarHojaSector(wb, sectorNombre, estructura, turnos, mesExport) {
   }
 
   const porCelda = {};
+  const porGuardiaTC = {};
   for (const t of turnos) {
     const dia = Number(t.fecha.slice(8, 10));
     if (t.col_excel != null) porCelda[`${dia}-${t.col_excel}`] = t;
+    // Tabla de guardia de TC (columnas M-P): sus turnos no tienen col_excel,
+    // se identifican por dia + horario (franjas 85 a 88).
+    if (sectorNombre === "TC" && t.col_excel == null && [85, 86, 87, 88].includes(t.franja_horaria_id)) {
+      porGuardiaTC[`${dia}|${(t.franjas_horarias?.nombre || "").trim()}`] = t;
+    }
   }
 
   const skip = new Set();
@@ -2316,6 +2322,35 @@ function exportarHojaSector(wb, sectorNombre, estructura, turnos, mesExport) {
           contenido = String(celda.v);
         } else if (!celda.g) {
           contenido = esGrisFinde ? "" : "X";
+        }
+      }
+
+      // Tabla "COBERTURA POR SUISAS" de TC: antes la descarga dejaba el texto
+      // "SUISAS" de la plantilla; ahora pone la ficha y el apellido reales de
+      // cada guardia (igual que se ve en la app y que deja la sincronizacion).
+      if (sectorNombre === "TC" && r >= 14 && (c === 12 || c === 13)) {
+        const diaG = filas[r][14]?.v;
+        const horarioG = (filas[r][15]?.v || "").toString().trim();
+        const tg = (typeof diaG === "number" && horarioG) ? porGuardiaTC[`${diaG}|${horarioG}`] : null;
+        if (tg) {
+          if (tg.persona_id && tg.perfiles) {
+            if (c === 12) {
+              const f = tg.perfiles.empresa === "SUISAS" && tg.perfiles.ficha_suisas != null ? tg.perfiles.ficha_suisas : tg.perfiles.ficha;
+              contenido = f != null ? Number(f) : "";
+            } else {
+              const apG = sinTildes(tg.perfiles.apellido || "").trim();
+              const ambG = new Set(["Alegre","Ferreira","Gonzalez","Gutierrez","Martinez","Rodriguez"]).has(apG);
+              contenido = apG.toUpperCase()
+                + (ambG && tg.perfiles.nombre ? " " + sinTildes(tg.perfiles.nombre).trim().charAt(0).toUpperCase() : "");
+            }
+            fillColor = VERDE;
+          } else if (tg.nombre_externo === "SUISAS" || tg.nombre_externo === "SUISAS_DIRECTO") {
+            contenido = "SUISAS"; fillColor = AZUL; fontColor = AZUL_TXT;
+          } else if (tg.nombre_externo) {
+            contenido = c === 13 ? sinTildes(tg.nombre_externo).toUpperCase() : "";
+          } else {
+            contenido = "LIBRE"; fillColor = AMARILLO; fontColor = AMARILLO_TXT; bold = true;
+          }
         }
       }
 
