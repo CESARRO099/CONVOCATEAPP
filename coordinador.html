@@ -630,8 +630,10 @@ async function cargarFeriadosCoord() {
   try {
     const feriados = await sbCoord(`feriados?select=fecha`);
     feriadosSet = new Set((feriados || []).map(f => f.fecha));
+    feriadosOkCoord = true;
   } catch (e) {
     feriadosSet = new Set();
+    feriadosOkCoord = false;
   }
 }
 
@@ -766,6 +768,7 @@ let coordTurnos = [];
 let coordSectorActual = null;
 let coordEstructura = null;
 let feriadosSet = new Set();
+let feriadosOkCoord = true;
 let celdaSeleccionada = null;
 // Evita que un doble clic mande dos veces la misma orden desde la ventana de celda
 let accionCeldaEnCursoCoord = false;
@@ -2090,6 +2093,7 @@ async function planillaProcesarArchivo(file) {
   resumenEl.innerHTML = 'Procesando archivo…';
   ambiguosEl.style.display = 'none';
   erroresEl.style.display = 'none';
+  erroresEl.innerHTML = '';
   btnConfirmar.disabled = false;
   modal.style.display = 'flex';
 
@@ -2110,10 +2114,12 @@ async function planillaProcesarArchivo(file) {
     const hojasPorSector = {};
     const todosLosIssues = [];
     const todosLosResueltos = [];
+    const hojasFaltantes = [];
 
     for (const sector of PLANILLA_SECTORES) {
       const ws = wb.getWorksheet(sector);
       if (!ws) {
+        hojasFaltantes.push(sector);
         resumenPorSector.push(`<tr><td>${sector}</td><td colspan="2" style="color:#d9534f;">Hoja no encontrada en el Excel</td></tr>`);
         continue;
       }
@@ -2133,7 +2139,12 @@ async function planillaProcesarArchivo(file) {
       resumenPorSector.push(`<tr><td>${sector}</td><td>${turnos.length} turnos</td><td>${issues.length ? `<span style="color:#d9534f;">${issues.length} sin resolver</span>` : '✓'}</td></tr>`);
     }
 
+    const mesTexto = nombreMesEsCoord(`${anio}-${String(mes).padStart(2, '0')}`);
     resumenEl.innerHTML = `
+      <div style="margin-bottom:8px;padding:8px;border-radius:8px;background:#fff4e5;border:1px solid #f0c987;">
+        Mes a cargar: <b>${escHtml(mesTexto)}</b>.<br>
+        <b>Ojo:</b> la carga REEMPLAZA todo ese mes (turnos y planilla), incluidas las asignaciones hechas desde la app.
+      </div>
       <table style="width:100%; border-collapse:collapse;">
         <thead><tr><th style="text-align:left;">Sector</th><th style="text-align:left;">Turnos</th><th style="text-align:left;">Estado</th></tr></thead>
         <tbody>${resumenPorSector.join('')}</tbody>
@@ -2154,7 +2165,15 @@ async function planillaProcesarArchivo(file) {
       btnConfirmar.disabled = true;
     }
 
-    planillaPendiente = { turnosPorSector, hojasPorSector, anio, mes };
+    if (hojasFaltantes.length > 0) {
+      erroresEl.style.display = 'block';
+      erroresEl.innerHTML += (erroresEl.innerHTML ? '<br><br>' : '') +
+        `<b>Faltan hojas en el Excel: ${escHtml(hojasFaltantes.join(', '))}.</b><br>` +
+        `Si se cargara así, esos sectores quedarían sin nada en el mes. Revisá que las pestañas se llamen igual y volvé a subir.`;
+      btnConfirmar.disabled = true;
+    }
+
+    planillaPendiente = { turnosPorSector, hojasPorSector, anio, mes, mesTexto };
   } catch (e) {
     resumenEl.innerHTML = `<span style="color:#d9534f;">Error procesando el archivo: ${escHtml(e.message)}</span>`;
     btnConfirmar.disabled = true;
@@ -2164,6 +2183,7 @@ async function planillaProcesarArchivo(file) {
 
 async function planillaConfirmarCarga() {
   if (!planillaPendiente) return;
+  if (!confirm(`Vas a REEMPLAZAR todo ${planillaPendiente.mesTexto || 'el mes'} con lo de este Excel (turnos y planilla), incluidas las asignaciones hechas desde la app.\n\n¿Seguro que querés cargarlo?`)) return;
   const btnConfirmar = document.getElementById('btn-confirmar-carga-planilla');
   const resumenEl = document.getElementById('planilla-preview-resumen');
   btnConfirmar.disabled = true;
@@ -2183,12 +2203,20 @@ async function planillaConfirmarCarga() {
     }
     const hojasPlanas = PLANILLA_SECTORES.filter(s => hojasPorSector[s]).map(s => ({ sector: s, estructura: hojasPorSector[s] }));
 
+    // La carga borra el mes entero antes de insertar: nunca mandarla vacía.
+    if (turnosPlanos.length === 0 || hojasPlanas.length === 0) {
+      throw new Error('El Excel no tiene turnos u hojas para cargar. No se tocó nada.');
+    }
+
     resumenEl.innerHTML += '<br>Cargando a la base…';
     const resultado = await sbCoord('rpc/coordinador_cargar_planilla_mes', {
       method: 'POST',
       body: JSON.stringify({ p_mes: mesStr, p_turnos: turnosPlanos, p_hojas: hojasPlanas, p_password_coordinador: coordPassword }),
     });
 
+    if (!resultado || resultado.turnos_insertados !== turnosPlanos.length || resultado.hojas_insertadas !== hojasPlanas.length) {
+      throw new Error(`La base respondió distinto a lo esperado (turnos ${resultado && resultado.turnos_insertados}/${turnosPlanos.length}, hojas ${resultado && resultado.hojas_insertadas}/${hojasPlanas.length}). Revisá el mes en el panel antes de volver a cargar.`);
+    }
     resumenEl.innerHTML += `<br><b style="color:green;">✓ Carga completa: ${resultado.turnos_insertados} turnos, ${resultado.hojas_insertadas} hojas.</b>`;
     setTimeout(() => {
       document.getElementById('planilla-preview-modal').style.display = 'none';
@@ -2233,14 +2261,17 @@ document.getElementById("btn-descargar-planilla").addEventListener("click", asyn
   const mesExport = MES_COORD;
   try {
     const wb = new ExcelJS.Workbook();
+    const sectoresOmitidos = [];
+    const sectoresSinTurnos = [];
+    let hojasGeneradas = 0;
 
     for (const sectorNombre of SECTORES_EXPORT) {
       const hojas = await sbCoord(`hojas_excel?select=estructura&sector=eq.${sectorNombre}&mes=eq.${mesExport}-01`);
-      if (!hojas || !hojas.length) continue;
+      if (!hojas || !hojas.length) { sectoresOmitidos.push(sectorNombre); continue; }
       const estructura = hojas[0].estructura;
 
       const sectores = await sbCoord(`sectores?select=id&nombre=eq.${sectorNombre}`);
-      if (!sectores || !sectores.length) continue;
+      if (!sectores || !sectores.length) { sectoresOmitidos.push(sectorNombre); continue; }
       const sectorId = sectores[0].id;
 
       let turnos = [];
@@ -2259,7 +2290,13 @@ document.getElementById("btn-descargar-planilla").addEventListener("click", asyn
         desde += 1000;
       }
 
+      if (!turnos.length) sectoresSinTurnos.push(sectorNombre);
       exportarHojaSector(wb, sectorNombre, estructura, turnos, mesExport);
+      hojasGeneradas++;
+    }
+
+    if (hojasGeneradas === 0) {
+      throw new Error(`No hay planilla cargada para ${nombreMesEsCoord(mesExport)}.`);
     }
 
     const buffer = await wb.xlsx.writeBuffer();
@@ -2269,8 +2306,14 @@ document.getElementById("btn-descargar-planilla").addEventListener("click", asyn
     a.href = url;
     a.download = `planilla_${mesExport}.xlsx`;
     a.click();
-    URL.revokeObjectURL(url);
-    msg.textContent = "✓ Descarga lista.";
+    setTimeout(() => URL.revokeObjectURL(url), 10000); // revocar enseguida puede cortar la descarga en Safari/iPad
+    const avisos = [];
+    if (sectoresOmitidos.length) avisos.push(`FALTAN sectores sin planilla cargada: ${sectoresOmitidos.join(", ")}`);
+    if (sectoresSinTurnos.length) avisos.push(`sin turnos en la base: ${sectoresSinTurnos.join(", ")}`);
+    if (!feriadosOkCoord) avisos.push("no se pudieron leer los feriados (los grises de feriado pueden faltar)");
+    msg.textContent = avisos.length
+      ? `⚠ Descarga lista (${hojasGeneradas} hojas), pero ojo: ${avisos.join(" · ")}.`
+      : `✓ Descarga lista (${hojasGeneradas} hojas).`;
   } catch (e) {
     msg.textContent = "Error: " + e.message;
   }
