@@ -1789,7 +1789,7 @@ async function sincronizarSuscripcionCoord(opts = {}) {
     }
     const subJson = sub.toJSON();
     if (!coordPassword) return; // sin contraseña de coordinador no se registra (se reintenta al volver a entrar)
-    await sb(`rpc/registrar_push_coordinador`, {
+    const resp = await sb(`rpc/registrar_push_coordinador`, {
       method: "POST",
       body: JSON.stringify({
         p_endpoint: subJson.endpoint,
@@ -1798,12 +1798,18 @@ async function sincronizarSuscripcionCoord(opts = {}) {
         p_password_coordinador: coordPassword
       })
     });
-    if (!silencioso) {
-      notifCoordStatus.textContent = "✓ Avisos de coordinador activados";
-      btnNotifCoord.style.display = "none";
+    if (resp !== "ok") {
+      // La base no registró el aviso (por ejemplo 'password_incorrecta'): no decir "activados".
+      throw new Error(resp === "password_incorrecta" ? "contraseña de coordinador incorrecta" : "la base no confirmó el registro");
     }
+    notifCoordStatus.textContent = "✓ Avisos de coordinador activados";
+    btnNotifCoord.style.display = "none";
   } catch (e) {
-    if (!silencioso) notifCoordStatus.textContent = "Error: " + e.message;
+    // Antes, en modo silencioso el error se tragaba y se seguía mostrando "activados".
+    notifCoordStatus.textContent = silencioso
+      ? "⚠ No se pudieron registrar los avisos de coordinador en este dispositivo. Tocá el botón para reintentar."
+      : "Error: " + e.message;
+    btnNotifCoord.style.display = "block";
   }
 }
 
@@ -1814,7 +1820,7 @@ function actualizarBotonNotifCoord() {
   }
   if (Notification.permission === "granted") {
     btnNotifCoord.style.display = "none";
-    notifCoordStatus.textContent = "✓ Avisos de coordinador activados";
+    notifCoordStatus.textContent = coordPassword ? "Activando avisos…" : "";
     sincronizarSuscripcionCoord({ silencioso: true });
   } else if (Notification.permission === "denied") {
     btnNotifCoord.style.display = "none";

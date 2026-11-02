@@ -1511,6 +1511,10 @@ personaSelect.addEventListener("change", async (e) => {
     return;
   }
 
+  // Con el PIN ya verificado, ahora sí se puede registrar/renovar el aviso push
+  // (la primera llamada de arriba ocurre antes y no tenía PIN).
+  actualizarBotonNotif(personaId);
+
   personaActual = (window.__personas || []).find(p => p.id === personaId);
   if (personaActual) {
     pillWrap.innerHTML = personaActual.ficha
@@ -3317,9 +3321,15 @@ function actualizarBotonNotif(personaId) {
     // (pasa en iOS si no se abre la app por unos días) o si es la
     // primera vez que ESTE nombre puntual queda registrado en este
     // dispositivo (caso de gente con dos perfiles, Española + SUISAS).
+    // Solo se afirma "activadas" cuando el registro en la base respondió ok
+    // (lo hace sincronizarSuscripcion). Si todavía no se verificó el PIN de
+    // esta persona, se espera: se vuelve a llamar apenas el PIN queda verificado.
     btnNotif.style.display = "none";
-    notifStatus.textContent = "✓ Notificaciones activadas";
-    sincronizarSuscripcion(personaId, { silencioso: true });
+    notifStatus.textContent = "";
+    if (personaIdConPin === personaId && personaPin) {
+      notifStatus.textContent = "Activando avisos…";
+      sincronizarSuscripcion(personaId, { silencioso: true });
+    }
   } else if (Notification.permission === "denied") {
     btnNotif.style.display = "none";
     notifStatus.textContent = "Notificaciones bloqueadas en este dispositivo. Para recibir avisos, habilitalas desde los ajustes del teléfono/navegador.";
@@ -3349,8 +3359,13 @@ async function sincronizarSuscripcion(personaId, opts = {}) {
       });
     }
     const subJson = sub.toJSON();
-    if (!personaPin) return; // sin PIN verificado no se registra (se reintenta al volver a entrar)
-    await sb(`rpc/registrar_push_suscripcion`, {
+    if (!personaPin || personaIdConPin !== personaId) {
+      // sin PIN verificado de esta persona no se registra; se reintenta al verificarlo
+      if (!silencioso) notifStatus.textContent = "Primero tenés que ingresar tu PIN.";
+      else notifStatus.textContent = "";
+      return;
+    }
+    const resp = await sb(`rpc/registrar_push_suscripcion`, {
       method: "POST",
       body: JSON.stringify({
         p_persona_id: personaId,
@@ -3360,15 +3375,20 @@ async function sincronizarSuscripcion(personaId, opts = {}) {
         p_auth: subJson.keys.auth
       })
     });
-    if (!silencioso) {
-      notifStatus.textContent = "✓ Notificaciones activadas";
-      btnNotif.style.display = "none";
+    if (resp !== "ok") {
+      // La base no registró el aviso (por ejemplo 'pin_incorrecto'): no decir "activadas".
+      throw new Error(resp === "pin_incorrecto" ? "no se pudo verificar tu PIN" : "la base no confirmó el registro");
     }
+    notifStatus.textContent = "✓ Notificaciones activadas";
+    btnNotif.style.display = "none";
   } catch (e) {
-    // En modo silencioso no molestamos al usuario si falla la
-    // renovación en segundo plano; se vuelve a intentar sola la
-    // próxima vez que abra la app. En modo manual (botón) sí avisamos.
-    if (!silencioso) notifStatus.textContent = "Error: " + e.message;
+    // Antes, en modo silencioso el error se tragaba y la app seguía diciendo
+    // "activadas" aunque no hubiera nada registrado. Ahora se avisa y se deja
+    // el botón visible para reintentar.
+    notifStatus.textContent = silencioso
+      ? "⚠ No se pudieron registrar los avisos en este dispositivo. Tocá el botón para reintentar."
+      : "Error: " + e.message;
+    btnNotif.style.display = "block";
   }
 }
 
