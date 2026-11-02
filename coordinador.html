@@ -428,7 +428,9 @@ async function cargarPersonas() {
 }
 
 async function cargarProcesos() {
+  const mesPedido = MES;
   const procesos = await sb(`procesos_convocatoria?select=id,grupo,tipo,estado,orden_actual,turno_vence,persona_actual_id&mes=eq.${MES}&order=grupo.asc,tipo.asc`);
+  if (mesPedido !== MES) return; // cambiaste de mes mientras cargaba: esta respuesta ya no corresponde
   const wrap = document.getElementById("procesos-wrap");
   if (!procesos.length) {
     wrap.innerHTML = `<div class="status-msg">Todavía no arrancó ningún proceso este mes.</div>`;
@@ -469,7 +471,9 @@ async function cargarProcesos() {
 }
 
 async function cargarProcesosSuisas() {
+  const mesPedido = MES;
   const rondas = await sb(`rondas_suisas?select=id,grupo,numero_ronda,cupo,estado,orden_actual,vence,persona_actual_id&mes=eq.${MES}&order=grupo.asc,numero_ronda.asc`);
+  if (mesPedido !== MES) return; // cambiaste de mes mientras cargaba
   const wrap = document.getElementById("procesos-suisas-wrap");
   if (!rondas.length) {
     wrap.innerHTML = `<div class="status-msg">Todavía no arrancó ninguna ronda de SUISAS este mes.</div>`;
@@ -763,6 +767,16 @@ let coordSectorActual = null;
 let coordEstructura = null;
 let feriadosSet = new Set();
 let celdaSeleccionada = null;
+// Evita que un doble clic mande dos veces la misma orden desde la ventana de celda
+let accionCeldaEnCursoCoord = false;
+function sinDobleClicCoord(fn) {
+  return async function (...args) {
+    if (accionCeldaEnCursoCoord) return;
+    accionCeldaEnCursoCoord = true;
+    try { return await fn.apply(this, args); }
+    finally { accionCeldaEnCursoCoord = false; }
+  };
+}
 
 async function cargarPersonasCoord() {
   coordPersonas = await sbCoord("perfiles?select=id,apellido,nombre,ficha,empresa&order=apellido.asc");
@@ -1114,9 +1128,12 @@ document.getElementById("coord-sector").addEventListener("change", async (e) => 
   const sector = e.target.value;
   if (!sector) return;
   coordSectorActual = sector;
+  const mesInicio = MES_COORD;
   document.getElementById("coord-grilla-wrap").innerHTML = `<div class="status-msg">Cargando...</div>`;
 
-  const hojas = await sbCoord(`hojas_excel?select=estructura&sector=eq.${sector}&mes=eq.${MES_COORD}-01`);
+  const hojas = await sbCoord(`hojas_excel?select=estructura&sector=eq.${sector}&mes=eq.${mesInicio}-01`);
+  // si cambiaste de mes o de sector mientras cargaba, esta respuesta ya no corresponde
+  if (mesInicio !== MES_COORD || coordSectorActual !== sector) return;
   if (!hojas || !hojas.length) {
     document.getElementById("coord-grilla-wrap").innerHTML = `<div class="status-msg">Sin estructura cargada.</div>`;
     return;
@@ -1124,6 +1141,7 @@ document.getElementById("coord-sector").addEventListener("change", async (e) => 
   coordEstructura = hojas[0].estructura;
 
   await recargarTurnos();
+  if (mesInicio !== MES_COORD || coordSectorActual !== sector) return;
 
   renderGrillaCoord();
 });
@@ -1401,7 +1419,7 @@ function abrirModalCelda(td) {
   document.getElementById("coord-modal").style.display = "flex";
 }
 
-document.getElementById("coord-btn-vacante").addEventListener("click", async () => {
+document.getElementById("coord-btn-vacante").addEventListener("click", sinDobleClicCoord(async () => {
   try {
     if (celdaSeleccionada.turnoId) {
       await sbCoord(`rpc/coordinador_vacante_turno_existente`, {
@@ -1431,9 +1449,9 @@ document.getElementById("coord-btn-vacante").addEventListener("click", async () 
   } catch (e) {
     alert("No se pudo dejar la celda vacante: " + e.message);
   }
-});
+}));
 
-document.getElementById("coord-btn-quitar-suisas").addEventListener("click", async () => {
+document.getElementById("coord-btn-quitar-suisas").addEventListener("click", sinDobleClicCoord(async () => {
   if (!celdaSeleccionada.turnoId) {
     alert("No se pudo identificar el turno de esta celda.");
     return;
@@ -1448,13 +1466,13 @@ document.getElementById("coord-btn-quitar-suisas").addEventListener("click", asy
   } catch (e) {
     alert("No se pudo volver la celda a modo normal: " + e.message);
   }
-});
+}));
 
 document.getElementById("coord-btn-cerrar").addEventListener("click", () => {
   document.getElementById("coord-modal").style.display = "none";
 });
 
-document.getElementById("coord-btn-activar").addEventListener("click", async () => {
+document.getElementById("coord-btn-activar").addEventListener("click", sinDobleClicCoord(async () => {
   try {
     await sbCoord(`rpc/coordinador_activar_celda`, {
       method: "POST",
@@ -1471,9 +1489,9 @@ document.getElementById("coord-btn-activar").addEventListener("click", async () 
   } catch (e) {
     alert("No se pudo activar la celda: " + e.message);
   }
-});
+}));
 
-document.getElementById("coord-btn-asignar").addEventListener("click", async () => {
+document.getElementById("coord-btn-asignar").addEventListener("click", sinDobleClicCoord(async () => {
   const personaId = document.getElementById("coord-sel-persona").value;
   if (!personaId) return;
 
@@ -1511,9 +1529,9 @@ document.getElementById("coord-btn-asignar").addEventListener("click", async () 
   } catch (e) {
     alert("No se pudo asignar la persona: " + e.message);
   }
-});
+}));
 
-document.getElementById("coord-btn-desactivar").addEventListener("click", async () => {
+document.getElementById("coord-btn-desactivar").addEventListener("click", sinDobleClicCoord(async () => {
   if (!confirm("¿Seguro que querés quitar esta celda de la convocatoria?")) return;
 
   try {
@@ -1540,9 +1558,9 @@ document.getElementById("coord-btn-desactivar").addEventListener("click", async 
   } catch (e) {
     alert("No se pudo quitar la celda de la convocatoria: " + e.message);
   }
-});
+}));
 
-document.getElementById("coord-btn-marcar-x").addEventListener("click", async () => {
+document.getElementById("coord-btn-marcar-x").addEventListener("click", sinDobleClicCoord(async () => {
   if (!confirm("¿Marcar esta celda con X? No se va a convocar a nadie ahí.")) return;
 
   try {
@@ -1589,28 +1607,32 @@ document.getElementById("coord-btn-marcar-x").addEventListener("click", async ()
   } catch (e) {
     alert("No se pudo marcar la celda con X: " + e.message);
   }
-});
+}));
 
 async function recargarTurnos() {
-  const sectores = await sbCoord(`sectores?select=id,nombre&nombre=eq.${coordSectorActual}`);
+  const mesInicio = MES_COORD, sectorInicio = coordSectorActual;
+  const sectores = await sbCoord(`sectores?select=id,nombre&nombre=eq.${sectorInicio}`);
   if (!sectores || !sectores.length) return;
   const sectorId = sectores[0].id;
 
-  coordTurnos = [];
+  const acumulados = [];
   let desde = 0;
   while (true) {
     const pag = await sbCoord(
       `turnos?select=id,fecha,col_excel,persona_id,origen_vacante,nombre_externo,` +
       `franjas_horarias!inner(nombre,sector_id,sectores!inner(nombre)),perfiles!turnos_persona_id_fkey(apellido,nombre,empresa,ficha)` +
       `&franjas_horarias.sector_id=eq.${sectorId}` +
-      `&fecha=gte.${MES_COORD}-01&fecha=lte.${ultimoDiaMesStrCoord(MES_COORD)}&order=id.asc`,
+      `&fecha=gte.${mesInicio}-01&fecha=lte.${ultimoDiaMesStrCoord(mesInicio)}&order=id.asc`,
       { headers: { "Range-Unit": "items", Range: `${desde}-${desde+999}` } }
     );
     if (!pag || !pag.length) break;
-    coordTurnos.push(...pag);
+    acumulados.push(...pag);
     if (pag.length < 1000) break;
     desde += 1000;
   }
+  // si cambiaste de mes o de sector mientras cargaba, se descarta: no pisar la grilla actual con datos viejos
+  if (mesInicio !== MES_COORD || sectorInicio !== coordSectorActual) return;
+  coordTurnos = acumulados;
   renderGrillaCoord();
 }
 
@@ -1650,7 +1672,17 @@ async function cargarSolicitudes() {
   `).join("");
 }
 
+const solicitudesEnCursoCoord = new Set();
 async function resolverSolicitud(id, aprobar) {
+  if (solicitudesEnCursoCoord.has(id)) return; // doble clic: ya se está resolviendo
+  solicitudesEnCursoCoord.add(id);
+  try {
+    await resolverSolicitudInterno(id, aprobar);
+  } finally {
+    solicitudesEnCursoCoord.delete(id);
+  }
+}
+async function resolverSolicitudInterno(id, aprobar) {
   let ok;
   try {
     ok = await sb(`rpc/resolver_solicitud_cambio`, {
@@ -1669,7 +1701,9 @@ async function resolverSolicitud(id, aprobar) {
   if (ok === true) {
     await cargarSolicitudes();
   } else {
-    alert("Error al resolver la solicitud.");
+    // si ya estaba resuelta (otro clic o la otra jefa), solo se actualiza la lista sin alarmar
+    await cargarSolicitudes();
+    if (solicitudesPendientes.some(x => x.id === id)) alert("Error al resolver la solicitud.");
   }
 }
 
