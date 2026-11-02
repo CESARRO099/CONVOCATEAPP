@@ -3041,28 +3041,44 @@ async function __inner_vacIdx() {
 
   let enviados = 0, yaPendientes = 0, mesNoPublicado = 0, errores = 0;
   for (const t of turnosASolicitar) {
-    const resultado = await sb(`rpc/solicitar_dejar_turno_vacante`, {
-      method: "POST",
-      body: JSON.stringify({
-        p_turno_id: t.id, p_solicitante_id: personaActual.id, p_pin: personaPin,
-        p_causal: causalElegidaVacante, p_hora_citacion: horaCitacionElegida, p_lote_id: loteId
-      })
-    });
+    let resultado;
+    try {
+      resultado = await sb(`rpc/solicitar_dejar_turno_vacante`, {
+        method: "POST",
+        body: JSON.stringify({
+          p_turno_id: t.id, p_solicitante_id: personaActual.id, p_pin: personaPin,
+          p_causal: causalElegidaVacante, p_hora_citacion: horaCitacionElegida, p_lote_id: loteId
+        })
+      });
+    } catch (e) {
+      resultado = "error_red"; // si se corta la conexión, seguimos con los demás y lo contamos
+    }
     if (resultado === "ok") enviados++;
     else if (resultado === "ya_pendiente") yaPendientes++;
     else if (resultado === "mes_no_publicado") mesNoPublicado++;
     else errores++;
   }
 
+  // abrir_oferta_cobertura devuelve 'ok', 'ya_abierta', 'fuera_de_horario' o 'lote_no_existe'.
+  // Si no se pudo abrir ahora, la base lo reintenta sola cada 5 minutos.
+  let estadoAviso = "ok";
   if (enviados > 0) {
-    await sb(`rpc/abrir_oferta_cobertura`, { method: "POST", body: JSON.stringify({ p_lote_id: loteId }) });
+    try {
+      const r = await sb(`rpc/abrir_oferta_cobertura`, { method: "POST", body: JSON.stringify({ p_lote_id: loteId }) });
+      if (r === "fuera_de_horario") estadoAviso = "fuera_de_horario";
+      else if (r !== "ok" && r !== "ya_abierta") estadoAviso = "dudoso";
+    } catch (e) {
+      estadoAviso = "dudoso";
+    }
   }
 
   modalDejarVacante.classList.remove("open");
   let mensaje = `Se enviaron ${enviados} pedido(s) de cobertura.`;
   if (mesNoPublicado) mensaje += ` ${mesNoPublicado} quedaron afuera porque su mes todavía no está publicado.`;
   if (yaPendientes) mensaje += ` ${yaPendientes} ya tenían un pedido pendiente.`;
-  if (errores) mensaje += ` ${errores} no se pudieron enviar.`;
+  if (errores) mensaje += ` ${errores} no se pudieron enviar (revisá tu conexión y volvé a intentar con esas).`;
+  if (estadoAviso === "fuera_de_horario") mensaje += ` Como es fuera de horario (21:00 a 08:00), el aviso a tus compañeros sale solo a las 08:00.`;
+  else if (estadoAviso === "dudoso") mensaje += ` No pudimos confirmar el aviso a tus compañeros; el sistema lo reintenta solo cada pocos minutos. Si en un rato nadie se enteró, avisale al coordinador.`;
   alert(mensaje);
 }
 
