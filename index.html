@@ -3447,8 +3447,23 @@ async function cargarMesConvocatoria() {
     if (typeof m === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(m)) {
       MES_CONVOCATORIA = m;
       mesActivo = m;
+    } else {
+      avisarMesConvocatoriaDudoso();
     }
-  } catch (e) { /* se usa el valor de respaldo */ }
+  } catch (e) { avisarMesConvocatoriaDudoso(); /* se usa el valor de respaldo */ }
+}
+// Si no se pudo leer el mes en curso de la base, la app sigue con el valor de
+// respaldo pero lo dice, para que nadie elija turnos de un mes equivocado sin saberlo.
+function avisarMesConvocatoriaDudoso() {
+  try {
+    if (document.getElementById("aviso-mes-dudoso")) return;
+    const d = document.createElement("div");
+    d.id = "aviso-mes-dudoso";
+    d.setAttribute("role", "alert");
+    d.style.cssText = "background:#fff4e5;border-bottom:1px solid #f0c987;color:#7a4b00;padding:8px 12px;font-size:0.85rem;text-align:center;";
+    d.textContent = "No pudimos confirmar el mes de la convocatoria (problema de conexión). Fijate que el mes que ves sea el correcto antes de elegir; si no, recargá la página.";
+    document.body.insertBefore(d, document.body.firstChild);
+  } catch (e) { /* solo informativo */ }
 }
 cargarMesConvocatoria().then(() => cargarPersonas()).then(intentarAutoLogin);
 </script>

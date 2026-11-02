@@ -595,6 +595,8 @@ document.getElementById("btn-zoom-reset-coord").addEventListener("click", () => 
 });
 aplicarZoomCoord();
 
+// true si no se pudo leer el mes en curso de la base y se está usando el de respaldo
+let mesConvDudosoCoord = false;
 async function cargarMesConvocatoriaCoord() {
   try {
     const m = await sb(`rpc/mes_convocatoria`, { method: "POST", body: "{}" });
@@ -602,8 +604,11 @@ async function cargarMesConvocatoriaCoord() {
       MES_COORD = m;
       MES_CONV_COORD = m;
       MES = m + "-01";
+      mesConvDudosoCoord = false;
+    } else {
+      mesConvDudosoCoord = true;
     }
-  } catch (e) { /* se usa el valor de respaldo */ }
+  } catch (e) { mesConvDudosoCoord = true; /* se usa el valor de respaldo */ }
 }
 
 async function iniciarApp() {
@@ -674,7 +679,8 @@ function renderSelectorMesCoord() {
     btn.addEventListener("click", () => cambiarMesCoord(btn.dataset.mes));
   });
   const header = document.getElementById("header-mes-coord");
-  if (header) header.textContent = `Panel del coordinador · ${nombreMesEsCoord(MES_COORD)}`;
+  if (header) header.textContent = `Panel del coordinador · ${nombreMesEsCoord(MES_COORD)}` +
+    (mesConvDudosoCoord ? " · ⚠ no se pudo leer el mes en curso (se usa el de respaldo), recargá la página" : "");
   renderMesConvCoord();
 }
 
