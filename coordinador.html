@@ -654,6 +654,11 @@ async function cargarMesesDisponiblesCoord() {
       meses.push(`${a}-${String(m).padStart(2, "0")}`);
       m++; if (m > 12) { m = 1; a++; }
     }
+    // Siempre se ofrece también el mes siguiente al último con turnos, para
+    // poder cargar la planilla del mes que viene antes de que tenga datos.
+    if (meses.length) {
+      meses.push(`${a}-${String(m).padStart(2, "0")}`); // tras el while, a-m ya es el mes siguiente
+    }
     if (meses.length) MESES_DISPONIBLES_COORD = meses;
     if (!MESES_DISPONIBLES_COORD.includes(MES_COORD)) MESES_DISPONIBLES_COORD.push(MES_COORD);
   } catch (e) { /* si falla, se queda con el default */ }
