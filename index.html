@@ -1199,7 +1199,14 @@ function etiquetaEmpresaPersona(p) {
 }
 function franjaVisible(n) { return String(n==null?"":n).replace(/\s*\([A-Z]{1,2}\)\s*$/, "").trim(); }
 function sinTildes(s) {
-  return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  // Saca las tildes pero conserva la Ñ/ñ (es parte del apellido: DE LA PEÑA, MUÑIZ).
+  return (s || "").replace(/ñ/g, "\u0001").replace(/Ñ/g, "\u0002")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\u0001/g, "ñ").replace(/\u0002/g, "Ñ");
+}
+// Para buscar: ignora tildes Y la ñ (así "pena" también encuentra "Peña").
+function textoBusqueda(s) {
+  return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
 }
 function nombreCompleto(p) { 
   const ap = sinTildes(p.apellido || "").toUpperCase();
@@ -1283,9 +1290,9 @@ function elegirPersonaDesdeCombo(persona) {
 }
 
 personaSearch.addEventListener("input", () => {
-  const q = sinTildes(personaSearch.value || "").toUpperCase().trim();
+  const q = textoBusqueda(personaSearch.value || "").trim();
   const todas = window.__personas || [];
-  const filtradas = q ? todas.filter(p => sinTildes(nombreCompleto(p)).toUpperCase().includes(q)) : todas;
+  const filtradas = q ? todas.filter(p => textoBusqueda(nombreCompleto(p)).includes(q)) : todas;
   renderPersonaOptions(filtradas);
   // Si se borra el texto, también se limpia la selección real
   if (!q && personaSelect.value) {
