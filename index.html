@@ -2992,7 +2992,7 @@ document.getElementById("btn-cancelar-elegir-tipo").addEventListener("click", ()
 document.getElementById("btn-ir-cambio-persona").addEventListener("click", async () => {
   const publicado = await sb(`meses_publicados?select=mes&mes=eq.${mesActivo}-01`);
   if (!publicado || !publicado.length) {
-    alert("No es posible modificar la convocatoria de este mes.");
+    alert("Aún no se pueden realizar cambios en la convocatoria de este mes.");
     return;
   }
   const misTurnos = await cargarMisTurnosDelMes();
@@ -3077,6 +3077,12 @@ async function __inner_vacIdx() {
   }
 
   modalDejarVacante.classList.remove("open");
+  // Si todo quedó afuera solo porque el mes no está publicado, no tiene
+  // sentido decir "se enviaron 0 pedidos": se avisa directo que aún no se puede.
+  if (mesNoPublicado && !enviados && !yaPendientes && !errores) {
+    alert("Aún no se pueden realizar cambios en la convocatoria de este mes.");
+    return;
+  }
   let mensaje = `Se enviaron ${enviados} pedido(s) de cobertura.`;
   if (mesNoPublicado) mensaje += ` ${mesNoPublicado} quedaron afuera porque su mes todavía no está publicado.`;
   if (yaPendientes) mensaje += ` ${yaPendientes} ya tenían un pedido pendiente.`;
@@ -3260,7 +3266,7 @@ document.getElementById("btn-enviar-cambio").addEventListener("click", async () 
     const nombre = selCobertura.options[selCobertura.selectedIndex].text.split(",")[0];
     alert(`Solicitud enviada. ${nombre} recibirá una notificación para aceptar o rechazar el intercambio.`);
   } else if (resultado === "mes_no_publicado") {
-    alert("No es posible modificar la convocatoria de este mes.");
+    alert("Aún no se pueden realizar cambios en la convocatoria de este mes.");
   } else if (resultado === "ya_pendiente") {
     alert("Ya hay una solicitud pendiente con alguno de estos turnos.");
   } else if (resultado === "solo_suisas_entre_meses") {
