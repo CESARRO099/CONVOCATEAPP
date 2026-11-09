@@ -2702,6 +2702,26 @@ const selCobertura    = document.getElementById("sel-cobertura");
 const selTurnoRecibido = document.getElementById("sel-turno-recibido");
 const bannerSolicitud = document.getElementById("banner-solicitud-wrap");
 
+// NUEVO (9 nov 2026, a pedido de Cesar): quien trabaja para las dos empresas tiene dos
+// perfiles (Española + SUISAS) unidos por vinculo_persona. Para un cambio se elige a la
+// PERSONA una sola vez y se ven los turnos de sus dos perfiles juntos.
+function perfilesDeLaMismaPersona(p) {
+  if (!p) return [];
+  const todos = window.__personas || [];
+  if (!p.vinculo_persona) return [p];
+  return todos.filter(x => x.id === p.id || x.vinculo_persona === p.vinculo_persona);
+}
+function opcionesTurnosRecibidos(turnos, tieneDosPerfiles, perfiles) {
+  turnos = (turnos || []).filter(t => !turnoYaRealizado(t));
+  if (!turnos.length) return `<option value="">(no hay actividades pendientes)</option>`;
+  return turnos.map(t => {
+    const dueno = perfiles.find(x => x.id === t.persona_id);
+    const etiqueta = (tieneDosPerfiles && dueno) ? ` (${dueno.empresa === "SUISAS" ? "SUISAS" : "ASESP"})` : "";
+    return `<option value="${t.id}" data-persona-id="${t.persona_id}">${t.fecha.slice(8,10)}/${t.fecha.slice(5,7)} — ` +
+      `${t.franjas_horarias.sectores.nombre} ${franjaVisible(t.franjas_horarias.nombre)}${etiqueta}</option>`;
+  }).join("");
+}
+
 selCobertura.addEventListener("change", async () => {
   const personaId = selCobertura.value;
   if (!personaId) { selTurnoRecibido.innerHTML = `<option value="">Elegí primero a quién te cubre...</option>`; return; }
@@ -2709,26 +2729,35 @@ selCobertura.addEventListener("change", async () => {
   // cambio puede ser con turnos de OTROS meses publicados (los topes de horas
   // son un tema de la Española). Para el resto se mantiene el mismo mes.
   const cobertura = (window.__personas || []).find(p => p.id === personaId);
-  const entreMeses = personaActual?.empresa === "SUISAS" && cobertura?.empresa === "SUISAS";
-  let turnos;
-  if (entreMeses) {
-    const publicados = await sb(`meses_publicados?select=mes`);
-    const setPub = new Set((publicados || []).map(m => String(m.mes).slice(0, 7)));
-    setPub.add(mesActivo);
-    const hoyMvd = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
-    const desde = hoyMvd > `${mesActivo}-01` ? hoyMvd : `${mesActivo}-01`;
-    const todos = await sb(
-      `turnos?select=id,fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre))` +
-      `&persona_id=eq.${personaId}&fecha=gte.${desde}&order=fecha.asc`
-    );
-    turnos = (todos || []).filter(t => setPub.has(t.fecha.slice(0, 7)));
-  } else {
-    turnos = await sb(
-      `turnos?select=id,fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre))` +
-      `&persona_id=eq.${personaId}&fecha=gte.${mesActivo}-01&fecha=lte.${ultimoDiaMesStr(mesActivo)}&order=fecha.asc`
-    );
+  const perfiles = perfilesDeLaMismaPersona(cobertura);
+  const tieneDosPerfiles = perfiles.length > 1;
+  let publicados = null;
+  const turnos = [];
+  for (const perfil of perfiles) {
+    const entreMeses = personaActual?.empresa === "SUISAS" && perfil.empresa === "SUISAS";
+    let lista;
+    if (entreMeses) {
+      if (!publicados) {
+        publicados = new Set(((await sb(`meses_publicados?select=mes`)) || []).map(m => String(m.mes).slice(0, 7)));
+        publicados.add(mesActivo);
+      }
+      const hoyMvd = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+      const desde = hoyMvd > `${mesActivo}-01` ? hoyMvd : `${mesActivo}-01`;
+      const todos = await sb(
+        `turnos?select=id,persona_id,fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre))` +
+        `&persona_id=eq.${perfil.id}&fecha=gte.${desde}&order=fecha.asc`
+      );
+      lista = (todos || []).filter(t => publicados.has(t.fecha.slice(0, 7)));
+    } else {
+      lista = await sb(
+        `turnos?select=id,persona_id,fecha,franjas_horarias(nombre,hora_inicio,hora_fin,sectores(nombre))` +
+        `&persona_id=eq.${perfil.id}&fecha=gte.${mesActivo}-01&fecha=lte.${ultimoDiaMesStr(mesActivo)}&order=fecha.asc`
+      );
+    }
+    turnos.push(...(lista || []));
   }
-  selTurnoRecibido.innerHTML = (turnos && turnos.length) ? opcionesDeTurnos(turnos)
+  turnos.sort((x, y) => x.fecha.localeCompare(y.fecha));
+  selTurnoRecibido.innerHTML = turnos.length ? opcionesTurnosRecibidos(turnos, tieneDosPerfiles, perfiles)
     : `<option value="">(no tiene turnos ese mes)</option>`;
 });
 const modalElegirTipo   = document.getElementById("modal-elegir-tipo-cambio");
@@ -3015,9 +3044,20 @@ document.getElementById("btn-ir-cambio-persona").addEventListener("click", async
   // selectores de persona de la app. Con eso, a alguien que trabaja para
   // las dos empresas (dos perfiles, mismo nombre) no se lo podia
   // distinguir al elegir quien cubre un cambio de turno.
+  const misIds = new Set(perfilesDeLaMismaPersona(personaActual).map(x => x.id));
+  const vistos = new Set();
   selCobertura.innerHTML = `<option value="">Elegí...</option>` + (window.__personas || [])
-    .filter(p => p.id !== personaActual.id)
-    .map(p => `<option value="${p.id}">${nombreCompleto(p)}${etiquetaEmpresaPersona(p)}</option>`)
+    .filter(p => !misIds.has(p.id))
+    .filter(p => {
+      const clave = p.vinculo_persona || p.id;
+      if (vistos.has(clave)) return false;
+      vistos.add(clave);
+      return true;
+    })
+    .map(p => {
+      const dos = perfilesDeLaMismaPersona(p).length > 1;
+      return `<option value="${p.id}">${nombreCompleto(p)}${dos ? "" : etiquetaEmpresaPersona(p)}</option>`;
+    })
     .join("");
   selTurnoRecibido.innerHTML = `<option value="">Elegí primero a quién te cubre...</option>`;
   modalElegirTipo.classList.remove("open");
@@ -3210,7 +3250,7 @@ async function cargarSolicitudesPendientes() {
   if (!personaActual) return;
   const data = await sb(
     `solicitudes_cambio_detalle?estado=eq.ESPERANDO_COBERTURA` +
-    `&cobertura_id=eq.${personaActual.id}`
+    `&cobertura_id=in.(${perfilesDeLaMismaPersona(personaActual).map(x => x.id).join(",")})`
   );
   if (!data || !data.length) {
     bannerSolicitud.innerHTML = "";
@@ -3277,8 +3317,10 @@ document.getElementById("btn-cancelar-cambio").addEventListener("click", () => {
 
 document.getElementById("btn-enviar-cambio").addEventListener("click", async () => {
   const turnoId     = Number(selTurno.value);
-  const coberturaId = selCobertura.value;
   const turnoRecibidoId = Number(selTurnoRecibido.value);
+  // El pedido va al perfil que realmente tiene el turno elegido (puede ser el otro perfil de la misma persona).
+  const opcionRecibido = selTurnoRecibido.options[selTurnoRecibido.selectedIndex];
+  const coberturaId = (opcionRecibido && opcionRecibido.dataset.personaId) || selCobertura.value;
   if (!turnoId || !coberturaId || !turnoRecibidoId) {
     alert("Elegí tu turno, a quién te cubre, y qué turno de esa persona recibís a cambio.");
     return;
