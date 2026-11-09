@@ -1147,6 +1147,11 @@ let tablaZoom = Number(localStorage.getItem("convocate_zoom")) || 0.6;
 
 function aplicarZoom() {
   grillaWrap.style.zoom = tablaZoom;
+  // Con zoom menor a 100% una línea de 1px queda más fina que un píxel real y
+  // el navegador (sobre todo Safari en iPhone) la deja de dibujar. Se engrosa el
+  // borde en proporción inversa para que siempre se vea de ~1,25px ya achicado.
+  const grosorBorde = tablaZoom < 1 ? Math.min(8, Math.round((1.25 / tablaZoom) * 100) / 100) : 1;
+  grillaWrap.style.setProperty("--bw", `${grosorBorde}px`);
   document.getElementById("btn-zoom-reset").textContent = `${Math.round(tablaZoom * 100)}%`;
   localStorage.setItem("convocate_zoom", tablaZoom);
 }
@@ -2254,7 +2259,7 @@ async function renderGrilla() {
       const esEncabezado = r < first_day_row;
       const borderStyle = esEncabezado
         ? "border:none;"
-        : `border-top:${bd.t ? "1px solid #000" : "none"};border-bottom:${bd.b ? "1px solid #000" : "none"};border-left:${bd.l ? "1px solid #000" : "none"};border-right:${bd.r ? "1px solid #000" : "none"};`;
+        : `border-top:${bd.t ? "var(--bw,1px) solid #000" : "none"};border-bottom:${bd.b ? "var(--bw,1px) solid #000" : "none"};border-left:${bd.l ? "var(--bw,1px) solid #000" : "none"};border-right:${bd.r ? "var(--bw,1px) solid #000" : "none"};`;
       const boldStyle = celda.bold ? "font-weight:700;" : "";
 
       let contenido = celda.v ?? "";
