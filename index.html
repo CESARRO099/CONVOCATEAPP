@@ -3018,7 +3018,14 @@ document.getElementById("btn-ir-cambio-persona").addEventListener("click", async
   modalCambio.classList.add("open");
 });
 
-document.getElementById("btn-ir-dejar-vacante").addEventListener("click", () => {
+document.getElementById("btn-ir-dejar-vacante").addEventListener("click", async () => {
+  // Igual que "Cambiar mi turno con alguien": si el mes no está publicado,
+  // se frena en el primer paso, sin dejar avanzar hasta el final.
+  const publicado = await sb(`meses_publicados?select=mes&mes=eq.${mesActivo}-01`);
+  if (!publicado || !publicado.length) {
+    alert("Aún no se pueden realizar cambios en la convocatoria de este mes.");
+    return;
+  }
   limpiarSeleccionMotivo();
   modalElegirTipo.classList.remove("open");
   modalDejarVacante.classList.add("open");
