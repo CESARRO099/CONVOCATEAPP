@@ -1676,6 +1676,7 @@ async function cargarDatosConvocatoria() {
       sectoresPorNombre[s.nombre] = { grupo: s.grupo, franjas: franjas.filter(f => f.sector_id === s.id) };
     }
     procesosActivos = procesos;
+    actualizarBotonPostulacion(); // al entrar al panel, sin esperar al timer
 
     // Horas acumuladas: las de licencia cuentan como si fueran horas de
     // trabajo ya hechas, así que se muestran sumadas contra el tope
@@ -3114,7 +3115,17 @@ async function cargarActividadesDisponibles() {
 }
 
 async function actualizarBotonPostulacion() {
-  const actividades = await cargarActividadesDisponibles();
+  // FIX (9 nov 2026): el boton solo se refrescaba por un timer de 30 s que el
+  // navegador frena en segundo plano, y nunca se consultaba al entrar al panel
+  // ni al volver a la app. Ahora se consulta al entrar, al volver a primer
+  // plano, al recuperar conexion, y un error de red ya no deja el boton viejo.
+  if (!personaActual) { postulacionWrap.style.display = "none"; return; }
+  let actividades;
+  try {
+    actividades = await cargarActividadesDisponibles();
+  } catch (e) {
+    return; // sin conexion: se deja el boton como esta y se reintenta en el proximo ciclo
+  }
   const pendientes = actividades.filter(a => !a.ya_postulado);
   if (pendientes.length > 0) {
     postulacionWrap.style.display = "block";
@@ -3175,7 +3186,11 @@ document.getElementById("btn-confirmar-postulacion").addEventListener("click", a
   actualizarBotonPostulacion();
   alert(`Te postulaste a ${enviadas} actividad(es).` + (porLicencia ? ` No te postulaste a ${porLicencia} actividad(es) porque estás de licencia ese día.` : "") + (errores ? ` ${errores} no se pudieron enviar.` : ""));
 });
-if (!window.__intervaloPostulacion) window.__intervaloPostulacion = setInterval(actualizarBotonPostulacion, 30000);
+if (!window.__intervaloPostulacion) window.__intervaloPostulacion = setInterval(() => { if (!document.hidden) actualizarBotonPostulacion(); }, 20000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) actualizarBotonPostulacion(); });
+window.addEventListener("online", actualizarBotonPostulacion);
+window.addEventListener("pageshow", actualizarBotonPostulacion);
+window.addEventListener("focus", actualizarBotonPostulacion);
 
 
 // Cargar solicitudes donde esta persona es la cobertura propuesta (paso 2)
