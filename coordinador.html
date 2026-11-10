@@ -1334,7 +1334,11 @@ function renderGrillaCoord() {
       }
 
       const bold = celda.bold ? "font-weight:700;" : "";
-      if (esGrisFinde && !esGuardiaTCEspecial && setGrises && setGrises.has(c)) bg = "background:#A6A6A6;";
+      // FIX (10 nov 2026, a pedido de Cesar): en fin de semana y feriados la celda pasaba a
+      // gris aunque estuviera LIBRE, y no se veia que faltaba cubrirla. Una celda LIBRE
+      // queda siempre amarilla; el gris se sigue aplicando al resto.
+      const esCeldaLibre = contenido === "LIBRE";
+      if (esGrisFinde && !esGuardiaTCEspecial && !esCeldaLibre && setGrises && setGrises.has(c)) bg = "background:#A6A6A6;";
       const tieneBordes = bd.t && bd.b && bd.l && bd.r ? "1" : "0";
       const dataEditar = ` data-editar-sector="${coordSectorActual}" data-editar-fila="${r}" data-editar-col="${c}" data-editar-bordes="${tieneBordes}"`;
       html += `<td${attrs}${dataAttr}${dataEditar} style="padding:3px 5px;text-align:center;vertical-align:middle;${borde}${bg}${bold}${cursor}height:22px;">${escHtml(contenido)}</td>`;
