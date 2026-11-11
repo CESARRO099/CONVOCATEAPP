@@ -103,6 +103,9 @@
     <button id="btn-subir-planilla" class="btn-primary" style="margin-top:8px;">
       📤 Subir planilla del mes (Excel)
     </button>
+    <button id="btn-ultimos-cambios" class="btn-primary" style="margin-top:8px;">
+      ↩ Últimos cambios (deshacer)
+    </button>
     <input type="file" id="input-planilla-excel" accept=".xlsx" style="display:none;" />
     <div style="display:flex; justify-content:flex-end; margin:8px 0;">
       <div style="display:flex; align-items:center; background:#f4f4f4; border-radius:20px; padding:2px;">
@@ -112,6 +115,16 @@
       </div>
     </div>
     <div id="coord-grilla-wrap" style="overflow-x:auto;"></div>
+  </div>
+
+  <!-- Modal de ultimos cambios / deshacer (11 nov 2026, a pedido de Cesar) -->
+  <div id="deshacer-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:16px;width:min(560px,94vw);max-height:86vh;display:flex;flex-direction:column;gap:10px;">
+      <div style="font-weight:700;font-size:0.95rem;">Últimos cambios <span id="deshacer-alcance" style="font-weight:400;color:var(--ink-soft);font-size:0.8rem;"></span></div>
+      <div style="font-size:0.78rem;color:var(--ink-soft);">Cambios de las últimas 48 horas, del más nuevo al más viejo. Solo se puede deshacer un cambio si después nadie volvió a tocar esa misma actividad.</div>
+      <div id="deshacer-lista" style="overflow-y:auto;flex:1;min-height:80px;"></div>
+      <button id="deshacer-btn-cerrar" style="background:var(--line);color:var(--ink);">Cerrar</button>
+    </div>
   </div>
 
   <!-- Modal de acción sobre celda -->
@@ -1153,6 +1166,100 @@ function cerrarResumenVacantes() {
 }
 
 document.getElementById("btn-resumen-vacantes").addEventListener("click", mostrarResumenVacantes);
+
+// ---------------------------------------------------------
+// Ultimos cambios / Deshacer (11 nov 2026, a pedido de Cesar)
+// Lista los cambios recientes de actividades y permite deshacer uno,
+// siempre que despues nadie haya vuelto a tocar esa misma actividad.
+// ---------------------------------------------------------
+const DESHACER_MSG = {
+  clave_incorrecta: "La clave del coordinador no es correcta (o está bloqueada por intentos). Volvé a entrar al panel.",
+  no_encontrado: "Ese cambio ya no está en el historial.",
+  cambio_posterior: "No se puede deshacer: esa actividad volvió a cambiar después. Deshacé primero el cambio más nuevo.",
+  sin_respaldo: "No se puede deshacer: no quedó guardada la versión anterior.",
+  tiene_referencias: "No se puede deshacer: esa actividad tiene un pedido de cobertura o de cambio asociado.",
+  conflicto: "No se puede deshacer: ya existe otra actividad en ese mismo lugar.",
+};
+
+function deshacerRefrescarGrilla() {
+  const sel = document.getElementById("coord-sector");
+  if (sel && sel.value) sel.dispatchEvent(new Event("change"));
+}
+
+async function deshacerCargarLista() {
+  const lista = document.getElementById("deshacer-lista");
+  const alcance = document.getElementById("deshacer-alcance");
+  alcance.textContent = `— ${coordSectorActual ? coordSectorActual : "todos los sectores"}, ${nombreMesEsCoord(MES_COORD)}`;
+  lista.innerHTML = `<div class="status-msg">Cargando...</div>`;
+  let cambios;
+  try {
+    cambios = await sbCoord("rpc/coordinador_ultimos_cambios", {
+      method: "POST",
+      body: JSON.stringify({ p_password_coordinador: coordPassword, p_sector: coordSectorActual || null, p_mes: MES_COORD + "-01" }),
+    });
+  } catch (e) {
+    lista.innerHTML = `<div class="status-msg">No se pudo cargar el historial. Probá de nuevo en un momento.</div>`;
+    return;
+  }
+  if (cambios === null || cambios === undefined) {
+    lista.innerHTML = `<div class="status-msg">${escHtml(DESHACER_MSG.clave_incorrecta)}</div>`;
+    return;
+  }
+  if (!Array.isArray(cambios) || cambios.length === 0) {
+    lista.innerHTML = `<div class="status-msg">No hay cambios en las últimas 48 horas.</div>`;
+    return;
+  }
+  lista.innerHTML = cambios.map(c => {
+    const d = new Date(c.cuando);
+    const cuando = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    const puede = c.estado === "puede";
+    const nota = puede ? "" : (c.estado === "cambio_posterior" ? "Cambió de nuevo después" : "Sin versión anterior");
+    return `<div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:0.85rem;">${escHtml(c.resumen)}</div>
+        <div style="font-size:0.72rem;color:var(--ink-soft);">${escHtml(cuando)}${c.quien ? " · " + escHtml(c.quien) : ""}${nota ? " · " + escHtml(nota) : ""}</div>
+      </div>
+      ${puede ? `<button class="btn-warn deshacer-btn" data-id="${Number(c.id)}" data-resumen="${escHtml(c.resumen)}" style="white-space:nowrap;">Deshacer</button>` : ""}
+    </div>`;
+  }).join("");
+}
+
+async function deshacerUnCambio(btn) {
+  const id = Number(btn.dataset.id);
+  if (!id) return;
+  if (!confirm(`¿Deshacer este cambio?\n\n${btn.dataset.resumen}\n\nLa actividad vuelve a quedar como estaba antes. Si a alguien ya se le había enviado su actividad del mes por correo, puede recibir un correo de corrección.`)) return;
+  btn.disabled = true;
+  let res;
+  try {
+    res = await sbCoord("rpc/coordinador_deshacer_cambio", {
+      method: "POST",
+      body: JSON.stringify({ p_password_coordinador: coordPassword, p_auditoria_id: id }),
+    });
+  } catch (e) {
+    alert("No se pudo deshacer. Probá de nuevo en un momento.");
+    btn.disabled = false;
+    return;
+  }
+  if (res === "ok") {
+    await deshacerCargarLista();
+    deshacerRefrescarGrilla();
+  } else {
+    alert(DESHACER_MSG[res] || `No se pudo deshacer (${String(res)}).`);
+    await deshacerCargarLista();
+  }
+}
+
+document.getElementById("btn-ultimos-cambios").addEventListener("click", () => {
+  document.getElementById("deshacer-modal").style.display = "flex";
+  deshacerCargarLista();
+});
+document.getElementById("deshacer-btn-cerrar").addEventListener("click", () => {
+  document.getElementById("deshacer-modal").style.display = "none";
+});
+document.getElementById("deshacer-lista").addEventListener("click", (e) => {
+  const btn = e.target.closest(".deshacer-btn");
+  if (btn) deshacerUnCambio(btn);
+});
 
 document.getElementById("coord-sector").addEventListener("change", async (e) => {
   const sector = e.target.value;
