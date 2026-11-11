@@ -1952,6 +1952,37 @@ function planillaCeldaTexto(cell) {
   return v;
 }
 
+// NUEVO (11 nov 2026, auditoria): las columnas de cada sector estan fijas en PLANILLA_COL_MAP.
+// Si la planilla de un mes viene con una columna de mas o de menos, todo se correria en silencio
+// (paso con RESO de enero). Antes de cargar se compara el horario escrito en el encabezado de cada
+// columna con el horario de la franja a la que se va a cargar; si no coinciden, se avisa.
+function planillaVerificarEncabezados(worksheet, sector, franjasPorId) {
+  const avisos = [];
+  const meta = PLANILLA_SECTOR_META[sector];
+  const colMap = PLANILLA_COL_MAP[sector];
+  if (!meta || !colMap || !franjasPorId) return avisos;
+  const re = /(\d{1,2})(?::(\d{2}))?\s*A\s*(\d{1,2})(?::(\d{2}))?/i;
+  for (const [idxStr, franjaId] of Object.entries(colMap)) {
+    const fr = franjasPorId[franjaId];
+    if (!fr) continue;
+    const idx = parseInt(idxStr, 10);
+    let m = null, texto = null;
+    for (let r = 1; r < meta.minRow && !m; r++) {
+      const v = planillaCeldaTexto(worksheet.getRow(r).getCell(idx + 1));
+      if (typeof v !== 'string') continue;
+      m = v.match(re);
+      if (m) texto = v.trim();
+    }
+    if (!m) continue; // columna sin horario en el encabezado: no se puede comparar
+    const ini = (parseInt(m[1], 10) * 60 + parseInt(m[2] || '0', 10)) % 1440;
+    const fin = (parseInt(m[3], 10) * 60 + parseInt(m[4] || '0', 10)) % 1440;
+    if (ini !== (fr.hora_inicio % 1440) || fin !== (fr.hora_fin % 1440)) {
+      avisos.push(`${sector}, columna ${idx + 1}: el encabezado dice "${texto}" pero se cargaría como "${fr.nombre}"`);
+    }
+  }
+  return avisos;
+}
+
 function planillaParseSector(worksheet, sector, anio, mes, perfiles) {
   const meta = PLANILLA_SECTOR_META[sector];
   const colMap = PLANILLA_COL_MAP[sector];
@@ -2148,6 +2179,13 @@ async function planillaProcesarArchivo(file) {
     const todosLosIssues = [];
     const todosLosResueltos = [];
     const hojasFaltantes = [];
+    const avisosEncabezado = [];
+    let franjasPorId = null;
+    try {
+      const frs = await sbCoord('franjas_horarias?select=id,nombre,hora_inicio,hora_fin');
+      franjasPorId = {};
+      for (const fr of (frs || [])) franjasPorId[fr.id] = fr;
+    } catch (e) { franjasPorId = null; } // sin franjas no se puede comparar; la carga sigue igual que antes
 
     for (const sector of PLANILLA_SECTORES) {
       const ws = wb.getWorksheet(sector);
@@ -2162,6 +2200,7 @@ async function planillaProcesarArchivo(file) {
 
       turnosPorSector[sector] = turnos;
       hojasPorSector[sector] = planillaGenerarHojaVisual(ws, sector, anio, mes);
+      try { avisosEncabezado.push(...planillaVerificarEncabezados(ws, sector, franjasPorId)); } catch (e) { /* la verificacion nunca frena la carga */ }
 
       totalTurnos += turnos.length;
       totalIssues += issues.length;
@@ -2198,6 +2237,14 @@ async function planillaProcesarArchivo(file) {
       btnConfirmar.disabled = true;
     }
 
+    if (avisosEncabezado.length > 0) {
+      erroresEl.style.display = 'block';
+      erroresEl.innerHTML += (erroresEl.innerHTML ? '<br><br>' : '') +
+        `<b>Atención: hay columnas que no coinciden con el horario esperado.</b><br>` +
+        avisosEncabezado.map(a => escHtml(a)).join('<br>') +
+        `<br>Puede ser que la planilla de este mes tenga una columna de más o de menos. Si se carga así, esas actividades quedarían en el horario equivocado. Avisale a Claude antes de cargar.`;
+    }
+
     if (hojasFaltantes.length > 0) {
       erroresEl.style.display = 'block';
       erroresEl.innerHTML += (erroresEl.innerHTML ? '<br><br>' : '') +
@@ -2206,7 +2253,7 @@ async function planillaProcesarArchivo(file) {
       btnConfirmar.disabled = true;
     }
 
-    planillaPendiente = { turnosPorSector, hojasPorSector, anio, mes, mesTexto };
+    planillaPendiente = { turnosPorSector, hojasPorSector, anio, mes, mesTexto, avisosEncabezado };
   } catch (e) {
     resumenEl.innerHTML = `<span style="color:#d9534f;">Error procesando el archivo: ${escHtml(e.message)}</span>`;
     btnConfirmar.disabled = true;
@@ -2217,6 +2264,9 @@ async function planillaProcesarArchivo(file) {
 async function planillaConfirmarCarga() {
   if (!planillaPendiente) return;
   if (!confirm(`Vas a REEMPLAZAR todo ${planillaPendiente.mesTexto || 'el mes'} con lo de este Excel (turnos y planilla), incluidas las asignaciones hechas desde la app.\n\n¿Seguro que querés cargarlo?`)) return;
+  if (planillaPendiente.avisosEncabezado && planillaPendiente.avisosEncabezado.length > 0) {
+    if (!confirm(`OJO: ${planillaPendiente.avisosEncabezado.length} columna(s) no coinciden con el horario esperado:\n\n${planillaPendiente.avisosEncabezado.slice(0, 8).join('\n')}\n\nSi cargás así, esas actividades pueden quedar en el horario equivocado.\n\n¿Cargar igual?`)) return;
+  }
   const btnConfirmar = document.getElementById('btn-confirmar-carga-planilla');
   const resumenEl = document.getElementById('planilla-preview-resumen');
   btnConfirmar.disabled = true;
