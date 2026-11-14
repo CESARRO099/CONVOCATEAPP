@@ -577,7 +577,14 @@ let coordZoom = Number(localStorage.getItem("convocate_zoom_coord")) || 0.6;
 
 function aplicarZoomCoord() {
   const wrap = document.getElementById("coord-grilla-wrap");
-  if (wrap) wrap.style.zoom = coordZoom;
+  if (wrap) {
+    wrap.style.zoom = coordZoom;
+    // Con zoom menor a 100% una línea de 1px queda más fina que un píxel real y
+    // el navegador (sobre todo Safari en iPhone) la deja de dibujar. Se engrosa el
+    // borde en proporción inversa para que siempre se vea de ~1,25px ya achicado.
+    const grosorBorde = coordZoom < 1 ? Math.min(8, Math.round((1.25 / coordZoom) * 100) / 100) : 1;
+    wrap.style.setProperty("--bw", `${grosorBorde}px`);
+  }
   const btn = document.getElementById("btn-zoom-reset-coord");
   if (btn) btn.textContent = `${Math.round(coordZoom * 100)}%`;
   localStorage.setItem("convocate_zoom_coord", coordZoom);
@@ -1213,7 +1220,7 @@ function renderGrillaCoord() {
       const bd = celda.bd;
       const esEnc = r < first_day_row;
       const borde = esEnc ? "border:none;" :
-        `border-top:${bd.t?"1px solid #000":"none"};border-bottom:${bd.b?"1px solid #000":"none"};border-left:${bd.l?"1px solid #000":"none"};border-right:${bd.r?"1px solid #000":"none"};`;
+        `border-top:${bd.t?"var(--bw,1px) solid #000":"none"};border-bottom:${bd.b?"var(--bw,1px) solid #000":"none"};border-left:${bd.l?"var(--bw,1px) solid #000":"none"};border-right:${bd.r?"var(--bw,1px) solid #000":"none"};`;
 
       let esFilaDia = r >= first_day_row && r <= last_day_row;
       let dia = esFilaDia ? filas[r][dia_col]?.v : null;
