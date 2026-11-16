@@ -1764,12 +1764,14 @@ async function cargarDatosConvocatoria() {
         <button class="btn-confirmar" id="btn-confirmar-conv">Confirmar convocatoria</button></div>`;
       document.getElementById("btn-confirmar-conv").addEventListener("click", confirmarConvocatoria);
     } else if (miRondaSuisas) {
-      const part = miRondaSuisas.participaciones_ronda_suisas[0];
-      const restante = (part.cupo_ofrecido - part.horas_tomadas).toFixed(1);
-      const vence = new Date(miRondaSuisas.vence);
+      const textoRondas = misParticipacionesSuisas.map(r => {
+        const part = r.participaciones_ronda_suisas[0];
+        const restante = (part.cupo_ofrecido - part.horas_tomadas).toFixed(1);
+        const venceR = new Date(r.vence);
+        return `${r.grupo} (SUISAS) — tenés ${restante} hs disponibles, podés elegir hasta las ${venceR.toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" })}`;
+      }).join(" · ");
       bannerWrap.innerHTML = `<div class="banner-turno"><span class="dot"></span>
-        Es tu turno en ${miRondaSuisas.grupo} (SUISAS) — tenés ${restante} hs disponibles,
-        podés elegir hasta las ${vence.toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" })}
+        Es tu turno en ${textoRondas}
         <button class="btn-confirmar" id="btn-confirmar-conv">Confirmar convocatoria</button></div>`;
       document.getElementById("btn-confirmar-conv").addEventListener("click", confirmarConvocatoria);
     } else {
@@ -1986,8 +1988,10 @@ function misGruposHabilitadosAhora() {
   const grupos = new Set(
     procesosActivos.filter(p => p.persona_actual_id === personaActual.id).map(p => p.grupo)
   );
-  const ronda = misParticipacionesSuisas[0];
-  if (ronda) grupos.add(ronda.grupo);
+  // FIX (16 nov 2026): una persona de SUISAS puede tener su turno activo en
+  // más de una ronda a la vez (ej. TC y RESTO por tope cruzado). Antes solo
+  // se miraba la primera y quedaba habilitada únicamente en ese grupo.
+  misParticipacionesSuisas.forEach(r => grupos.add(r.grupo));
   return grupos;
 }
 
