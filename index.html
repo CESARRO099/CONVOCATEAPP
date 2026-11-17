@@ -1665,7 +1665,7 @@ async function cargarDatosConvocatoria() {
         body: JSON.stringify({ p_persona_id: personaActual.id, p_mes: `${mesActivo}-01` })
       }),
       personaActual.empresa === "SUISAS"
-        ? sb(`rondas_suisas?select=id,grupo,cupo,vence,persona_actual_id,` +
+        ? sb(`rondas_suisas?select=id,grupo,mes,cupo,vence,persona_actual_id,` +
              `participaciones_ronda_suisas!inner(cupo_ofrecido,horas_tomadas)` +
              `&estado=eq.ACTIVA&persona_actual_id=eq.${personaActual.id}` +
              `&participaciones_ronda_suisas.persona_id=eq.${personaActual.id}`)
@@ -1676,6 +1676,25 @@ async function cargarDatosConvocatoria() {
 
     feriadosSet = new Set((feriados || []).map(f => f.fecha));
     misParticipacionesSuisas = misRondasSuisas || [];
+    // FIX (16 nov 2026): desde la 2da vuelta, cupo_ofrecido de cada vuelta son solo las
+    // horas NUEVAS, pero horas_tomadas es el acumulado del grupo. El tope real es la suma
+    // de los cupos de todas las vueltas (igual que tomar_turno), si no se mostraba
+    // "44 / 20 hs" y horas disponibles negativas.
+    if (personaActual.empresa === "SUISAS" && misParticipacionesSuisas.length) {
+      try {
+        const todasPart = await sb(`participaciones_ronda_suisas?select=cupo_ofrecido,rondas_suisas!inner(grupo,mes)&persona_id=eq.${personaActual.id}`);
+        const totalPorGrupoMes = {};
+        (todasPart || []).forEach(x => {
+          const k = `${x.rondas_suisas.grupo}|${x.rondas_suisas.mes}`;
+          totalPorGrupoMes[k] = (totalPorGrupoMes[k] || 0) + (Number(x.cupo_ofrecido) || 0);
+        });
+        misParticipacionesSuisas.forEach(r => {
+          const part = r.participaciones_ronda_suisas?.[0];
+          const tot = totalPorGrupoMes[`${r.grupo}|${r.mes}`];
+          if (part && tot) part.cupo_ofrecido = tot;
+        });
+      } catch (e) { /* si falla, queda el cupo de la vuelta actual */ }
+    }
     misSectoresHabilitados = new Set((misHabilitaciones || []).map(h => h.sectores?.nombre).filter(Boolean));
     sectoresPorNombre = {};
     for (const s of sectores) {
