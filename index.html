@@ -1045,7 +1045,17 @@ async function cargarSelectorMeses() {
       meses.push(mesStr);
       mes++; if (mes > 12) { mes = 1; anio++; }
     }
-    mesesPublicadosDisponibles = meses.slice(-3); // tope de seguridad, últimos 3
+    // FIX (17 nov 2026, a pedido de César): al cargar febrero, noviembre
+    // (todavía en curso) desaparecía de las pestañas porque solo se
+    // mostraban los últimos 3 meses con turnos. Ahora el mes real de hoy
+    // (hora de Uruguay) se mantiene visible hasta que termina; si no
+    // entra en los últimos 3, se muestran 4 pestañas.
+    const hoyUy = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Montevideo" }).format(new Date()).slice(0, 7);
+    let visibles = meses.slice(-3); // tope de seguridad, últimos 3
+    if (meses.includes(hoyUy) && !visibles.includes(hoyUy)) {
+      visibles = [hoyUy, ...visibles];
+    }
+    mesesPublicadosDisponibles = visibles;
   } catch (e) {
     mesesPublicadosDisponibles = [];
   }
