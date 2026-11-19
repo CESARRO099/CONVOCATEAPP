@@ -280,6 +280,44 @@
   }
   #btn-tema:active{ opacity:0.8; }
 
+  /* Campanita de "Mis notificaciones": al lado del botón de tema, solo se
+     ve con una persona logueada. Suena (se balancea) cada pocos segundos;
+     si hay notificaciones sin leer suena más seguido y muestra un globito
+     con la cantidad. */
+  #btn-campana{
+    position:fixed; top:14px; right:58px; z-index:60;
+    width:36px; height:36px; border-radius:50%;
+    border:1px solid var(--line); background:var(--surface); color:var(--ink);
+    display:none; align-items:center; justify-content:center;
+    cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,0.12); padding:0;
+  }
+  #btn-campana.visible{ display:flex; }
+  #btn-campana:active{ opacity:0.8; }
+  #btn-campana svg{ width:20px; height:20px; transform-origin:50% 12%; animation:campana-sonar 5s ease-in-out infinite; }
+  #btn-campana.con-nuevas{ color:var(--accent); border-color:var(--accent); }
+  #btn-campana.con-nuevas svg{ animation-duration:2.4s; }
+  #campana-globo{
+    position:absolute; top:-5px; right:-5px; min-width:17px; height:17px; padding:0 4px;
+    border-radius:9px; background:#D93025; color:#fff; font-size:0.62rem; font-weight:700;
+    display:none; align-items:center; justify-content:center; line-height:1; border:2px solid var(--surface);
+    box-sizing:content-box;
+  }
+  #btn-campana.con-nuevas #campana-globo{ display:flex; }
+  @keyframes campana-sonar{
+    0%{ transform:rotate(0); } 6%{ transform:rotate(18deg); } 12%{ transform:rotate(-16deg); }
+    18%{ transform:rotate(13deg); } 24%{ transform:rotate(-10deg); } 30%{ transform:rotate(6deg); }
+    36%{ transform:rotate(-3deg); } 42%,100%{ transform:rotate(0); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    #btn-campana svg{ animation:none; }
+  }
+  .notif-item{ border:1px solid var(--line); border-radius:10px; padding:10px 12px; text-align:left; margin-bottom:8px; }
+  .notif-item.nueva{ border-left:4px solid var(--accent); background:var(--accent-soft); }
+  .notif-titulo{ font-weight:700; font-size:0.9rem; }
+  .notif-cuerpo{ font-size:0.85rem; white-space:pre-line; margin-top:4px; color:var(--ink); }
+  .notif-hora{ font-size:0.72rem; color:var(--ink-soft); margin-top:6px; }
+  .notif-vacio{ font-size:0.85rem; color:var(--ink-soft); text-align:center; padding:12px 4px; }
+
   /* Skeleton loader: reemplaza el texto "Cargando..." por barras que
      laten suavemente, imitando la forma de la grilla de turnos mientras
      llegan los datos reales de Supabase. Solo animación de opacidad
@@ -756,6 +794,22 @@
 </script>
 
 <button id="btn-tema" aria-label="Cambiar tema" title="Cambiar tema">🌙</button>
+
+<button id="btn-campana" aria-label="Mis notificaciones" title="Mis notificaciones">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+  </svg>
+  <span id="campana-globo"></span>
+</button>
+
+<div class="modal-overlay" id="modal-notificaciones">
+  <div class="modal-box">
+    <h3>Mis notificaciones</h3>
+    <div id="notif-lista"></div>
+    <button class="btn-cancel" id="btn-cerrar-notificaciones">Cerrar</button>
+  </div>
+</div>
 
 <header class="top" id="header-top" style="display:none;"></header>
 
@@ -1573,6 +1627,7 @@ personaSelect.addEventListener("change", async (e) => {
       renderGrilla();
     };
   }
+  if (personaActual) mostrarCampana();
   // Recordar a esta persona en este dispositivo para la próxima vez
   localStorage.setItem(CLAVE_ULTIMA_PERSONA, personaId);
   actualizarBotonesCambio();
@@ -1602,6 +1657,7 @@ let intervaloChequeoTurno = null;
 
 async function chequearMiTurnoEnSilencio() {
   if (!personaActual || convocatoriaWrap.style.display === "none") return;
+  actualizarCampana();  // campanita: refresca la cantidad de notificaciones sin leer
   // No interrumpir si hay un modal abierto (ej. solicitando un cambio de turno)
   if (document.querySelector(".modal-overlay.open")) return;
   try {
@@ -1638,7 +1694,115 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
+// ---------------------------------------------------------
+// Campanita "Mis notificaciones": guarda las últimas 10 notificaciones
+// push de la persona para poder volver a leerlas. Se consulta con el mismo
+// PIN que el resto del panel. Si el PIN no sirve, se deja de consultar
+// (para no sumar intentos fallidos).
+// ---------------------------------------------------------
+const btnCampana = document.getElementById("btn-campana");
+const campanaGlobo = document.getElementById("campana-globo");
+const modalNotif = document.getElementById("modal-notificaciones");
+let notifItems = [];
+let notifPinInvalido = null;  // guarda el PIN que ya se comprobó que no sirve
+
+function formatoHoraNotif(iso) {
+  try {
+    return new Date(iso).toLocaleString("es-UY", {
+      timeZone: "America/Montevideo", weekday: "short", day: "2-digit", month: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false
+    });
+  } catch (e) { return ""; }
+}
+
+function pintarCampana() {
+  const sinLeer = notifItems.filter(n => !n.leida).length;
+  campanaGlobo.textContent = sinLeer > 9 ? "9+" : String(sinLeer);
+  btnCampana.classList.toggle("con-nuevas", sinLeer > 0);
+  btnCampana.setAttribute("aria-label", sinLeer > 0 ? `Mis notificaciones, ${sinLeer} sin leer` : "Mis notificaciones");
+}
+
+async function actualizarCampana() {
+  if (!personaActual || !personaPin || personaIdConPin !== personaActual.id || notifPinInvalido === personaPin) return false;
+  const personaId = personaActual.id;
+  const pinUsado = personaPin;
+  try {
+    const r = await sb(`rpc/mis_notificaciones`, {
+      method: "POST",
+      body: JSON.stringify({ p_persona_id: personaId, p_pin: pinUsado })
+    });
+    if (!personaActual || personaActual.id !== personaId) return false;
+    if (!r || r.ok !== true) { notifPinInvalido = pinUsado; return false; }
+    notifItems = r.items || [];
+    pintarCampana();
+    return true;
+  } catch (e) { return false; /* si falla, se reintenta en el próximo ciclo */ }
+}
+
+function mostrarCampana() {
+  notifPinInvalido = null;
+  notifItems = [];
+  pintarCampana();
+  btnCampana.classList.add("visible");
+  actualizarCampana();
+}
+
+function ocultarCampana() {
+  btnCampana.classList.remove("visible", "con-nuevas");
+  modalNotif.classList.remove("open");
+  notifItems = [];
+  notifPinInvalido = null;
+}
+
+function dibujarListaNotif(nuevasIds) {
+  const lista = document.getElementById("notif-lista");
+  lista.innerHTML = "";
+  if (!notifItems.length) {
+    const v = document.createElement("div");
+    v.className = "notif-vacio";
+    v.textContent = "Todavía no tenés notificaciones guardadas. Desde ahora se guardan las últimas 10 que te lleguen.";
+    lista.appendChild(v);
+    return;
+  }
+  notifItems.forEach(n => {
+    const d = document.createElement("div");
+    d.className = "notif-item" + (nuevasIds.has(n.id) ? " nueva" : "");
+    const t = document.createElement("div"); t.className = "notif-titulo"; t.textContent = n.titulo;
+    const c = document.createElement("div"); c.className = "notif-cuerpo"; c.textContent = n.cuerpo;
+    const h = document.createElement("div"); h.className = "notif-hora"; h.textContent = formatoHoraNotif(n.creada_en);
+    d.append(t, c, h);
+    lista.appendChild(d);
+  });
+}
+
+btnCampana.addEventListener("click", async () => {
+  if (!personaActual) return;
+  modalNotif.classList.add("open");
+  // Se muestran primero las que ya estaban cargadas y después se refresca.
+  let nuevasIds = new Set(notifItems.filter(n => !n.leida).map(n => n.id));
+  dibujarListaNotif(nuevasIds);
+  if (await actualizarCampana()) {
+    nuevasIds = new Set([...nuevasIds, ...notifItems.filter(n => !n.leida).map(n => n.id)]);
+    dibujarListaNotif(nuevasIds);
+  }
+  if (notifItems.some(n => !n.leida)) {
+    try {
+      const ok = await sb(`rpc/marcar_notificaciones_leidas`, {
+        method: "POST",
+        body: JSON.stringify({ p_persona_id: personaActual.id, p_pin: personaPin })
+      });
+      if (ok === true) {
+        notifItems = notifItems.map(n => ({ ...n, leida: true }));
+        pintarCampana();
+      }
+    } catch (e) { /* si falla, quedan como sin leer y se marcan la próxima vez */ }
+  }
+});
+document.getElementById("btn-cerrar-notificaciones").addEventListener("click", () => modalNotif.classList.remove("open"));
+modalNotif.addEventListener("click", (e) => { if (e.target === modalNotif) modalNotif.classList.remove("open"); });
+
 function cambiarUsuario() {
+  ocultarCampana();
   detenerChequeoAutomatico();
   miTurnoAnterior = false;
   localStorage.removeItem(CLAVE_ULTIMA_PERSONA);
