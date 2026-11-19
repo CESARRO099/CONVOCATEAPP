@@ -293,8 +293,11 @@
   }
   #btn-campana.visible{ display:flex; }
   #btn-campana:active{ opacity:0.8; }
-  #btn-campana svg{ width:20px; height:20px; transform-origin:50% 12%; animation:campana-sonar 5s ease-in-out infinite; }
-  #btn-campana.con-nuevas{ color:var(--accent); border-color:var(--accent); }
+  /* Campanita dorada: trazo dorado oscuro y relleno dorado claro. */
+  #btn-campana{ --oro:#B8860B; --oro-claro:#F5C842; color:var(--oro); }
+  [data-theme="dark"] #btn-campana{ --oro:#E8B923; --oro-claro:#F5C842; }
+  #btn-campana svg{ width:20px; height:20px; fill:var(--oro-claro); transform-origin:50% 12%; animation:campana-sonar 5s ease-in-out infinite; }
+  #btn-campana.con-nuevas{ color:var(--oro); border-color:var(--oro-claro); box-shadow:0 0 8px rgba(245,200,66,0.55); }
   #btn-campana.con-nuevas svg{ animation-duration:2.4s; }
   #campana-globo{
     position:absolute; top:-5px; right:-5px; min-width:17px; height:17px; padding:0 4px;
@@ -796,9 +799,9 @@
 <button id="btn-tema" aria-label="Cambiar tema" title="Cambiar tema">🌙</button>
 
 <button id="btn-campana" aria-label="Mis notificaciones" title="Mis notificaciones">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
-    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" fill="none"/>
   </svg>
   <span id="campana-globo"></span>
 </button>
