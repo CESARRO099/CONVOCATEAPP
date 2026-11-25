@@ -1109,8 +1109,18 @@ async function cargarSelectorMeses() {
     // entra en los últimos 3, se muestran 4 pestañas.
     const hoyUy = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Montevideo" }).format(new Date()).slice(0, 7);
     let visibles = meses.slice(-3); // tope de seguridad, últimos 3
-    if (meses.includes(hoyUy) && !visibles.includes(hoyUy)) {
-      visibles = [hoyUy, ...visibles];
+    if (meses.includes(hoyUy)) {
+      // FIX (25 nov 2026, a pedido de César): al cargar marzo, diciembre
+      // desaparecía de las pestañas (quedaban noviembre, enero, febrero y
+      // marzo). Ahora se muestran TODOS los meses con turnos desde el mes
+      // real de hoy en adelante, sin salteos. Los primeros 10 días del mes
+      // se mantiene también el mes anterior (hace falta para la
+      // liquidación del mes que terminó).
+      const [aH, mH] = hoyUy.split("-").map(Number);
+      const diaHoy = Number(new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Montevideo" }).format(new Date()).slice(8, 10));
+      const prev = mH === 1 ? `${aH - 1}-12` : `${aH}-${String(mH - 1).padStart(2, "0")}`;
+      const desde = (diaHoy <= 10 && meses.includes(prev)) ? prev : hoyUy;
+      visibles = meses.slice(meses.indexOf(desde));
     }
     mesesPublicadosDisponibles = visibles;
   } catch (e) {
