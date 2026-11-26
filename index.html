@@ -2869,6 +2869,13 @@ async function elegirTurno(turnoId, btn = null) {
     } else if (resultado === 'superposicion') {
       alert("Ya tenés un turno en ese mismo horario ese día.");
       await cargarDatosConvocatoria();
+    } else if (resultado === 'ya_tiene_actividad_dia') {
+      // 25 nov 2026 (César): si los horarios NO se pisan, el aviso correcto
+      // es que ya tiene una actividad asignada ese día (regla de una
+      // actividad por día para la Española). "Mismo horario" queda solo
+      // para cuando los horarios realmente se superponen.
+      alert("Ya tenés una actividad asignada ese día.");
+      await cargarDatosConvocatoria();
     } else if (resultado === 'licencia') {
       alert("No podés elegir este turno porque estás de licencia ese día.");
       await cargarDatosConvocatoria();
