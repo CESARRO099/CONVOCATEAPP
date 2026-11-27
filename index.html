@@ -2702,7 +2702,7 @@ async function renderGrilla() {
       .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.id - b.id);
     if (lactancia.length) {
       const bd = "border:var(--bw,1px) solid #000;";
-      let tn = `<table class="grilla" style="margin-top:18px;width:auto;"><tbody>`;
+      let tn = `<table class="grilla" style="margin:0 0 0 28px;width:auto;flex:0 0 auto;"><tbody>`;
       tn += `<tr><td colspan="3" style="${bd}font-weight:700;text-align:center;">COBERTURA POR NOVOA</td></tr>`;
       tn += `<tr><td style="${bd}font-weight:700;">Día</td><td style="${bd}font-weight:700;">Horario</td><td style="${bd}font-weight:700;">Apellido</td></tr>`;
       for (const t of lactancia) {
@@ -2730,7 +2730,8 @@ async function renderGrilla() {
         tn += `<tr><td style="${bd}text-align:center;">${dia}</td><td style="${bd}">${escHtml(horario)}</td><td style="${bd}" class="${clases}">${contenido}</td></tr>`;
       }
       tn += `</tbody></table>`;
-      html += tn;
+      // A un costado de la grilla (como en la planilla), no debajo.
+      html = `<div style="display:flex;align-items:flex-start;width:max-content;">${html}${tn}</div>`;
     }
   }
   grillaWrap.innerHTML = html;
