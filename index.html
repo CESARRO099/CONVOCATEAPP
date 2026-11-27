@@ -2421,12 +2421,88 @@ async function renderGrilla() {
   ]);
   const necesitaEspaciador = sectoresConEspaciador.has(sectorActual);
 
+  // NUEVO (27 nov 2026, a pedido de Cesar): tabla "COBERTURA POR NOVOA" dentro
+  // de la hoja de GUARDIA, a la derecha de la grilla y justo debajo de las
+  // notas de licencias (VEDIA LA, SILVA LA, etc.), como en la planilla. La
+  // lactancia de Novoa no tiene casillero en las 4 columnas de la guardia,
+  // asi que se lista aparte (Dia / Horario / Apellido) en un bloque de celdas
+  // vacias de esa zona. Desde marzo 2027 esos turnos son exclusivos de SUISAS
+  // (misma fecha que la regla turno_bse_solo_suisas en la base): solo la
+  // persona de SUISAS que tiene la ronda ve "Elegir"; el resto ve "SUISAS".
+  // Antes de esa fecha es solo informativa (se cubre por convocatoria).
+  let novoa = null; // { r, c, rowspan, colspan, html }
+  if (sectorActual === "GUARDIA") {
+    const NOVOA_SOLO_SUISAS_DESDE = "2027-03-01";
+    const lactancia = turnosDelMes
+      .filter(t => t.franjas_horarias?.sectores?.nombre === "GUARDIA"
+        && (t.franjas_horarias?.nombre || "").trim().toUpperCase().startsWith("LACTANCIA"))
+      .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.id - b.id);
+    if (lactancia.length) {
+      // Zona de notas: columnas a la derecha de las 4 de datos, filas de arriba.
+      let cNota = null, rUltNota = first_day_row - 1;
+      for (let r = first_day_row; r < Math.min(first_day_row + 20, filas.length); r++) {
+        for (let c = dia_col + 5; c < totalCols; c++) {
+          if (String(filas[r][c]?.v ?? "").trim()) {
+            if (cNota === null || c < cNota) cNota = c;
+            if (r > rUltNota) rUltNota = r;
+          }
+        }
+      }
+      if (cNota === null) cNota = Math.max(dia_col + 5, totalCols - 2);
+      const rAncla = rUltNota + 2;
+      const filasBloque = lactancia.length + 2;
+      if (rAncla + filasBloque <= filas.length) {
+        const bd = "border:var(--bw,1px) solid #000;";
+        let tn = `<table class="grilla" style="width:100%;table-layout:auto;"><tbody>`;
+        tn += `<tr><td colspan="3" style="${bd}font-weight:700;text-align:center;">COBERTURA POR NOVOA</td></tr>`;
+        tn += `<tr><td style="${bd}font-weight:700;">Día</td><td style="${bd}font-weight:700;">Horario</td><td style="${bd}font-weight:700;">Apellido</td></tr>`;
+        for (const t of lactancia) {
+          const diaN = Number(t.fecha.slice(8, 10));
+          const horario = (t.franjas_horarias.nombre || "").replace(/^\s*LACTANCIA\s*/i, "").trim();
+          const soloSuisas = t.fecha >= NOVOA_SOLO_SUISAS_DESDE;
+          const esSuisas = personaActual?.empresa === "SUISAS";
+          let contenidoN, clasesN = "";
+          if (t.persona_id || t.nombre_externo) {
+            const esPropio = t.persona_id === personaActual?.id;
+            if (esPropio && puedoElegirAca) {
+              contenidoN = `<button class="btn-rechazar" data-turno-id="${t.id}">Rechazar</button>`;
+            } else {
+              contenidoN = t.perfiles ? nombreAsignado(t.perfiles) : sinTildes(t.nombre_externo).toUpperCase();
+            }
+          } else if (puedoElegirAca && soloSuisas && esSuisas) {
+            contenidoN = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
+          } else if (soloSuisas) {
+            contenidoN = "SUISAS";
+            clasesN = "suisas-directo-texto";
+          } else {
+            contenidoN = "LIBRE";
+            clasesN = "libre-texto";
+          }
+          tn += `<tr><td style="${bd}text-align:center;">${diaN}</td><td style="${bd}">${escHtml(horario)}</td><td style="${bd}" class="${clasesN}">${contenidoN}</td></tr>`;
+        }
+        tn += `</tbody></table>`;
+        novoa = { r: rAncla, c: cNota, rowspan: filasBloque, colspan: totalCols - cNota, html: tn };
+      }
+    }
+  }
+
   // Marcar que celdas quedan "cubiertas" por una combinacion (merge), y el
   // tamaño de colspan/rowspan que corresponde al ancla de cada combinacion
   const cubierta = new Set();
   const ancla = {}; // "r-c" -> {rowspan, colspan}
+  if (novoa) {
+    ancla[`${novoa.r}-${novoa.c}`] = { rowspan: novoa.rowspan, colspan: novoa.colspan };
+    for (let r = novoa.r; r < novoa.r + novoa.rowspan; r++) {
+      for (let c = novoa.c; c < novoa.c + novoa.colspan; c++) {
+        if (r === novoa.r && c === novoa.c) continue;
+        cubierta.add(`${r}-${c}`);
+      }
+    }
+  }
   for (const m of merges) {
     const r1 = m.r1 - 1, c1 = m.c1 - 1, r2 = m.r2 - 1, c2 = m.c2 - 1;
+    // Combinaciones (vacias) que caen dentro del bloque de Novoa: se ignoran.
+    if (novoa && r1 >= novoa.r && r2 < novoa.r + novoa.rowspan && c1 >= novoa.c) continue;
     ancla[`${r1}-${c1}`] = { rowspan: r2 - r1 + 1, colspan: c2 - c1 + 1 };
     for (let r = r1; r <= r2; r++) {
       for (let c = c1; c <= c2; c++) {
@@ -2467,6 +2543,10 @@ async function renderGrilla() {
       const celda = filas[r][c];
       const span = ancla[`${r}-${c}`];
       const attrs = span ? ` rowspan="${span.rowspan}" colspan="${span.colspan}"` : "";
+      if (novoa && r === novoa.r && c === novoa.c) {
+        html += `<td${attrs} style="border:none;vertical-align:top;padding:0;">${novoa.html}</td>`;
+        continue;
+      }
       const bd = celda.bd;
       const esEncabezado = r < first_day_row;
       const borderStyle = esEncabezado
@@ -2686,54 +2766,6 @@ async function renderGrilla() {
   html += `<tr><td colspan="${colspanEspaciadorFinal}" style="border:none;"></td></tr>`;
   html += `</tbody></table>`;
 
-  // NUEVO (27 nov 2026, a pedido de Cesar): tabla aparte "COBERTURA POR NOVOA"
-  // debajo de la grilla de GUARDIA, igual que en la planilla de diciembre. La
-  // lactancia de Novoa (franjas "LACTANCIA ...") no tiene casillero en las 4
-  // columnas de la guardia, asi que se lista aparte: Dia / Horario / Apellido.
-  // Desde marzo 2027 esos turnos son exclusivos de SUISAS (misma fecha que la
-  // regla turno_bse_solo_suisas en la base): solo la persona de SUISAS que
-  // tiene la ronda ve "Elegir"; el resto ve "SUISAS". Antes de esa fecha son
-  // solo informativos (se cubren por convocatoria, no por Elegir).
-  if (sectorActual === "GUARDIA") {
-    const NOVOA_SOLO_SUISAS_DESDE = "2027-03-01";
-    const lactancia = turnosDelMes
-      .filter(t => t.franjas_horarias?.sectores?.nombre === "GUARDIA"
-        && (t.franjas_horarias?.nombre || "").trim().toUpperCase().startsWith("LACTANCIA"))
-      .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.id - b.id);
-    if (lactancia.length) {
-      const bd = "border:var(--bw,1px) solid #000;";
-      let tn = `<table class="grilla" style="margin:0 0 0 28px;width:auto;flex:0 0 auto;"><tbody>`;
-      tn += `<tr><td colspan="3" style="${bd}font-weight:700;text-align:center;">COBERTURA POR NOVOA</td></tr>`;
-      tn += `<tr><td style="${bd}font-weight:700;">Día</td><td style="${bd}font-weight:700;">Horario</td><td style="${bd}font-weight:700;">Apellido</td></tr>`;
-      for (const t of lactancia) {
-        const dia = Number(t.fecha.slice(8, 10));
-        const horario = (t.franjas_horarias.nombre || "").replace(/^\s*LACTANCIA\s*/i, "").trim();
-        const soloSuisas = t.fecha >= NOVOA_SOLO_SUISAS_DESDE;
-        const esSuisas = personaActual?.empresa === "SUISAS";
-        let contenido, clases = "";
-        if (t.persona_id || t.nombre_externo) {
-          const esPropio = t.persona_id === personaActual?.id;
-          if (esPropio && puedoElegirAca) {
-            contenido = `<button class="btn-rechazar" data-turno-id="${t.id}">Rechazar</button>`;
-          } else {
-            contenido = t.perfiles ? nombreAsignado(t.perfiles) : sinTildes(t.nombre_externo).toUpperCase();
-          }
-        } else if (puedoElegirAca && soloSuisas && esSuisas) {
-          contenido = `<button class="btn-elegir" data-turno-id="${t.id}">Elegir</button>`;
-        } else if (soloSuisas) {
-          contenido = "SUISAS";
-          clases = "suisas-directo-texto";
-        } else {
-          contenido = "LIBRE";
-          clases = "libre-texto";
-        }
-        tn += `<tr><td style="${bd}text-align:center;">${dia}</td><td style="${bd}">${escHtml(horario)}</td><td style="${bd}" class="${clases}">${contenido}</td></tr>`;
-      }
-      tn += `</tbody></table>`;
-      // A un costado de la grilla (como en la planilla), no debajo.
-      html = `<div style="display:flex;align-items:flex-start;width:max-content;">${html}${tn}</div>`;
-    }
-  }
   grillaWrap.innerHTML = html;
 
   grillaWrap.querySelectorAll(".btn-elegir").forEach(btn => {
